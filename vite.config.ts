@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: "/DWTools/",
   server: {
     cors: {
       origin: "https://www.owlbear.rodeo",
