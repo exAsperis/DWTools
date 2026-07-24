@@ -37,15 +37,14 @@ function overlayBase<T extends ReturnType<typeof buildShape> | ReturnType<typeof
   builder: T,
   token: Item,
   visible: boolean,
-  zIndex: number,
+  layer: "ATTACHMENT" | "TEXT",
 ): T {
   return builder
     .attachedTo(token.id)
-    .layer("ATTACHMENT")
+    .layer(layer)
     .locked(true)
     .disableHit(true)
-    .disableAutoZIndex(true)
-    .zIndex(zIndex)
+    .disableAttachmentBehavior(["SCALE"])
     .visible(visible) as T;
 }
 
@@ -59,9 +58,8 @@ function buildBackground(
   visible: boolean,
   color = "#18181b",
   opacity = 0.82,
-  zIndex = 10,
 ) {
-  return overlayBase(buildShape(), token, visible, zIndex)
+  return overlayBase(buildShape(), token, visible, "ATTACHMENT")
     .name(`DWTools ${role}`)
     .position(position)
     .width(width)
@@ -84,9 +82,8 @@ function buildOverlayText(
   height: number,
   fontSize: number,
   visible: boolean,
-  zIndex = 30,
 ) {
-  return overlayBase(buildText(), token, visible, zIndex)
+  return overlayBase(buildText(), token, visible, "TEXT")
     .name(`DWTools ${role}`)
     .position(position)
     .plainText(text)
@@ -119,21 +116,21 @@ function buildOverlayItems(
   const fontSize = overlayWidth * 0.105;
   const left = bounds.center.x - overlayWidth / 2;
   const bottomInset = overlayWidth * 0.07;
-  const hpY = bounds.max.y - bottomInset - hpHeight;
-  const rowY = hpY - gap - rowHeight;
+  const hpY = bounds.max.y - bottomInset - hpHeight / 2;
+  const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
   const visible = data.visibleToPlayers !== false;
 
   const eyeWidth = overlayWidth * 0.19;
   const armorWidth = overlayWidth * 0.25;
   const damageWidth = overlayWidth - eyeWidth - armorWidth - gap * 2;
-  const eyeX = left;
-  const armorX = eyeX + eyeWidth + gap;
-  const damageX = armorX + armorWidth + gap;
+  const eyeX = left + eyeWidth / 2;
+  const armorX = left + eyeWidth + gap + armorWidth / 2;
+  const damageX = left + eyeWidth + gap + armorWidth + gap + damageWidth / 2;
   const hpPercent = data.hpMax && data.hpMax > 0
     ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
     : 0;
   const fillWidth = overlayWidth * hpPercent;
-  const fillX = left;
+  const fillX = left + fillWidth / 2;
 
   const armorText = `◆${data.armor ?? "—"}`;
   const damageText = `⚄${data.damage ?? "—"}`;
@@ -146,11 +143,11 @@ function buildOverlayItems(
     buildOverlayText(token, "armor", renderKey, armorText, { x: armorX, y: rowY }, armorWidth, rowHeight, fontSize, visible),
     buildBackground(token, "damage-bg", renderKey, { x: damageX, y: rowY }, damageWidth, rowHeight, visible),
     buildOverlayText(token, "damage", renderKey, damageText, { x: damageX, y: rowY }, damageWidth, rowHeight, fontSize * 0.9, visible),
-    buildBackground(token, "hp-bg", renderKey, { x: left, y: hpY }, overlayWidth, hpHeight, visible, "#27272a", 0.88, 10),
+    buildBackground(token, "hp-bg", renderKey, { x: bounds.center.x, y: hpY }, overlayWidth, hpHeight, visible, "#27272a", 0.88),
     ...(fillWidth > 0
-      ? [buildBackground(token, "hp-fill", renderKey, { x: fillX, y: hpY }, fillWidth, hpHeight, visible, hpColor(hpPercent), 0.96, 20)]
+      ? [buildBackground(token, "hp-fill", renderKey, { x: fillX, y: hpY }, fillWidth, hpHeight, visible, hpColor(hpPercent), 0.96)]
       : []),
-    buildOverlayText(token, "hp", renderKey, hpText, { x: left, y: hpY }, overlayWidth, hpHeight, fontSize, visible, 30),
+    buildOverlayText(token, "hp", renderKey, hpText, { x: bounds.center.x, y: hpY }, overlayWidth, hpHeight, fontSize, visible),
   ];
 }
 
@@ -170,12 +167,13 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
   }
 
   const renderKey = JSON.stringify({
-    layout: 2,
+    layout: 3,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,
     damage: data.damage,
     visibleToPlayers: data.visibleToPlayers !== false,
+    tokenScale: token.scale,
   });
   const currentRoles = new Set(displays.map((item) => item.metadata[DISPLAY_ROLE_KEY]));
   const expectedRoleCount = (data.hpMax ?? 0) > 0 && (data.hpCurrent ?? 0) > 0 ? 9 : 8;
