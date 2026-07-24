@@ -42,9 +42,14 @@ function label(
   visible: boolean,
   backgroundOpacity = 0.82,
 ) {
+  // Owlbear labels are positioned by the tip of their bottom pointer rather
+  // than by their visual center. With a zero-height pointer, offset the anchor
+  // by half the label body so the requested y coordinate remains its center.
+  const labelBodyHeight = fontSize * 1.64;
+
   return common(buildLabel(), token, visible)
     .name(`DWTools ${role}`)
-    .position({ x, y })
+    .position({ x, y: y + labelBodyHeight / 2 })
     .plainText(text)
     .padding(fontSize * 0.22)
     .fontSize(fontSize)
@@ -58,6 +63,8 @@ function label(
     .backgroundColor("#18181b")
     .backgroundOpacity(backgroundOpacity)
     .cornerRadius(fontSize * 0.35)
+    .pointerWidth(0)
+    .pointerHeight(0)
     .minViewScale(1)
     .maxViewScale(1)
     .metadata(metadata(role, renderKey))
