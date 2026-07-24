@@ -37,12 +37,15 @@ function overlayBase<T extends ReturnType<typeof buildShape> | ReturnType<typeof
   builder: T,
   token: Item,
   visible: boolean,
+  zIndex: number,
 ): T {
   return builder
     .attachedTo(token.id)
     .layer("ATTACHMENT")
     .locked(true)
     .disableHit(true)
+    .disableAutoZIndex(true)
+    .zIndex(zIndex)
     .visible(visible) as T;
 }
 
@@ -56,8 +59,9 @@ function buildBackground(
   visible: boolean,
   color = "#18181b",
   opacity = 0.82,
+  zIndex = 10,
 ) {
-  return overlayBase(buildShape(), token, visible)
+  return overlayBase(buildShape(), token, visible, zIndex)
     .name(`DWTools ${role}`)
     .position(position)
     .width(width)
@@ -80,8 +84,9 @@ function buildOverlayText(
   height: number,
   fontSize: number,
   visible: boolean,
+  zIndex = 30,
 ) {
-  return overlayBase(buildText(), token, visible)
+  return overlayBase(buildText(), token, visible, zIndex)
     .name(`DWTools ${role}`)
     .position(position)
     .plainText(text)
@@ -107,44 +112,45 @@ function buildOverlayItems(
   renderKey: string,
 ): Item[] {
   const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
-  const overlayWidth = tokenWidth * 0.92;
+  const overlayWidth = tokenWidth * 0.86;
   const gap = overlayWidth * 0.018;
   const rowHeight = overlayWidth * 0.15;
   const hpHeight = overlayWidth * 0.13;
   const fontSize = overlayWidth * 0.105;
   const left = bounds.center.x - overlayWidth / 2;
-  const hpY = bounds.max.y - hpHeight * 0.45;
-  const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
+  const bottomInset = overlayWidth * 0.07;
+  const hpY = bounds.max.y - bottomInset - hpHeight;
+  const rowY = hpY - gap - rowHeight;
   const visible = data.visibleToPlayers !== false;
 
   const eyeWidth = overlayWidth * 0.19;
   const armorWidth = overlayWidth * 0.25;
   const damageWidth = overlayWidth - eyeWidth - armorWidth - gap * 2;
-  const eyeX = left + eyeWidth / 2;
-  const armorX = left + eyeWidth + gap + armorWidth / 2;
-  const damageX = left + eyeWidth + gap + armorWidth + gap + damageWidth / 2;
+  const eyeX = left;
+  const armorX = eyeX + eyeWidth + gap;
+  const damageX = armorX + armorWidth + gap;
   const hpPercent = data.hpMax && data.hpMax > 0
     ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
     : 0;
   const fillWidth = overlayWidth * hpPercent;
-  const fillX = left + fillWidth / 2;
+  const fillX = left;
 
-  const armorText = `🛡${data.armor ?? "—"}`;
-  const damageText = `🎲${data.damage ?? "—"}`;
+  const armorText = `◆${data.armor ?? "—"}`;
+  const damageText = `⚄${data.damage ?? "—"}`;
   const hpText = `${data.hpCurrent ?? "—"}/${data.hpMax ?? "—"}`;
 
   return [
     buildBackground(token, "visibility-bg", renderKey, { x: eyeX, y: rowY }, eyeWidth, rowHeight, visible),
-    buildOverlayText(token, "visibility", renderKey, visible ? "👁" : "⊘", { x: eyeX, y: rowY }, eyeWidth, rowHeight, fontSize, visible),
+    buildOverlayText(token, "visibility", renderKey, visible ? "◉" : "⊘", { x: eyeX, y: rowY }, eyeWidth, rowHeight, fontSize, visible),
     buildBackground(token, "armor-bg", renderKey, { x: armorX, y: rowY }, armorWidth, rowHeight, visible),
     buildOverlayText(token, "armor", renderKey, armorText, { x: armorX, y: rowY }, armorWidth, rowHeight, fontSize, visible),
     buildBackground(token, "damage-bg", renderKey, { x: damageX, y: rowY }, damageWidth, rowHeight, visible),
     buildOverlayText(token, "damage", renderKey, damageText, { x: damageX, y: rowY }, damageWidth, rowHeight, fontSize * 0.9, visible),
-    buildBackground(token, "hp-bg", renderKey, { x: bounds.center.x, y: hpY }, overlayWidth, hpHeight, visible, "#27272a", 0.88),
+    buildBackground(token, "hp-bg", renderKey, { x: left, y: hpY }, overlayWidth, hpHeight, visible, "#27272a", 0.88, 10),
     ...(fillWidth > 0
-      ? [buildBackground(token, "hp-fill", renderKey, { x: fillX, y: hpY }, fillWidth, hpHeight, visible, hpColor(hpPercent), 0.96)]
+      ? [buildBackground(token, "hp-fill", renderKey, { x: fillX, y: hpY }, fillWidth, hpHeight, visible, hpColor(hpPercent), 0.96, 20)]
       : []),
-    buildOverlayText(token, "hp", renderKey, hpText, { x: bounds.center.x, y: hpY }, overlayWidth, hpHeight, fontSize, visible),
+    buildOverlayText(token, "hp", renderKey, hpText, { x: left, y: hpY }, overlayWidth, hpHeight, fontSize, visible, 30),
   ];
 }
 
@@ -164,6 +170,7 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
   }
 
   const renderKey = JSON.stringify({
+    layout: 2,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,
