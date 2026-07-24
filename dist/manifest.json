@@ -1,12 +1,12 @@
 {
-  "name": "Dungeon World Creatures",
+  "name": "DWTools",
   "version": "0.1.0",
   "manifest_version": 1,
   "description": "Dungeon World HP, armor, damage, moves, instinct, and treasure for character tokens.",
   "author": "Bryan",
   "icon": "/DWTools/icon.svg",
   "action": {
-    "title": "Dungeon World Creatures",
+    "title": "DWTools",
     "icon": "/DWTools/icon.svg",
     "popover": "/DWTools/",
     "height": 620,

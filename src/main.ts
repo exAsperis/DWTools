@@ -36,7 +36,7 @@ function renderHome() {
   app.innerHTML = `
     <section class="home">
       <div class="crest">DW</div>
-      <h1>Dungeon World Creatures</h1>
+      <h1>DWTools</h1>
       <p>Right-click a character token to add or edit its creature stats.</p>
       <div class="sample"><strong>HP 7/10</strong> &nbsp;███████░░░<br><strong>ARM 1</strong> &nbsp; DMG d8+2</div>
       <p class="muted">The editor and quick HP controls are available to the GM.</p>
@@ -48,7 +48,7 @@ function renderEditor(token: Item, data: CreatureData) {
   app.innerHTML = `
     <form id="creature-form" class="editor">
       <header>
-        <div><p class="eyebrow">Dungeon World creature</p><h1>${escapeHtml(token.name || "Unnamed token")}</h1></div>
+        <div><p class="eyebrow">DWTools creature</p><h1>${escapeHtml(token.name || "Unnamed token")}</h1></div>
         <button class="icon-button" type="button" id="close" aria-label="Close">×</button>
       </header>
       <div class="hp-row">

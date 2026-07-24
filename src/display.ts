@@ -53,7 +53,7 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
 
   const bounds = await OBR.scene.items.getItemBounds([token.id]);
   const label = buildLabel()
-    .name("Dungeon World creature stats")
+    .name("DWTools creature stats")
     .plainText(text)
     .position({ x: bounds.center.x, y: bounds.max.y + 12 })
     .attachedTo(token.id)

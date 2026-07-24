@@ -1,4 +1,4 @@
-# Dungeon World Creatures for Owlbear Rodeo
+# DWTools for Owlbear Rodeo
 
 A minimal Owlbear Rodeo extension for keeping Dungeon World creature information on character tokens.
 

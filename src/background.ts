@@ -1,6 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { CREATURE_KEY, EDIT_POPOVER_ID, EXTENSION_ID, isCreatureData } from "./constants";
-import { formatDamageResult, parseDamage, rollDamage } from "./damage";
+import { EXTENSION_ID } from "./constants";
 import { syncAllDisplays, syncCreatureDisplay } from "./display";
 
 const characterFilter = {
@@ -14,63 +13,17 @@ const characterFilter = {
 const extensionUrl = new URL("./", window.location.href);
 const assetUrl = (path: string) => new URL(path, extensionUrl).toString();
 
-async function openEditor(itemId: string, elementId: string, view = "edit") {
-  const url = new URL(extensionUrl);
-  url.searchParams.set("itemId", itemId);
-  url.searchParams.set("view", view);
-  await OBR.popover.open({
-    id: EDIT_POPOVER_ID,
-    url: url.toString(),
-    height: view === "hp" ? 300 : 620,
-    width: 390,
-    anchorElementId: elementId,
-  });
-}
-
 function setupContextMenus() {
   OBR.contextMenu.create({
-    id: `${EXTENSION_ID}/edit`,
-    icons: [{ icon: assetUrl("edit.svg"), label: "Edit Dungeon World creature", filter: characterFilter }],
-    onClick(context, elementId) {
-      void openEditor(context.items[0].id, elementId);
-    },
-  });
-
-  OBR.contextMenu.create({
-    id: `${EXTENSION_ID}/hp`,
+    id: `${EXTENSION_ID}/menu`,
     icons: [{
-      icon: assetUrl("heart.svg"),
-      label: "Adjust HP",
-      filter: {
-        ...characterFilter,
-        every: [{ key: "layer", value: "CHARACTER" }],
-      },
-    }],
-    onClick(context, elementId) {
-      void openEditor(context.items[0].id, elementId, "hp");
-    },
-  });
-
-  OBR.contextMenu.create({
-    id: `${EXTENSION_ID}/roll`,
-    icons: [{
-      icon: assetUrl("dice.svg"),
-      label: "Roll damage",
+      icon: assetUrl("icon.svg"),
+      label: "DWTools",
       filter: characterFilter,
     }],
-    onClick(context) {
-      const data = context.items[0].metadata[CREATURE_KEY];
-      const damage = isCreatureData(data) ? data.damage?.trim() : undefined;
-      if (!damage) {
-        void OBR.notification.show("This creature has no damage expression.", "WARNING");
-        return;
-      }
-      const parsed = parseDamage(damage);
-      if (!parsed) {
-        void OBR.notification.show(`Unsupported damage expression: ${damage}`, "ERROR");
-        return;
-      }
-      void OBR.notification.show(formatDamageResult(damage, rollDamage(parsed)), "SUCCESS");
+    embed: {
+      url: assetUrl("context-menu.html"),
+      height: 360,
     },
   });
 }
