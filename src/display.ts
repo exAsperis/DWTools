@@ -1,19 +1,9 @@
-import OBR, { buildShape, buildText, type Item } from "@owlbear-rodeo/sdk";
+import OBR, { buildImage, type Item } from "@owlbear-rodeo/sdk";
 import { CREATURE_KEY, DISPLAY_KEY, isCreatureData, type CreatureData } from "./constants";
 
-type OverlayRole =
-  | "visibility-bg"
-  | "visibility"
-  | "armor-bg"
-  | "armor"
-  | "damage-bg"
-  | "damage"
-  | "hp-bg"
-  | "hp-fill"
-  | "hp";
-
-const DISPLAY_ROLE_KEY = `${DISPLAY_KEY}/role`;
 const DISPLAY_RENDER_KEY = `${DISPLAY_KEY}/render`;
+const SVG_WIDTH = 860;
+const SVG_HEIGHT = 245;
 
 function isDisplay(item: Item): boolean {
   return item.metadata[DISPLAY_KEY] === true;
@@ -25,130 +15,82 @@ function hpColor(percent: number): string {
   return "#b91c1c";
 }
 
-function overlayMetadata(role: OverlayRole, renderKey: string) {
-  return {
-    [DISPLAY_KEY]: true,
-    [DISPLAY_ROLE_KEY]: role,
-    [DISPLAY_RENDER_KEY]: renderKey,
-  };
+function escapeXml(value: string | number | undefined): string {
+  if (value === undefined || value === "") return "—";
+  return String(value).replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&apos;",
+    '"': "&quot;",
+  })[character]!);
 }
 
-function overlayBase<T extends ReturnType<typeof buildShape> | ReturnType<typeof buildText>>(
-  builder: T,
-  token: Item,
-  visible: boolean,
-  layer: "ATTACHMENT" | "TEXT",
-): T {
-  return builder
-    .attachedTo(token.id)
-    .layer(layer)
-    .locked(true)
-    .disableHit(true)
-    .disableAttachmentBehavior(["SCALE"])
-    .visible(visible) as T;
+function buildOverlaySvg(data: CreatureData): string {
+  const hpPercent = data.hpMax && data.hpMax > 0
+    ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
+    : 0;
+  const fillWidth = Math.round(SVG_WIDTH * hpPercent);
+  const visible = data.visibleToPlayers !== false;
+  const armor = escapeXml(data.armor);
+  const damage = escapeXml(data.damage);
+  const hp = `${escapeXml(data.hpCurrent)}/${escapeXml(data.hpMax)}`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${SVG_WIDTH}" height="${SVG_HEIGHT}" viewBox="0 0 ${SVG_WIDTH} ${SVG_HEIGHT}">
+  <g font-family="Arial,Helvetica,sans-serif" font-weight="700" fill="#fff">
+    <rect x="0" y="0" width="150" height="120" rx="28" fill="#18181b" fill-opacity=".82"/>
+    <rect x="165" y="0" width="200" height="120" rx="28" fill="#18181b" fill-opacity=".82"/>
+    <rect x="380" y="0" width="480" height="120" rx="28" fill="#18181b" fill-opacity=".82"/>
+    ${visible
+      ? '<path d="M30 60c25-34 65-34 90 0-25 34-65 34-90 0Z" fill="none" stroke="#fff" stroke-width="10"/><circle cx="75" cy="60" r="17"/>'
+      : '<path d="M30 60c25-34 65-34 90 0-25 34-65 34-90 0Z" fill="none" stroke="#fff" stroke-width="10"/><path d="M24 18l102 84" stroke="#fff" stroke-width="12" stroke-linecap="round"/>'}
+    <path d="M207 25h116v45c0 28-22 45-58 58-36-13-58-30-58-58Z" fill="none" stroke="#fff" stroke-width="9"/>
+    <text x="265" y="72" text-anchor="middle" dominant-baseline="middle" font-size="50">${armor}</text>
+    <rect x="415" y="25" width="72" height="72" rx="14" fill="none" stroke="#fff" stroke-width="8"/>
+    <circle cx="437" cy="47" r="6"/><circle cx="465" cy="47" r="6"/><circle cx="451" cy="61" r="6"/><circle cx="437" cy="77" r="6"/><circle cx="465" cy="77" r="6"/>
+    <text x="505" y="64" dominant-baseline="middle" font-size="48">${damage}</text>
+    <rect x="0" y="135" width="${SVG_WIDTH}" height="110" rx="30" fill="#27272a" fill-opacity=".88"/>
+    ${fillWidth > 0 ? `<rect x="0" y="135" width="${fillWidth}" height="110" rx="30" fill="${hpColor(hpPercent)}" fill-opacity=".96"/>` : ""}
+    <text x="430" y="194" text-anchor="middle" dominant-baseline="middle" font-size="58" stroke="#000" stroke-opacity=".5" stroke-width="5" paint-order="stroke">${hp}</text>
+  </g>
+</svg>`;
 }
 
-function buildBackground(
-  token: Item,
-  role: OverlayRole,
-  renderKey: string,
-  position: { x: number; y: number },
-  width: number,
-  height: number,
-  visible: boolean,
-  color = "#18181b",
-  opacity = 0.82,
-) {
-  return overlayBase(buildShape(), token, visible, "ATTACHMENT")
-    .name(`DWTools ${role}`)
-    .position(position)
-    .width(width)
-    .height(height)
-    .shapeType("RECTANGLE")
-    .fillColor(color)
-    .fillOpacity(opacity)
-    .strokeOpacity(0)
-    .metadata(overlayMetadata(role, renderKey))
-    .build();
-}
-
-function buildOverlayText(
-  token: Item,
-  role: OverlayRole,
-  renderKey: string,
-  text: string,
-  position: { x: number; y: number },
-  width: number,
-  height: number,
-  fontSize: number,
-  visible: boolean,
-) {
-  return overlayBase(buildText(), token, visible, "TEXT")
-    .name(`DWTools ${role}`)
-    .position(position)
-    .plainText(text)
-    .width(width)
-    .height(height)
-    .padding(0)
-    .fontSize(fontSize)
-    .fontWeight(700)
-    .textAlign("CENTER")
-    .textAlignVertical("MIDDLE")
-    .fillColor("#ffffff")
-    .strokeColor("#000000")
-    .strokeOpacity(0.45)
-    .strokeWidth(Math.max(0.5, fontSize * 0.055))
-    .metadata(overlayMetadata(role, renderKey))
-    .build();
-}
-
-function buildOverlayItems(
+function buildOverlayItem(
   token: Item,
   data: CreatureData,
   bounds: { min: { x: number; y: number }; max: { x: number; y: number }; center: { x: number; y: number } },
   renderKey: string,
-): Item[] {
+) {
   const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
   const overlayWidth = tokenWidth * 0.86;
-  const gap = overlayWidth * 0.018;
-  const rowHeight = overlayWidth * 0.15;
-  const hpHeight = overlayWidth * 0.13;
-  const fontSize = overlayWidth * 0.105;
-  const left = bounds.center.x - overlayWidth / 2;
+  const overlayScale = overlayWidth / SVG_WIDTH;
+  const overlayHeight = SVG_HEIGHT * overlayScale;
   const bottomInset = overlayWidth * 0.07;
-  const hpY = bounds.max.y - bottomInset - hpHeight / 2;
-  const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
-  const visible = data.visibleToPlayers !== false;
+  const svg = buildOverlaySvg(data);
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
-  const eyeWidth = overlayWidth * 0.19;
-  const armorWidth = overlayWidth * 0.25;
-  const damageWidth = overlayWidth - eyeWidth - armorWidth - gap * 2;
-  const eyeX = left + eyeWidth / 2;
-  const armorX = left + eyeWidth + gap + armorWidth / 2;
-  const damageX = left + eyeWidth + gap + armorWidth + gap + damageWidth / 2;
-  const hpPercent = data.hpMax && data.hpMax > 0
-    ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
-    : 0;
-  const fillWidth = overlayWidth * hpPercent;
-  const fillX = left + fillWidth / 2;
-
-  const armorText = `◆${data.armor ?? "—"}`;
-  const damageText = `⚄${data.damage ?? "—"}`;
-  const hpText = `${data.hpCurrent ?? "—"}/${data.hpMax ?? "—"}`;
-
-  return [
-    buildBackground(token, "visibility-bg", renderKey, { x: eyeX, y: rowY }, eyeWidth, rowHeight, visible),
-    buildOverlayText(token, "visibility", renderKey, visible ? "◉" : "⊘", { x: eyeX, y: rowY }, eyeWidth, rowHeight, fontSize, visible),
-    buildBackground(token, "armor-bg", renderKey, { x: armorX, y: rowY }, armorWidth, rowHeight, visible),
-    buildOverlayText(token, "armor", renderKey, armorText, { x: armorX, y: rowY }, armorWidth, rowHeight, fontSize, visible),
-    buildBackground(token, "damage-bg", renderKey, { x: damageX, y: rowY }, damageWidth, rowHeight, visible),
-    buildOverlayText(token, "damage", renderKey, damageText, { x: damageX, y: rowY }, damageWidth, rowHeight, fontSize * 0.9, visible),
-    buildBackground(token, "hp-bg", renderKey, { x: bounds.center.x, y: hpY }, overlayWidth, hpHeight, visible, "#27272a", 0.88),
-    ...(fillWidth > 0
-      ? [buildBackground(token, "hp-fill", renderKey, { x: fillX, y: hpY }, fillWidth, hpHeight, visible, hpColor(hpPercent), 0.96)]
-      : []),
-    buildOverlayText(token, "hp", renderKey, hpText, { x: bounds.center.x, y: hpY }, overlayWidth, hpHeight, fontSize, visible),
-  ];
+  return buildImage(
+    { width: SVG_WIDTH, height: SVG_HEIGHT, mime: "image/svg+xml", url },
+    { dpi: SVG_WIDTH, offset: { x: 0, y: 0 } },
+  )
+    .name("DWTools graphical stats")
+    .position({
+      x: bounds.center.x,
+      y: bounds.max.y - bottomInset - overlayHeight / 2,
+    })
+    .scale({ x: overlayScale, y: overlayScale })
+    .attachedTo(token.id)
+    .layer("ATTACHMENT")
+    .locked(true)
+    .disableHit(true)
+    .disableAttachmentBehavior(["SCALE"])
+    .visible(data.visibleToPlayers !== false)
+    .metadata({
+      [DISPLAY_KEY]: true,
+      [DISPLAY_RENDER_KEY]: renderKey,
+    })
+    .build();
 }
 
 export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promise<void> {
@@ -167,7 +109,7 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
   }
 
   const renderKey = JSON.stringify({
-    layout: 3,
+    layout: 4,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,
@@ -175,16 +117,13 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
     visibleToPlayers: data.visibleToPlayers !== false,
     tokenScale: token.scale,
   });
-  const currentRoles = new Set(displays.map((item) => item.metadata[DISPLAY_ROLE_KEY]));
-  const expectedRoleCount = (data.hpMax ?? 0) > 0 && (data.hpCurrent ?? 0) > 0 ? 9 : 8;
-  const isCurrent = displays.length === expectedRoleCount
-    && currentRoles.has("hp")
-    && displays.every((item) => item.metadata[DISPLAY_RENDER_KEY] === renderKey);
+  const isCurrent = displays.length === 1
+    && displays[0].metadata[DISPLAY_RENDER_KEY] === renderKey;
   if (isCurrent) return;
 
   if (displays.length) await OBR.scene.items.deleteItems(displays.map((item) => item.id));
   const bounds = await OBR.scene.items.getItemBounds([token.id]);
-  await OBR.scene.items.addItems(buildOverlayItems(token, data, bounds, renderKey));
+  await OBR.scene.items.addItems([buildOverlayItem(token, data, bounds, renderKey)]);
 }
 
 export async function syncAllDisplays(items?: Item[]): Promise<void> {

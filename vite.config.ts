@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
-const buildVersion = "0.1.3";
+const buildVersion = "0.1.4";
 
 export default defineConfig({
   base: "/DWTools/",
