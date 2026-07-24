@@ -15,6 +15,11 @@ export default defineConfig({
         background: resolve(__dirname, "background.html"),
         contextMenu: resolve(__dirname, "context-menu.html"),
       },
+      output: {
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name][extname]",
+      },
     },
   },
 });
