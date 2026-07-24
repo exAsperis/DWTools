@@ -11,8 +11,11 @@ const characterFilter = {
   every: [{ key: "layer" as const, value: "CHARACTER" }],
 };
 
+const extensionUrl = new URL("./", window.location.href);
+const assetUrl = (path: string) => new URL(path, extensionUrl).toString();
+
 async function openEditor(itemId: string, elementId: string, view = "edit") {
-  const url = new URL("/", window.location.origin);
+  const url = new URL(extensionUrl);
   url.searchParams.set("itemId", itemId);
   url.searchParams.set("view", view);
   await OBR.popover.open({
@@ -27,7 +30,7 @@ async function openEditor(itemId: string, elementId: string, view = "edit") {
 function setupContextMenus() {
   OBR.contextMenu.create({
     id: `${EXTENSION_ID}/edit`,
-    icons: [{ icon: "/edit.svg", label: "Edit Dungeon World creature", filter: characterFilter }],
+    icons: [{ icon: assetUrl("edit.svg"), label: "Edit Dungeon World creature", filter: characterFilter }],
     onClick(context, elementId) {
       void openEditor(context.items[0].id, elementId);
     },
@@ -36,7 +39,7 @@ function setupContextMenus() {
   OBR.contextMenu.create({
     id: `${EXTENSION_ID}/hp`,
     icons: [{
-      icon: "/heart.svg",
+      icon: assetUrl("heart.svg"),
       label: "Adjust HP",
       filter: {
         ...characterFilter,
@@ -51,7 +54,7 @@ function setupContextMenus() {
   OBR.contextMenu.create({
     id: `${EXTENSION_ID}/roll`,
     icons: [{
-      icon: "/dice.svg",
+      icon: assetUrl("dice.svg"),
       label: "Roll damage",
       filter: characterFilter,
     }],
