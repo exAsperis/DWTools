@@ -1,9 +1,7 @@
-import OBR, { buildImage, type Item } from "@owlbear-rodeo/sdk";
+import OBR, { buildLabel, buildShape, type Item } from "@owlbear-rodeo/sdk";
 import { CREATURE_KEY, DISPLAY_KEY, isCreatureData, type CreatureData } from "./constants";
 
 const DISPLAY_RENDER_KEY = `${DISPLAY_KEY}/render`;
-const SVG_WIDTH = 860;
-const SVG_HEIGHT = 245;
 
 function isDisplay(item: Item): boolean {
   return item.metadata[DISPLAY_KEY] === true;
@@ -15,101 +13,140 @@ function hpColor(percent: number): string {
   return "#b91c1c";
 }
 
-function escapeXml(value: string | number | undefined): string {
-  if (value === undefined || value === "") return "—";
-  return String(value).replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&apos;",
-    '"': "&quot;",
-  })[character]!);
+function metadata(role: string, renderKey: string) {
+  return { [DISPLAY_KEY]: true, [`${DISPLAY_KEY}/role`]: role, [DISPLAY_RENDER_KEY]: renderKey };
 }
 
-function buildOverlaySvg(data: CreatureData): string {
-  const hpPercent = data.hpMax && data.hpMax > 0
-    ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
-    : 0;
-  const fillWidth = Math.round(SVG_WIDTH * hpPercent);
-  const visible = data.visibleToPlayers !== false;
-  const armor = escapeXml(data.armor);
-  const damage = escapeXml(data.damage);
-  const hp = `${escapeXml(data.hpCurrent)}/${escapeXml(data.hpMax)}`;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${SVG_WIDTH}" height="${SVG_HEIGHT}" viewBox="0 0 ${SVG_WIDTH} ${SVG_HEIGHT}">
-  <g font-family="Arial,Helvetica,sans-serif" font-weight="700" fill="#fff">
-    <rect x="0" y="0" width="150" height="120" rx="28" fill="#18181b" fill-opacity=".82"/>
-    <rect x="165" y="0" width="200" height="120" rx="28" fill="#18181b" fill-opacity=".82"/>
-    <rect x="380" y="0" width="480" height="120" rx="28" fill="#18181b" fill-opacity=".82"/>
-    ${visible
-      ? '<path d="M30 60c25-34 65-34 90 0-25 34-65 34-90 0Z" fill="none" stroke="#fff" stroke-width="10"/><circle cx="75" cy="60" r="17"/>'
-      : '<path d="M30 60c25-34 65-34 90 0-25 34-65 34-90 0Z" fill="none" stroke="#fff" stroke-width="10"/><path d="M24 18l102 84" stroke="#fff" stroke-width="12" stroke-linecap="round"/>'}
-    <path d="M207 25h116v45c0 28-22 45-58 58-36-13-58-30-58-58Z" fill="none" stroke="#fff" stroke-width="9"/>
-    <text x="265" y="72" text-anchor="middle" dominant-baseline="middle" font-size="50">${armor}</text>
-    <rect x="415" y="25" width="72" height="72" rx="14" fill="none" stroke="#fff" stroke-width="8"/>
-    <circle cx="437" cy="47" r="6"/><circle cx="465" cy="47" r="6"/><circle cx="451" cy="61" r="6"/><circle cx="437" cy="77" r="6"/><circle cx="465" cy="77" r="6"/>
-    <text x="505" y="64" dominant-baseline="middle" font-size="48">${damage}</text>
-    <rect x="0" y="135" width="${SVG_WIDTH}" height="110" rx="30" fill="#27272a" fill-opacity=".88"/>
-    ${fillWidth > 0 ? `<rect x="0" y="135" width="${fillWidth}" height="110" rx="30" fill="${hpColor(hpPercent)}" fill-opacity=".96"/>` : ""}
-    <text x="430" y="194" text-anchor="middle" dominant-baseline="middle" font-size="58" stroke="#000" stroke-opacity=".5" stroke-width="5" paint-order="stroke">${hp}</text>
-  </g>
-</svg>`;
-}
-
-function buildOverlayItem(
+function common<T extends ReturnType<typeof buildLabel> | ReturnType<typeof buildShape>>(
+  builder: T,
   token: Item,
-  data: CreatureData,
-  bounds: { min: { x: number; y: number }; max: { x: number; y: number }; center: { x: number; y: number } },
-  renderKey: string,
-) {
-  const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
-  const overlayWidth = tokenWidth * 0.86;
-  const overlayScale = overlayWidth / SVG_WIDTH;
-  const overlayHeight = SVG_HEIGHT * overlayScale;
-  const bottomInset = overlayWidth * 0.07;
-  const svg = buildOverlaySvg(data);
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-
-  return buildImage(
-    { width: SVG_WIDTH, height: SVG_HEIGHT, mime: "image/svg+xml", url },
-    { dpi: SVG_WIDTH, offset: { x: 0, y: 0 } },
-  )
-    .name("DWTools graphical stats")
-    .position({
-      x: bounds.center.x,
-      y: bounds.max.y - bottomInset - overlayHeight / 2,
-    })
-    .scale({ x: overlayScale, y: overlayScale })
+  visible: boolean,
+): T {
+  return builder
     .attachedTo(token.id)
     .layer("ATTACHMENT")
     .locked(true)
     .disableHit(true)
     .disableAttachmentBehavior(["SCALE"])
-    .visible(data.visibleToPlayers !== false)
-    .metadata({
-      [DISPLAY_KEY]: true,
-      [DISPLAY_RENDER_KEY]: renderKey,
-    })
+    .visible(visible) as T;
+}
+
+function label(
+  token: Item,
+  role: string,
+  renderKey: string,
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  visible: boolean,
+  backgroundOpacity = 0.82,
+) {
+  return common(buildLabel(), token, visible)
+    .name(`DWTools ${role}`)
+    .position({ x, y })
+    .plainText(text)
+    .padding(fontSize * 0.22)
+    .fontSize(fontSize)
+    .fontWeight(700)
+    .textAlign("CENTER")
+    .textAlignVertical("MIDDLE")
+    .fillColor("#ffffff")
+    .strokeColor("#000000")
+    .strokeOpacity(0.45)
+    .strokeWidth(Math.max(0.5, fontSize * 0.055))
+    .backgroundColor("#18181b")
+    .backgroundOpacity(backgroundOpacity)
+    .cornerRadius(fontSize * 0.35)
+    .minViewScale(1)
+    .maxViewScale(1)
+    .metadata(metadata(role, renderKey))
     .build();
+}
+
+function shape(
+  token: Item,
+  role: string,
+  renderKey: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: string,
+  visible: boolean,
+) {
+  return common(buildShape(), token, visible)
+    .name(`DWTools ${role}`)
+    .position({ x, y })
+    .width(width)
+    .height(height)
+    .shapeType("RECTANGLE")
+    .fillColor(color)
+    .fillOpacity(0.92)
+    .strokeOpacity(0)
+    .metadata(metadata(role, renderKey))
+    .build();
+}
+
+function buildOverlayItems(
+  token: Item,
+  data: CreatureData,
+  bounds: { min: { x: number; y: number }; max: { x: number; y: number }; center: { x: number; y: number } },
+  renderKey: string,
+): Item[] {
+  const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
+  const width = tokenWidth * 0.84;
+  const fontSize = width * 0.095;
+  const rowHeight = fontSize * 1.55;
+  const hpHeight = fontSize * 1.4;
+  const gap = width * 0.025;
+  const bottomInset = width * 0.07;
+  const hpY = bounds.max.y - bottomInset - hpHeight / 2;
+  const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
+  const visible = data.visibleToPlayers !== false;
+  const hpPercent = data.hpMax && data.hpMax > 0
+    ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
+    : 0;
+  const fillWidth = width * hpPercent;
+  const left = bounds.center.x - width / 2;
+
+  return [
+    label(token, "visibility", renderKey, visible ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, visible),
+    label(token, "armor", renderKey, `◆${data.armor ?? "—"}`, left + width * 0.31, rowY, fontSize, visible),
+    label(token, "damage", renderKey, `⚄${data.damage ?? "—"}`, left + width * 0.67, rowY, fontSize * 0.9, visible),
+    shape(token, "hp-bg", renderKey, bounds.center.x, hpY, width, hpHeight, "#27272a", visible),
+    ...(fillWidth > 0
+      ? [shape(token, "hp-fill", renderKey, left + fillWidth / 2, hpY, fillWidth, hpHeight, hpColor(hpPercent), visible)]
+      : []),
+    label(
+      token,
+      "hp",
+      renderKey,
+      `${data.hpCurrent ?? "—"}/${data.hpMax ?? "—"}`,
+      bounds.center.x,
+      hpY,
+      fontSize,
+      visible,
+      0,
+    ),
+  ];
 }
 
 export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promise<void> {
   const raw = token.metadata[CREATURE_KEY];
   const data = isCreatureData(raw) ? raw : {};
-  const hasDisplayData = data.hpCurrent !== undefined
-    || data.hpMax !== undefined
-    || data.armor !== undefined
-    || Boolean(data.damage);
+  const hasData = data.hpCurrent !== undefined || data.hpMax !== undefined
+    || data.armor !== undefined || Boolean(data.damage);
   const items = allItems ?? await OBR.scene.items.getItems();
   const displays = items.filter((item) => isDisplay(item) && item.attachedTo === token.id);
 
-  if (!hasDisplayData) {
+  if (!hasData) {
     if (displays.length) await OBR.scene.items.deleteItems(displays.map((item) => item.id));
     return;
   }
 
   const renderKey = JSON.stringify({
-    layout: 4,
+    layout: 5,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,
@@ -117,13 +154,12 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
     visibleToPlayers: data.visibleToPlayers !== false,
     tokenScale: token.scale,
   });
-  const isCurrent = displays.length === 1
-    && displays[0].metadata[DISPLAY_RENDER_KEY] === renderKey;
-  if (isCurrent) return;
+  const expected = (data.hpMax ?? 0) > 0 && (data.hpCurrent ?? 0) > 0 ? 6 : 5;
+  if (displays.length === expected && displays.every((item) => item.metadata[DISPLAY_RENDER_KEY] === renderKey)) return;
 
   if (displays.length) await OBR.scene.items.deleteItems(displays.map((item) => item.id));
   const bounds = await OBR.scene.items.getItemBounds([token.id]);
-  await OBR.scene.items.addItems([buildOverlayItem(token, data, bounds, renderKey)]);
+  await OBR.scene.items.addItems(buildOverlayItems(token, data, bounds, renderKey));
 }
 
 export async function syncAllDisplays(items?: Item[]): Promise<void> {
