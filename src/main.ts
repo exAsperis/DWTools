@@ -68,6 +68,10 @@ function renderEditor(token: Item, data: CreatureData) {
         <label>Instinct<textarea name="instinct" rows="2">${escapeHtml(data.instinct ?? "")}</textarea></label>
         <label>Moves<textarea name="moves" rows="4" placeholder="One move per line">${escapeHtml(data.moves ?? "")}</textarea></label>
         <label>Treasure<textarea name="treasure" rows="3">${escapeHtml(data.treasure ?? "")}</textarea></label>
+        <label class="visibility">
+          <input name="visibleToPlayers" type="checkbox" ${data.visibleToPlayers === false ? "" : "checked"}>
+          Show the token overlay to players
+        </label>
       `}
       <p id="message" class="message" role="status"></p>
       <footer>
@@ -111,6 +115,7 @@ function renderEditor(token: Item, data: CreatureData) {
       next.instinct = optionalText(values, "instinct");
       next.moves = optionalText(values, "moves");
       next.treasure = optionalText(values, "treasure");
+      next.visibleToPlayers = values.get("visibleToPlayers") === "on";
     }
     await OBR.scene.items.updateItems([token], (items) => { items[0].metadata[CREATURE_KEY] = next; });
     const updated = (await OBR.scene.items.getItems([token.id]))[0];

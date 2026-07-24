@@ -11,6 +11,7 @@ export interface CreatureData {
   instinct?: string;
   moves?: string;
   treasure?: string;
+  visibleToPlayers?: boolean;
 }
 
 export function isCreatureData(value: unknown): value is CreatureData {

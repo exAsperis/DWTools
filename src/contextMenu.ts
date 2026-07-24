@@ -34,6 +34,9 @@ function render() {
   app.innerHTML = `
     <section class="panel">
       <div class="stats">
+        <button class="visibility-button" type="button" id="visibility" title="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}">
+          ${data.visibleToPlayers === false ? "⊘" : "👁"}
+        </button>
         <span>ARM ${displayValue(data.armor)}</span>
         <button class="damage" type="button" id="damage" title="Roll damage">DMG ${displayValue(data.damage)}</button>
       </div>
@@ -59,6 +62,7 @@ function render() {
     button.addEventListener("click", () => void adjustHp(Number(button.dataset.hp)));
   }
   app.querySelector("#damage")?.addEventListener("click", rollTokenDamage);
+  app.querySelector("#visibility")?.addEventListener("click", () => void toggleVisibility());
   app.querySelector("#edit")?.addEventListener("click", () => void openEditor());
 }
 
@@ -81,6 +85,19 @@ async function adjustHp(amount: number) {
   } finally {
     updatingHp = false;
   }
+}
+
+async function toggleVisibility() {
+  if (!token) return;
+  const latest = (await OBR.scene.items.getItems([token.id]))[0];
+  if (!latest) return;
+  const data = getData(latest);
+  await OBR.scene.items.updateItems([latest], (items) => {
+    items[0].metadata[CREATURE_KEY] = {
+      ...data,
+      visibleToPlayers: data.visibleToPlayers === false,
+    };
+  });
 }
 
 function rollTokenDamage() {

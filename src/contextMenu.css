@@ -34,7 +34,15 @@ button { font: inherit; }
   cursor: pointer;
 }
 
-.damage:hover { text-decoration: underline; }
+.damage:hover, .visibility-button:hover { text-decoration: underline; }
+.visibility-button {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 15px;
+  cursor: pointer;
+}
 
 .hp {
   display: grid;
