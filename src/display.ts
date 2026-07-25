@@ -111,7 +111,7 @@ function buildOverlayItems(
   const hpY = bounds.max.y - bottomInset - hpHeight / 2;
   const hpTop = hpY - hpHeight / 2;
   const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
-  const visible = data.visibleToPlayers !== false;
+  const visibleToPlayers = data.visibleToPlayers !== false;
   const hpPercent = data.hpMax && data.hpMax > 0
     ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
     : 0;
@@ -119,12 +119,12 @@ function buildOverlayItems(
   const left = bounds.center.x - width / 2;
 
   return [
-    label(token, "visibility", renderKey, visible ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, visible),
-    label(token, "armor", renderKey, `◆${data.armor ?? "—"}`, left + width * 0.31, rowY, fontSize, visible),
-    label(token, "damage", renderKey, `⚄${data.damage ?? "—"}`, left + width * 0.67, rowY, fontSize * 0.9, visible),
-    shape(token, "hp-bg", renderKey, left, hpTop, width, hpHeight, "#27272a", visible),
+    label(token, "visibility", renderKey, visibleToPlayers ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, true),
+    label(token, "armor", renderKey, `◆${data.armor ?? "—"}`, left + width * 0.31, rowY, fontSize, true),
+    label(token, "damage", renderKey, `⚄${data.damage ?? "—"}`, left + width * 0.67, rowY, fontSize * 0.9, true),
+    shape(token, "hp-bg", renderKey, left, hpTop, width, hpHeight, "#27272a", true),
     ...(fillWidth > 0
-      ? [shape(token, "hp-fill", renderKey, left, hpTop, fillWidth, hpHeight, hpColor(hpPercent), visible)]
+      ? [shape(token, "hp-fill", renderKey, left, hpTop, fillWidth, hpHeight, hpColor(hpPercent), true)]
       : []),
     label(
       token,
@@ -134,27 +134,34 @@ function buildOverlayItems(
       bounds.center.x,
       hpY,
       fontSize,
-      visible,
+      true,
       0,
     ),
   ];
 }
 
-export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promise<void> {
+export async function syncCreatureDisplay(
+  token: Item,
+  allItems?: Item[],
+  allLocalItems?: Item[],
+): Promise<void> {
   const raw = token.metadata[CREATURE_KEY];
   const data = isCreatureData(raw) ? raw : {};
   const hasData = data.hpCurrent !== undefined || data.hpMax !== undefined
     || data.armor !== undefined || Boolean(data.damage);
   const items = allItems ?? await OBR.scene.items.getItems();
-  const displays = items.filter((item) => isDisplay(item) && item.attachedTo === token.id);
+  const localItems = allLocalItems ?? await OBR.scene.local.getItems();
+  const sceneDisplays = items.filter((item) => isDisplay(item) && item.attachedTo === token.id);
+  const localDisplays = localItems.filter((item) => isDisplay(item) && item.attachedTo === token.id);
 
   if (!hasData) {
-    if (displays.length) await OBR.scene.items.deleteItems(displays.map((item) => item.id));
+    if (sceneDisplays.length) await OBR.scene.items.deleteItems(sceneDisplays.map((item) => item.id));
+    if (localDisplays.length) await OBR.scene.local.deleteItems(localDisplays.map((item) => item.id));
     return;
   }
 
   const renderKey = JSON.stringify({
-    layout: 6,
+    layout: 7,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,
@@ -163,17 +170,38 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
     tokenScale: token.scale,
   });
   const expected = (data.hpMax ?? 0) > 0 && (data.hpCurrent ?? 0) > 0 ? 6 : 5;
+  const visibleToPlayers = data.visibleToPlayers !== false;
+  const displays = visibleToPlayers ? sceneDisplays : localDisplays;
+
+  if (visibleToPlayers && localDisplays.length) {
+    await OBR.scene.local.deleteItems(localDisplays.map((item) => item.id));
+  } else if (!visibleToPlayers && sceneDisplays.length) {
+    await OBR.scene.items.deleteItems(sceneDisplays.map((item) => item.id));
+  }
+
   if (displays.length === expected && displays.every((item) => item.metadata[DISPLAY_RENDER_KEY] === renderKey)) return;
 
-  if (displays.length) await OBR.scene.items.deleteItems(displays.map((item) => item.id));
+  if (displays.length) {
+    const ids = displays.map((item) => item.id);
+    if (visibleToPlayers) await OBR.scene.items.deleteItems(ids);
+    else await OBR.scene.local.deleteItems(ids);
+  }
   const bounds = await OBR.scene.items.getItemBounds([token.id]);
-  await OBR.scene.items.addItems(buildOverlayItems(token, data, bounds, renderKey));
+  const overlays = buildOverlayItems(token, data, bounds, renderKey);
+  if (visibleToPlayers) await OBR.scene.items.addItems(overlays);
+  else await OBR.scene.local.addItems(overlays);
 }
 
 export async function syncAllDisplays(items?: Item[]): Promise<void> {
   const sceneItems = items ?? await OBR.scene.items.getItems();
+  const localItems = await OBR.scene.local.getItems();
   const tokens = sceneItems.filter(
     (item) => item.layer === "CHARACTER" && isCreatureData(item.metadata[CREATURE_KEY]),
   );
-  for (const token of tokens) await syncCreatureDisplay(token, sceneItems);
+  for (const token of tokens) await syncCreatureDisplay(token, sceneItems, localItems);
+}
+
+export async function clearLocalDisplays(): Promise<void> {
+  const displays = (await OBR.scene.local.getItems()).filter(isDisplay);
+  if (displays.length) await OBR.scene.local.deleteItems(displays.map((item) => item.id));
 }

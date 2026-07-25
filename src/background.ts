@@ -1,6 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { EXTENSION_ID } from "./constants";
-import { syncAllDisplays, syncCreatureDisplay } from "./display";
+import { clearLocalDisplays, syncAllDisplays, syncCreatureDisplay } from "./display";
 
 const characterFilter = {
   min: 1,
@@ -22,7 +22,7 @@ function setupContextMenus() {
       filter: characterFilter,
     }],
     embed: {
-      url: assetUrl("context-menu.html?v=0.1.7"),
+      url: assetUrl("context-menu.html?v=0.1.8"),
       height: 360,
     },
   });
@@ -31,11 +31,17 @@ function setupContextMenus() {
 let unsubscribeItems: (() => void) | undefined;
 let syncing = false;
 let queued = false;
+let activeRole: "GM" | "PLAYER" | undefined;
 
 async function startSceneSync() {
   unsubscribeItems?.();
   unsubscribeItems = undefined;
   if (!await OBR.scene.isReady()) return;
+  activeRole = await OBR.player.getRole();
+  if (activeRole !== "GM") {
+    await clearLocalDisplays();
+    return;
+  }
   await syncAllDisplays();
   unsubscribeItems = OBR.scene.items.onChange((items) => {
     if (syncing) {
@@ -57,7 +63,11 @@ OBR.onReady(() => {
   setupContextMenus();
   void startSceneSync();
   OBR.scene.onReadyChange(() => void startSceneSync());
+  OBR.player.onChange((player) => {
+    if (player.role !== activeRole) void startSceneSync();
+  });
   window.addEventListener("message", (event) => {
+    if (activeRole !== "GM") return;
     if (event.data?.type !== `${EXTENSION_ID}/sync` || typeof event.data.itemId !== "string") return;
     void OBR.scene.items.getItems([event.data.itemId]).then(([item]) => {
       if (item) return syncCreatureDisplay(item);
