@@ -57,6 +57,10 @@ These choices are intentional:
   information harder to read.
 - A player-hidden overlay is absent on player clients, rather than present at
   reduced opacity.
+- Player visibility uses a consistent open-eye icon when visible and an open
+  eye inside a slashed circle when hidden. The overlay and context menu use the
+  same vector geometry rather than platform-dependent Unicode glyphs.
+- Armor uses a shield icon on the overlay. A diamond is not an armor symbol.
 - Overlay components use compact dark backgrounds, white icon/text treatment,
   and green/amber/red HP status colors.
 
@@ -129,6 +133,16 @@ Some integration cases require more than one signed-in client. If those clients
 are unavailable, record the unverified cases rather than implying they passed.
 
 ## Decision history
+
+### 2026-07-25 — Theme-aware text and shared vector iconography
+
+The context-menu panel now reads Owlbear's active theme and uses its primary
+and secondary text colors instead of the operating system's color-scheme
+preference. Visibility uses matching vector eye/eye-off art in the menu and
+overlay, and armor uses a shield on the overlay.
+
+Reason: iframe media preferences can disagree with Owlbear's selected theme,
+and Unicode glyphs render differently by platform and font.
 
 ### 2026-07-25 — Stable local renderer and explicit HP alignment
 

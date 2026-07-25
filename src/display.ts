@@ -1,5 +1,6 @@
 import OBR, {
   buildCurve,
+  buildImage,
   buildText,
   isCurve,
   isImage,
@@ -8,6 +9,7 @@ import OBR, {
   type Item,
 } from "@owlbear-rodeo/sdk";
 import { DISPLAY_KEY, type CreatureData } from "./constants";
+import { iconDataUrl, type DwIconName } from "./icons";
 import {
   getCreatureData,
   getImageGeometry,
@@ -121,6 +123,44 @@ function buildOverlayText(
     .build();
 }
 
+function buildOverlayIcon(
+  token: Item,
+  role: string,
+  renderKey: string,
+  icon: DwIconName,
+  box: OverlayBox,
+  sceneDpi: number,
+  sizeRatio = 0.68,
+) {
+  const size = Math.min(box.width, box.height) * sizeRatio;
+  return buildImage({
+    url: iconDataUrl(icon),
+    mime: "image/svg+xml",
+    width: 24,
+    height: 24,
+  }, {
+    dpi: sceneDpi,
+    offset: { x: 0, y: 0 },
+  })
+    .id(overlayItemId(token.id, `${role}-icon`))
+    .name(`DWTools ${role} icon`)
+    .position({
+      x: box.left + (box.width - size) / 2,
+      y: box.top + (box.height - size) / 2,
+    })
+    .scale({ x: size / 24, y: size / 24 })
+    .attachedTo(token.id)
+    .layer("TEXT")
+    .zIndex(10)
+    .disableAutoZIndex(true)
+    .locked(true)
+    .disableHit(true)
+    .disableAttachmentBehavior(DISABLED_ATTACHMENT_BEHAVIORS)
+    .visible(true)
+    .metadata(displayMetadata(`${role}-icon`, renderKey))
+    .build();
+}
+
 function buildTokenOverlay(
   token: Item,
   data: CreatureData,
@@ -140,24 +180,43 @@ function buildTokenOverlay(
     height: layout.hpHeight,
   };
   const fillBox = { ...hpBox, width: hpBox.width * percent };
+  const armorIconBox = {
+    ...layout.armor,
+    width: layout.armor.width * 0.46,
+  };
+  const armorValueBox = {
+    ...layout.armor,
+    left: layout.armor.left + layout.armor.width * 0.38,
+    width: layout.armor.width * 0.62,
+  };
 
   return [
     buildBackground(token, "visibility", renderKey, layout.visibility),
-    buildOverlayText(
+    buildOverlayIcon(
       token,
       "visibility",
       renderKey,
-      data.visibleToPlayers === false ? "⊘" : "◉",
+      data.visibleToPlayers === false ? "eye-off" : "eye",
       layout.visibility,
-      layout.fontSize,
+      sceneDpi,
+      data.visibleToPlayers === false ? 0.76 : 0.7,
     ),
     buildBackground(token, "armor", renderKey, layout.armor),
+    buildOverlayIcon(
+      token,
+      "armor",
+      renderKey,
+      "shield",
+      armorIconBox,
+      sceneDpi,
+      0.7,
+    ),
     buildOverlayText(
       token,
       "armor",
       renderKey,
-      `◆${data.armor ?? "—"}`,
-      layout.armor,
+      `${data.armor ?? "—"}`,
+      armorValueBox,
       layout.fontSize,
     ),
     buildBackground(token, "damage", renderKey, layout.damage),
@@ -252,6 +311,18 @@ export function applyDesiredItem(target: Item, desired: Item): void {
       ...desired.style,
       strokeDash: [...desired.style.strokeDash],
     };
+  } else if (isImage(target) && isImage(desired)) {
+    target.image = { ...desired.image };
+    target.grid = {
+      ...desired.grid,
+      offset: { ...desired.grid.offset },
+    };
+    target.text = {
+      ...desired.text,
+      richText: desired.text.richText.map((entry) => ({ ...entry })),
+      style: { ...desired.text.style },
+    };
+    target.textItemType = desired.textItemType;
   } else if (isText(target) && isText(desired)) {
     target.text = {
       ...desired.text,

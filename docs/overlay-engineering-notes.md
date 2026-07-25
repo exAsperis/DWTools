@@ -459,3 +459,13 @@ The coherent renderer replacement described above is now implemented:
 Historical approaches and diagnoses above remain useful: do not restore shared
 rendering, Labels, delete/add synchronization, or multiple writers to simplify
 a future feature.
+
+### Version 0.2.1 — icon and theme consistency
+
+- context-menu colors come from `OBR.theme`, not
+  `prefers-color-scheme`;
+- visibility icons share one SVG path source across the context menu and local
+  overlay;
+- hidden visibility is an eye inside a slashed circle;
+- armor is represented by a shield; and
+- overlay SVG icons are local Image items on `TEXT` and reconcile in place.

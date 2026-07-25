@@ -1,7 +1,8 @@
-import OBR, { type Item } from "@owlbear-rodeo/sdk";
+import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./contextMenu.css";
 import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
+import { iconMarkup } from "./icons";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
@@ -23,6 +24,14 @@ function displayValue(value: string | number | undefined): string {
   return value === undefined || value === "" ? "—" : escapeHtml(String(value));
 }
 
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  root.dataset.obrTheme = theme.mode.toLowerCase();
+  root.style.setProperty("--dw-text", theme.text.primary);
+  root.style.setProperty("--dw-text-secondary", theme.text.secondary);
+  root.style.setProperty("--dw-primary", theme.primary.main);
+}
+
 function render() {
   if (!token) {
     app.innerHTML = '<p class="loading">Select one character token.</p>';
@@ -34,8 +43,8 @@ function render() {
   app.innerHTML = `
     <section class="panel">
       <div class="stats">
-        <button class="visibility-button" type="button" id="visibility" title="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}">
-          ${data.visibleToPlayers === false ? "⊘" : "👁"}
+        <button class="visibility-button" type="button" id="visibility" aria-label="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}" title="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}">
+          ${iconMarkup(data.visibleToPlayers === false ? "eye-off" : "eye")}
         </button>
         <span>ARM ${displayValue(data.armor)}</span>
         <button class="damage" type="button" id="damage" title="Roll damage">DMG ${displayValue(data.damage)}</button>
@@ -139,6 +148,8 @@ if (!OBR.isAvailable) {
   app.innerHTML = '<p class="error">Open this menu inside Owlbear Rodeo.</p>';
 } else {
   OBR.onReady(async () => {
+    applyTheme(await OBR.theme.getTheme());
+    OBR.theme.onChange(applyTheme);
     await loadSelectedToken();
     OBR.player.onChange(() => void loadSelectedToken());
     OBR.scene.items.onChange((items) => {

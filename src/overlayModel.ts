@@ -3,7 +3,7 @@ import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
 
 export type PlayerRole = "GM" | "PLAYER";
 
-export const OVERLAY_LAYOUT_VERSION = 10;
+export const OVERLAY_LAYOUT_VERSION = 11;
 export const OVERLAY_HORIZONTAL_INSET_RATIO = 0.08;
 
 export interface ImageGeometry {
@@ -241,4 +241,3 @@ export function roundedRectanglePoints(
   }
   return points;
 }
-
