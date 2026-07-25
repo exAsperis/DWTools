@@ -1,14 +1,18 @@
 import OBR, {
   buildCurve,
+  buildPath,
   buildText,
+  Command,
   isCurve,
   isImage,
+  isPath,
   isText,
   type AttachmentBehavior,
   type Item,
+  type PathCommand,
 } from "@owlbear-rodeo/sdk";
 import { DISPLAY_KEY, type CreatureData } from "./constants";
-import { iconGlyph, type DwIconName } from "./icons";
+import { iconCommands, type DwIconName } from "./icons";
 import {
   getCreatureData,
   getImageGeometry,
@@ -130,26 +134,37 @@ function buildOverlayIcon(
   box: OverlayBox,
   sizeRatio = 0.68,
 ) {
-  const fontSize = Math.min(box.width, box.height) * sizeRatio;
-  return buildText()
+  const size = Math.min(box.width, box.height) * sizeRatio;
+  const pathCommands: PathCommand[] = iconCommands(icon).map((command) => {
+    if (command[0] === "M") return [Command.MOVE, command[1], command[2]];
+    if (command[0] === "L") return [Command.LINE, command[1], command[2]];
+    if (command[0] === "C") {
+      return [
+        Command.CUBIC,
+        command[1],
+        command[2],
+        command[3],
+        command[4],
+        command[5],
+        command[6],
+      ];
+    }
+    return [Command.CLOSE];
+  });
+  return buildPath()
     .id(overlayItemId(token.id, `${role}-icon`))
     .name(`DWTools ${role} icon`)
-    .position({ x: box.left, y: box.top })
-    .width(box.width)
-    .height(box.height)
-    .plainText(iconGlyph(icon))
-    .textType("PLAIN")
-    .padding(0)
-    .fontFamily('"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif')
-    .fontSize(fontSize)
-    .fontWeight(400)
-    .lineHeight(1)
-    .textAlign("CENTER")
-    .textAlignVertical("MIDDLE")
+    .position({
+      x: box.left + (box.width - size) / 2,
+      y: box.top + (box.height - size) / 2,
+    })
+    .scale({ x: size / 24, y: size / 24 })
+    .commands(pathCommands)
+    .fillOpacity(0)
+    .strokeColor("#ffffff")
     .fillColor("#ffffff")
-    .fillOpacity(1)
-    .strokeOpacity(0)
-    .strokeWidth(0)
+    .strokeOpacity(1)
+    .strokeWidth(1.9)
     .attachedTo(token.id)
     .layer("TEXT")
     .zIndex(10)
@@ -310,6 +325,13 @@ export function applyDesiredItem(target: Item, desired: Item): void {
       ...desired.style,
       strokeDash: [...desired.style.strokeDash],
     };
+  } else if (isPath(target) && isPath(desired)) {
+    target.commands = desired.commands.map((command) => [...command]);
+    target.fillRule = desired.fillRule;
+    target.style = {
+      ...desired.style,
+      strokeDash: [...desired.style.strokeDash],
+    };
   } else if (isImage(target) && isImage(desired)) {
     target.image = { ...desired.image };
     target.grid = {
@@ -344,8 +366,8 @@ export async function applyLocalDisplayPlan(plan: ReconciliationPlan): Promise<v
       },
     );
   }
-  if (plan.add.length) await OBR.scene.local.addItems(plan.add);
   if (plan.deleteIds.length) await OBR.scene.local.deleteItems(plan.deleteIds);
+  if (plan.add.length) await OBR.scene.local.addItems(plan.add);
 }
 
 export async function prepareLocalDisplayPlan(

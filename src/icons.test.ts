@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { iconGlyph } from "./icons";
+import { iconCommands, iconMarkup } from "./icons";
 
 describe("DWTools icons", () => {
-  it("uses the selected visible-state eye emoji", () => {
-    expect(iconGlyph("eye")).toBe("👁️");
+  it("uses the same 24-unit geometry for the panel and overlay", () => {
+    expect(iconMarkup("eye")).toContain('viewBox="0 0 24 24"');
+    expect(iconCommands("eye")[0]).toEqual(["M", 2.2, 12]);
   });
 
-  it("uses the selected not-visible emoji", () => {
-    expect(iconGlyph("eye-off")).toBe("🚫");
+  it("draws an eye inside a prohibition circle for hidden visibility", () => {
+    const commands = iconCommands("eye-off");
+
+    expect(commands[0]).toEqual(["M", 22, 12]);
+    expect(commands).toContainEqual(["L", 19.1, 19.1]);
   });
 
-  it("uses the selected armor shield emoji", () => {
-    expect(iconGlyph("shield")).toBe("🛡️");
+  it("draws a shield outline for armor", () => {
+    const commands = iconCommands("shield");
+
+    expect(commands[0]).toEqual(["M", 12, 2.5]);
+    expect(commands).toContainEqual(["L", 20, 5]);
   });
 });

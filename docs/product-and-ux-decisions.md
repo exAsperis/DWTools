@@ -57,9 +57,10 @@ These choices are intentional:
   information harder to read.
 - A player-hidden overlay is absent on player clients, rather than present at
   reduced opacity.
-- Player visibility uses `👁️` when visible and `🚫` when hidden. The overlay
-  and context menu use the same emoji source.
-- Armor uses `🛡️` on the overlay. A diamond is not an armor symbol.
+- Player visibility uses an open eye when visible and an eye inside a
+  prohibition circle when hidden. The overlay and context menu derive from the
+  same native vector geometry.
+- Armor uses a shield outline on the overlay. A diamond is not an armor symbol.
 - Overlay components use compact dark backgrounds, white icon/text treatment,
   and green/amber/red HP status colors.
 
@@ -133,6 +134,15 @@ are unavailable, record the unverified cases rather than implying they passed.
 
 ## Decision history
 
+### 2026-07-25 — Native Path icons replace canvas emoji
+
+The context panel renders inline SVG from shared path geometry, while the
+overlay renders the same geometry as native Owlbear Path items.
+
+Reason: emoji work in the HTML iframe but Owlbear's canvas Text renderer
+corrupts color emoji into red/yellow artifacts. Native Paths avoid both the
+image loader and color-emoji font rendering.
+
 ### 2026-07-25 — Emoji replace failed SVG image items
 
 Visibility now uses `👁️` / `🚫`, and armor uses `🛡️`. They are native Text
@@ -141,6 +151,9 @@ items in the overlay and the same emoji strings in the context menu.
 Reason: Owlbear displayed the SVG data-URI Image items as failed-image
 placeholders (red circles with a yellow wedge). Emoji rendering is simpler and
 reliable in both surfaces.
+
+This was superseded after live testing showed that emoji are reliable only in
+the HTML context panel, not in Owlbear canvas Text items.
 
 ### 2026-07-25 — Theme-aware text and shared vector iconography
 

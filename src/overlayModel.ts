@@ -3,7 +3,7 @@ import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
 
 export type PlayerRole = "GM" | "PLAYER";
 
-export const OVERLAY_LAYOUT_VERSION = 12;
+export const OVERLAY_LAYOUT_VERSION = 13;
 export const OVERLAY_HORIZONTAL_INSET_RATIO = 0.08;
 
 export interface ImageGeometry {

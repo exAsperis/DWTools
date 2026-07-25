@@ -480,3 +480,15 @@ Owlbear accepts the intended image source.
 - armor is `🛡️`;
 - the context menu and overlay use the same emoji source; and
 - overlay icons are explicit native Text boxes on `TEXT`, not Image items.
+
+Live testing showed that the context-menu emoji render correctly, but Owlbear's
+canvas Text renderer corrupts the overlay emoji into the same red/yellow
+artifact shape. Do not use color emoji in overlay Text items.
+
+### Version 0.2.3 — native Path icon rendering
+
+- icon geometry is stored as normalized 24-unit commands;
+- the context panel serializes those commands to inline SVG;
+- the overlay converts them to native Owlbear Path commands on `TEXT`;
+- visible, hidden, and armor states therefore share one geometry source; and
+- icon state changes reconcile Path commands in place.

@@ -1,4 +1,4 @@
-import { isText, type Image, type Item } from "@owlbear-rodeo/sdk";
+import { isPath, isText, type Image, type Item } from "@owlbear-rodeo/sdk";
 import { describe, expect, it } from "vitest";
 import { CREATURE_KEY, DISPLAY_KEY, type CreatureData } from "./constants";
 import {
@@ -66,16 +66,12 @@ describe("buildDesiredDisplays", () => {
     expect(hpBackground?.type).toBe("CURVE");
     expect(hpBackground?.layer).toBe("ATTACHMENT");
     expect(hpFill?.layer).toBe("ATTACHMENT");
-    expect(visibilityIcon?.type).toBe("TEXT");
+    expect(visibilityIcon?.type).toBe("PATH");
     expect(visibilityIcon?.layer).toBe("TEXT");
-    expect(armorIcon?.type).toBe("TEXT");
+    expect(armorIcon?.type).toBe("PATH");
     expect(armorIcon?.layer).toBe("TEXT");
-    expect(visibilityIcon && isText(visibilityIcon)).toBe(true);
-    if (visibilityIcon && isText(visibilityIcon)) {
-      expect(visibilityIcon.text.plainText).toBe("🚫");
-    }
-    expect(armorIcon && isText(armorIcon)).toBe(true);
-    if (armorIcon && isText(armorIcon)) expect(armorIcon.text.plainText).toBe("🛡️");
+    expect(visibilityIcon && isPath(visibilityIcon)).toBe(true);
+    expect(armorIcon && isPath(armorIcon)).toBe(true);
     expect(armorText && isText(armorText)).toBe(true);
     if (armorText && isText(armorText)) expect(armorText.text.plainText).toBe("1");
   });
@@ -122,7 +118,7 @@ describe("planDisplayReconciliation", () => {
     )).toBe(true);
   });
 
-  it("updates the visibility emoji in place when its state changes", () => {
+  it("updates the visibility path in place when its state changes", () => {
     const visible = buildDesiredDisplays([
       creatureImage({ x: 300, y: 400 }, data),
     ], "GM", 100);
@@ -132,16 +128,16 @@ describe("planDisplayReconciliation", () => {
     const currentIcon = visible.find((item) => item.id.endsWith("-visibility-icon"));
     const desiredIcon = hidden.find((item) => item.id.endsWith("-visibility-icon"));
 
-    expect(currentIcon && isText(currentIcon)).toBe(true);
-    expect(desiredIcon && isText(desiredIcon)).toBe(true);
-    if (!currentIcon || !desiredIcon || !isText(currentIcon) || !isText(desiredIcon)) return;
+    expect(currentIcon && isPath(currentIcon)).toBe(true);
+    expect(desiredIcon && isPath(desiredIcon)).toBe(true);
+    if (!currentIcon || !desiredIcon || !isPath(currentIcon) || !isPath(desiredIcon)) return;
 
-    const visibleGlyph = currentIcon.text.plainText;
+    const visibleCommands = currentIcon.commands.map((command) => [...command]);
     applyDesiredItem(currentIcon, desiredIcon);
 
     expect(currentIcon.id).toBe(desiredIcon.id);
-    expect(currentIcon.text.plainText).not.toBe(visibleGlyph);
-    expect(currentIcon.text.plainText).toBe("🚫");
+    expect(currentIcon.commands).not.toEqual(visibleCommands);
+    expect(currentIcon.commands).toEqual(desiredIcon.commands);
   });
 
   it("adds missing deterministic components and removes stale displays", () => {

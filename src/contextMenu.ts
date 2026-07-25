@@ -2,7 +2,7 @@ import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./contextMenu.css";
 import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
-import { iconGlyph } from "./icons";
+import { iconMarkup } from "./icons";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
@@ -44,7 +44,7 @@ function render() {
     <section class="panel">
       <div class="stats">
         <button class="visibility-button" type="button" id="visibility" aria-label="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}" title="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}">
-          <span class="dw-icon" aria-hidden="true">${iconGlyph(data.visibleToPlayers === false ? "eye-off" : "eye")}</span>
+          ${iconMarkup(data.visibleToPlayers === false ? "eye-off" : "eye")}
         </button>
         <span>ARM ${displayValue(data.armor)}</span>
         <button class="damage" type="button" id="damage" title="Roll damage">DMG ${displayValue(data.damage)}</button>
