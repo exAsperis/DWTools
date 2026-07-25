@@ -57,10 +57,9 @@ These choices are intentional:
   information harder to read.
 - A player-hidden overlay is absent on player clients, rather than present at
   reduced opacity.
-- Player visibility uses a consistent open-eye icon when visible and an open
-  eye inside a slashed circle when hidden. The overlay and context menu use the
-  same vector geometry rather than platform-dependent Unicode glyphs.
-- Armor uses a shield icon on the overlay. A diamond is not an armor symbol.
+- Player visibility uses `👁️` when visible and `🚫` when hidden. The overlay
+  and context menu use the same emoji source.
+- Armor uses `🛡️` on the overlay. A diamond is not an armor symbol.
 - Overlay components use compact dark backgrounds, white icon/text treatment,
   and green/amber/red HP status colors.
 
@@ -134,6 +133,15 @@ are unavailable, record the unverified cases rather than implying they passed.
 
 ## Decision history
 
+### 2026-07-25 — Emoji replace failed SVG image items
+
+Visibility now uses `👁️` / `🚫`, and armor uses `🛡️`. They are native Text
+items in the overlay and the same emoji strings in the context menu.
+
+Reason: Owlbear displayed the SVG data-URI Image items as failed-image
+placeholders (red circles with a yellow wedge). Emoji rendering is simpler and
+reliable in both surfaces.
+
 ### 2026-07-25 — Theme-aware text and shared vector iconography
 
 The context-menu panel now reads Owlbear's active theme and uses its primary
@@ -143,6 +151,9 @@ overlay, and armor uses a shield on the overlay.
 
 Reason: iframe media preferences can disagree with Owlbear's selected theme,
 and Unicode glyphs render differently by platform and font.
+
+This icon-rendering portion was superseded by the emoji decision above after
+live Owlbear testing exposed the failed-image placeholder.
 
 ### 2026-07-25 — Stable local renderer and explicit HP alignment
 

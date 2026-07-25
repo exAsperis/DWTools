@@ -469,3 +469,14 @@ a future feature.
 - hidden visibility is an eye inside a slashed circle;
 - armor is represented by a shield; and
 - overlay SVG icons are local Image items on `TEXT` and reconcile in place.
+
+Live Owlbear testing showed that the data-URI SVG Image items render as
+failed-image placeholders. Do not retry this approach without first proving
+Owlbear accepts the intended image source.
+
+### Version 0.2.2 — emoji icon compatibility fix
+
+- visibility is `👁️` when visible and `🚫` when hidden;
+- armor is `🛡️`;
+- the context menu and overlay use the same emoji source; and
+- overlay icons are explicit native Text boxes on `TEXT`, not Image items.

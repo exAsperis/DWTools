@@ -50,8 +50,9 @@ button { font: inherit; }
 
 .dw-icon {
   display: block;
-  width: 19px;
-  height: 19px;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .hp {

@@ -1,6 +1,5 @@
 import OBR, {
   buildCurve,
-  buildImage,
   buildText,
   isCurve,
   isImage,
@@ -9,7 +8,7 @@ import OBR, {
   type Item,
 } from "@owlbear-rodeo/sdk";
 import { DISPLAY_KEY, type CreatureData } from "./constants";
-import { iconDataUrl, type DwIconName } from "./icons";
+import { iconGlyph, type DwIconName } from "./icons";
 import {
   getCreatureData,
   getImageGeometry,
@@ -129,26 +128,28 @@ function buildOverlayIcon(
   renderKey: string,
   icon: DwIconName,
   box: OverlayBox,
-  sceneDpi: number,
   sizeRatio = 0.68,
 ) {
-  const size = Math.min(box.width, box.height) * sizeRatio;
-  return buildImage({
-    url: iconDataUrl(icon),
-    mime: "image/svg+xml",
-    width: 24,
-    height: 24,
-  }, {
-    dpi: sceneDpi,
-    offset: { x: 0, y: 0 },
-  })
+  const fontSize = Math.min(box.width, box.height) * sizeRatio;
+  return buildText()
     .id(overlayItemId(token.id, `${role}-icon`))
     .name(`DWTools ${role} icon`)
-    .position({
-      x: box.left + (box.width - size) / 2,
-      y: box.top + (box.height - size) / 2,
-    })
-    .scale({ x: size / 24, y: size / 24 })
+    .position({ x: box.left, y: box.top })
+    .width(box.width)
+    .height(box.height)
+    .plainText(iconGlyph(icon))
+    .textType("PLAIN")
+    .padding(0)
+    .fontFamily('"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif')
+    .fontSize(fontSize)
+    .fontWeight(400)
+    .lineHeight(1)
+    .textAlign("CENTER")
+    .textAlignVertical("MIDDLE")
+    .fillColor("#ffffff")
+    .fillOpacity(1)
+    .strokeOpacity(0)
+    .strokeWidth(0)
     .attachedTo(token.id)
     .layer("TEXT")
     .zIndex(10)
@@ -198,7 +199,6 @@ function buildTokenOverlay(
       renderKey,
       data.visibleToPlayers === false ? "eye-off" : "eye",
       layout.visibility,
-      sceneDpi,
       data.visibleToPlayers === false ? 0.76 : 0.7,
     ),
     buildBackground(token, "armor", renderKey, layout.armor),
@@ -208,7 +208,6 @@ function buildTokenOverlay(
       renderKey,
       "shield",
       armorIconBox,
-      sceneDpi,
       0.7,
     ),
     buildOverlayText(
