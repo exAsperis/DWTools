@@ -103,6 +103,7 @@ function buildOverlayItems(
 ): Item[] {
   const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
   const width = tokenWidth * 0.84;
+  const hpWidth = tokenWidth;
   const fontSize = width * 0.095;
   const rowHeight = fontSize * 1.55;
   const hpHeight = fontSize * 1.4;
@@ -115,16 +116,17 @@ function buildOverlayItems(
   const hpPercent = data.hpMax && data.hpMax > 0
     ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
     : 0;
-  const fillWidth = width * hpPercent;
+  const fillWidth = hpWidth * hpPercent;
   const left = bounds.center.x - width / 2;
+  const hpLeft = bounds.min.x;
 
   return [
     label(token, "visibility", renderKey, visibleToPlayers ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, true),
     label(token, "armor", renderKey, `◆${data.armor ?? "—"}`, left + width * 0.31, rowY, fontSize, true),
     label(token, "damage", renderKey, `⚄${data.damage ?? "—"}`, left + width * 0.67, rowY, fontSize * 0.9, true),
-    shape(token, "hp-bg", renderKey, left, hpTop, width, hpHeight, "#27272a", true),
+    shape(token, "hp-bg", renderKey, hpLeft, hpTop, hpWidth, hpHeight, "#27272a", true),
     ...(fillWidth > 0
-      ? [shape(token, "hp-fill", renderKey, left, hpTop, fillWidth, hpHeight, hpColor(hpPercent), true)]
+      ? [shape(token, "hp-fill", renderKey, hpLeft, hpTop, fillWidth, hpHeight, hpColor(hpPercent), true)]
       : []),
     label(
       token,
@@ -132,7 +134,7 @@ function buildOverlayItems(
       renderKey,
       `${data.hpCurrent ?? "—"}/${data.hpMax ?? "—"}`,
       bounds.center.x,
-      hpY,
+      hpTop,
       fontSize,
       true,
       0,
@@ -161,7 +163,7 @@ export async function syncCreatureDisplay(
   }
 
   const renderKey = JSON.stringify({
-    layout: 7,
+    layout: 8,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,

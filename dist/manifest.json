@@ -1,6 +1,6 @@
 {
   "name": "DWTools",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "manifest_version": 1,
   "description": "Dungeon World HP, armor, damage, moves, instinct, and treasure for character tokens.",
   "author": "Bryan",
@@ -8,9 +8,9 @@
   "action": {
     "title": "DWTools",
     "icon": "/DWTools/icon.svg",
-    "popover": "/DWTools/?v=0.1.8",
+    "popover": "/DWTools/?v=0.1.9",
     "height": 620,
     "width": 390
   },
-  "background_url": "/DWTools/background.html?v=0.1.8"
+  "background_url": "/DWTools/background.html?v=0.1.9"
 }
