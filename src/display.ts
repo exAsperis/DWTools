@@ -103,8 +103,7 @@ function buildOverlayItems(
 ): Item[] {
   const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
   const width = tokenWidth * 0.84;
-  const tokenScaleX = Math.abs(token.scale.x) || 1;
-  const hpWidth = tokenWidth * tokenScaleX;
+  const hpWidth = tokenWidth;
   const fontSize = width * 0.095;
   const rowHeight = fontSize * 1.55;
   const hpHeight = fontSize * 1.4;
@@ -119,7 +118,7 @@ function buildOverlayItems(
     : 0;
   const fillWidth = hpWidth * hpPercent;
   const left = bounds.center.x - width / 2;
-  const hpLeft = bounds.min.x - (hpWidth - tokenWidth) / 2;
+  const hpLeft = bounds.min.x;
 
   return [
     label(token, "visibility", renderKey, visibleToPlayers ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, true),
@@ -164,7 +163,7 @@ export async function syncCreatureDisplay(
   }
 
   const renderKey = JSON.stringify({
-    layout: 9,
+    layout: 8,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,
