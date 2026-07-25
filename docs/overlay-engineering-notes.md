@@ -425,8 +425,6 @@ Never delete a computed or unverified broad path.
 ## Decision log
 
 - **Decision:** stop incremental Label/Shape coordinate tweaks.
-- **Decision:** keep the current deployed behavior until the renderer is
-  replaced coherently.
 - **Decision:** use client-local deterministic visuals derived from shared token
   metadata.
 - **Decision:** use `buildText` with explicit boxes and layers for overlay text.
@@ -434,3 +432,30 @@ Never delete a computed or unverified broad path.
 - **Decision:** token movement is handled by attachment behavior, not rerendering.
 - **Decision:** implement tests before changing the live renderer again.
 
+## Implementation status
+
+### Version 0.2.0 — implemented 2026-07-25
+
+The coherent renderer replacement described above is now implemented:
+
+- `overlayModel.ts` owns image geometry, layout, visibility policy, stable IDs,
+  and render signatures.
+- `display.ts` builds deterministic local Curves and Text items and reconciles
+  them in place.
+- `background.ts` is the sole writer, uses a serialized latest-wins queue,
+  ignores position-only changes, and removes legacy shared displays when a GM
+  encounters them.
+- editor surfaces only change creature metadata.
+- all visual overlay items are written through `OBR.scene.local`.
+- HP text and its bar share the exact same explicit box; text is opaque and on
+  the `TEXT` layer.
+- GM overlays remain full brightness when hidden from players; player clients
+  omit them.
+- the initial regression suite covers image geometry, layout alignment,
+  visibility roles, deterministic IDs, relevant signatures, zero-write
+  movement reconciliation, in-place updates, stale cleanup, and latest-wins
+  queuing.
+
+Historical approaches and diagnoses above remain useful: do not restore shared
+rendering, Labels, delete/add synchronization, or multiple writers to simplify
+a future feature.

@@ -1,8 +1,7 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import "./style.css";
-import { CREATURE_KEY, EDIT_POPOVER_ID, EXTENSION_ID, isCreatureData, type CreatureData } from "./constants";
+import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
-import { syncCreatureDisplay } from "./display";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const params = new URLSearchParams(window.location.search);
@@ -98,8 +97,6 @@ function renderEditor(token: Item, data: CreatureData) {
 
   document.querySelector("#remove")?.addEventListener("click", async () => {
     await OBR.scene.items.updateItems([token], (items) => { delete items[0].metadata[CREATURE_KEY]; });
-    const updated = (await OBR.scene.items.getItems([token.id]))[0];
-    if (updated) await syncCreatureDisplay(updated);
     await OBR.popover.close(EDIT_POPOVER_ID);
   });
 
@@ -118,9 +115,6 @@ function renderEditor(token: Item, data: CreatureData) {
       next.visibleToPlayers = values.get("visibleToPlayers") === "on";
     }
     await OBR.scene.items.updateItems([token], (items) => { items[0].metadata[CREATURE_KEY] = next; });
-    const updated = (await OBR.scene.items.getItems([token.id]))[0];
-    if (updated) await syncCreatureDisplay(updated);
-    window.parent.postMessage({ type: `${EXTENSION_ID}/sync`, itemId: token.id }, "*");
     await OBR.popover.close(EDIT_POPOVER_ID);
   });
 }

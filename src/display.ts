@@ -1,209 +1,294 @@
-import OBR, { buildLabel, buildShape, type Item } from "@owlbear-rodeo/sdk";
-import { CREATURE_KEY, DISPLAY_KEY, isCreatureData, type CreatureData } from "./constants";
+import OBR, {
+  buildCurve,
+  buildText,
+  isCurve,
+  isImage,
+  isText,
+  type AttachmentBehavior,
+  type Item,
+} from "@owlbear-rodeo/sdk";
+import { DISPLAY_KEY, type CreatureData } from "./constants";
+import {
+  getCreatureData,
+  getImageGeometry,
+  getOverlayLayout,
+  hpColor,
+  hpPercent,
+  overlayItemId,
+  overlaySourceSignature,
+  roundedRectanglePoints,
+  shouldRenderOverlay,
+  type OverlayBox,
+  type PlayerRole,
+} from "./overlayModel";
 
-const DISPLAY_RENDER_KEY = `${DISPLAY_KEY}/render`;
+export const DISPLAY_RENDER_KEY = `${DISPLAY_KEY}/render`;
+const DISPLAY_ROLE_KEY = `${DISPLAY_KEY}/role`;
+const DISABLED_ATTACHMENT_BEHAVIORS: AttachmentBehavior[] = [
+  "ROTATION",
+  "VISIBLE",
+  "COPY",
+  "SCALE",
+];
 
-function isDisplay(item: Item): boolean {
+export interface ReconciliationPlan {
+  add: Item[];
+  update: Array<{ current: Item; desired: Item }>;
+  deleteIds: string[];
+}
+
+export function isDisplay(item: Item): boolean {
   return item.metadata[DISPLAY_KEY] === true;
 }
 
-function hpColor(percent: number): string {
-  if (percent > 0.5) return "#15803d";
-  if (percent > 0.25) return "#b45309";
-  return "#b91c1c";
+function displayMetadata(role: string, renderKey: string) {
+  return {
+    [DISPLAY_KEY]: true,
+    [DISPLAY_ROLE_KEY]: role,
+    [DISPLAY_RENDER_KEY]: renderKey,
+  };
 }
 
-function metadata(role: string, renderKey: string) {
-  return { [DISPLAY_KEY]: true, [`${DISPLAY_KEY}/role`]: role, [DISPLAY_RENDER_KEY]: renderKey };
-}
-
-function common<T extends ReturnType<typeof buildLabel> | ReturnType<typeof buildShape>>(
-  builder: T,
+function buildBackground(
   token: Item,
-  visible: boolean,
-): T {
-  return builder
+  role: string,
+  renderKey: string,
+  box: OverlayBox,
+  color = "#18181b",
+  opacity = 0.82,
+  zIndex = 10,
+) {
+  return buildCurve()
+    .id(overlayItemId(token.id, `${role}-bg`))
+    .name(`DWTools ${role} background`)
+    .position({ x: box.left, y: box.top })
+    .points(roundedRectanglePoints(box.width, box.height, box.height * 0.25))
+    .fillColor(color)
+    .fillOpacity(opacity)
+    .strokeOpacity(0)
+    .strokeWidth(0)
+    .tension(0)
+    .closed(true)
     .attachedTo(token.id)
     .layer("ATTACHMENT")
+    .zIndex(zIndex)
+    .disableAutoZIndex(true)
     .locked(true)
     .disableHit(true)
-    .disableAttachmentBehavior(["SCALE"])
-    .visible(visible) as T;
+    .disableAttachmentBehavior(DISABLED_ATTACHMENT_BEHAVIORS)
+    .visible(true)
+    .metadata(displayMetadata(`${role}-bg`, renderKey))
+    .build();
 }
 
-function label(
+function buildOverlayText(
   token: Item,
   role: string,
   renderKey: string,
   text: string,
-  x: number,
-  y: number,
+  box: OverlayBox,
   fontSize: number,
-  visible: boolean,
-  backgroundOpacity = 0.82,
 ) {
-  // Owlbear labels are positioned by the tip of their bottom pointer rather
-  // than by their visual center. With a zero-height pointer, offset the anchor
-  // by half the label body so the requested y coordinate remains its center.
-  const labelBodyHeight = fontSize * 1.64;
-
-  return common(buildLabel(), token, visible)
-    .name(`DWTools ${role}`)
-    .position({ x, y: y + labelBodyHeight / 2 })
+  return buildText()
+    .id(overlayItemId(token.id, `${role}-text`))
+    .name(`DWTools ${role} text`)
+    .position({ x: box.left, y: box.top })
+    .width(box.width)
+    .height(box.height)
     .plainText(text)
-    .padding(fontSize * 0.22)
+    .textType("PLAIN")
+    .padding(0)
+    .fontFamily("Arial, Helvetica, sans-serif")
     .fontSize(fontSize)
     .fontWeight(700)
+    .lineHeight(1)
     .textAlign("CENTER")
     .textAlignVertical("MIDDLE")
     .fillColor("#ffffff")
+    .fillOpacity(1)
     .strokeColor("#000000")
-    .strokeOpacity(0.45)
+    .strokeOpacity(0.55)
     .strokeWidth(Math.max(0.5, fontSize * 0.055))
-    .backgroundColor("#18181b")
-    .backgroundOpacity(backgroundOpacity)
-    .cornerRadius(fontSize * 0.35)
-    .pointerWidth(0)
-    .pointerHeight(0)
-    .minViewScale(1)
-    .maxViewScale(1)
-    .metadata(metadata(role, renderKey))
+    .attachedTo(token.id)
+    .layer("TEXT")
+    .zIndex(10)
+    .disableAutoZIndex(true)
+    .locked(true)
+    .disableHit(true)
+    .disableAttachmentBehavior(DISABLED_ATTACHMENT_BEHAVIORS)
+    .visible(true)
+    .metadata(displayMetadata(`${role}-text`, renderKey))
     .build();
 }
 
-function shape(
-  token: Item,
-  role: string,
-  renderKey: string,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  color: string,
-  visible: boolean,
-) {
-  return common(buildShape(), token, visible)
-    .name(`DWTools ${role}`)
-    .position({ x, y })
-    .width(width)
-    .height(height)
-    .shapeType("RECTANGLE")
-    .fillColor(color)
-    .fillOpacity(0.92)
-    .strokeOpacity(0)
-    .metadata(metadata(role, renderKey))
-    .build();
-}
-
-function buildOverlayItems(
+function buildTokenOverlay(
   token: Item,
   data: CreatureData,
-  bounds: { min: { x: number; y: number }; max: { x: number; y: number }; center: { x: number; y: number } },
-  renderKey: string,
+  role: PlayerRole,
+  sceneDpi: number,
 ): Item[] {
-  const tokenWidth = Math.max(40, bounds.max.x - bounds.min.x);
-  const width = tokenWidth * 0.84;
-  const hpWidth = tokenWidth;
-  const fontSize = width * 0.095;
-  const rowHeight = fontSize * 1.55;
-  const hpHeight = fontSize * 1.4;
-  const gap = width * 0.025;
-  const bottomInset = width * 0.07;
-  const hpY = bounds.max.y - bottomInset - hpHeight / 2;
-  const hpTop = hpY - hpHeight / 2;
-  const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
-  const visibleToPlayers = data.visibleToPlayers !== false;
-  const hpPercent = data.hpMax && data.hpMax > 0
-    ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
-    : 0;
-  const fillWidth = hpWidth * hpPercent;
-  const left = bounds.center.x - width / 2;
-  const hpLeft = bounds.min.x;
+  if (!isImage(token) || !shouldRenderOverlay(token, data, role)) return [];
+
+  const geometry = getImageGeometry(token, sceneDpi);
+  const layout = getOverlayLayout(geometry);
+  const renderKey = overlaySourceSignature(token, data, role, sceneDpi);
+  const percent = hpPercent(data);
+  const hpBox = {
+    left: layout.hpLeft,
+    top: layout.hpTop,
+    width: layout.hpWidth,
+    height: layout.hpHeight,
+  };
+  const fillBox = { ...hpBox, width: hpBox.width * percent };
 
   return [
-    label(token, "visibility", renderKey, visibleToPlayers ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, true),
-    label(token, "armor", renderKey, `◆${data.armor ?? "—"}`, left + width * 0.31, rowY, fontSize, true),
-    label(token, "damage", renderKey, `⚄${data.damage ?? "—"}`, left + width * 0.67, rowY, fontSize * 0.9, true),
-    shape(token, "hp-bg", renderKey, hpLeft, hpTop, hpWidth, hpHeight, "#27272a", true),
-    ...(fillWidth > 0
-      ? [shape(token, "hp-fill", renderKey, hpLeft, hpTop, fillWidth, hpHeight, hpColor(hpPercent), true)]
+    buildBackground(token, "visibility", renderKey, layout.visibility),
+    buildOverlayText(
+      token,
+      "visibility",
+      renderKey,
+      data.visibleToPlayers === false ? "⊘" : "◉",
+      layout.visibility,
+      layout.fontSize,
+    ),
+    buildBackground(token, "armor", renderKey, layout.armor),
+    buildOverlayText(
+      token,
+      "armor",
+      renderKey,
+      `◆${data.armor ?? "—"}`,
+      layout.armor,
+      layout.fontSize,
+    ),
+    buildBackground(token, "damage", renderKey, layout.damage),
+    buildOverlayText(
+      token,
+      "damage",
+      renderKey,
+      `⚄${data.damage ?? "—"}`,
+      layout.damage,
+      layout.fontSize * 0.9,
+    ),
+    buildBackground(token, "hp", renderKey, hpBox, "#27272a", 0.88, 20),
+    ...(fillBox.width > 0
+      ? [buildBackground(token, "hp-fill", renderKey, fillBox, hpColor(percent), 0.96, 21)]
       : []),
-    label(
+    buildOverlayText(
       token,
       "hp",
       renderKey,
       `${data.hpCurrent ?? "—"}/${data.hpMax ?? "—"}`,
-      bounds.center.x,
-      hpTop,
-      fontSize,
-      true,
-      0,
+      layout.hpText,
+      layout.fontSize,
     ),
   ];
 }
 
-export async function syncCreatureDisplay(
-  token: Item,
-  allItems?: Item[],
-  allLocalItems?: Item[],
-): Promise<void> {
-  const raw = token.metadata[CREATURE_KEY];
-  const data = isCreatureData(raw) ? raw : {};
-  const hasData = data.hpCurrent !== undefined || data.hpMax !== undefined
-    || data.armor !== undefined || Boolean(data.damage);
-  const items = allItems ?? await OBR.scene.items.getItems();
-  const localItems = allLocalItems ?? await OBR.scene.local.getItems();
-  const sceneDisplays = items.filter((item) => isDisplay(item) && item.attachedTo === token.id);
-  const localDisplays = localItems.filter((item) => isDisplay(item) && item.attachedTo === token.id);
-
-  if (!hasData) {
-    if (sceneDisplays.length) await OBR.scene.items.deleteItems(sceneDisplays.map((item) => item.id));
-    if (localDisplays.length) await OBR.scene.local.deleteItems(localDisplays.map((item) => item.id));
-    return;
+export function buildDesiredDisplays(
+  sceneItems: Item[],
+  role: PlayerRole,
+  sceneDpi: number,
+): Item[] {
+  const desired: Item[] = [];
+  for (const item of sceneItems) {
+    if (item.layer !== "CHARACTER" || !isImage(item)) continue;
+    desired.push(...buildTokenOverlay(item, getCreatureData(item), role, sceneDpi));
   }
-
-  const renderKey = JSON.stringify({
-    layout: 8,
-    hpCurrent: data.hpCurrent,
-    hpMax: data.hpMax,
-    armor: data.armor,
-    damage: data.damage,
-    visibleToPlayers: data.visibleToPlayers !== false,
-    tokenScale: token.scale,
-  });
-  const expected = (data.hpMax ?? 0) > 0 && (data.hpCurrent ?? 0) > 0 ? 6 : 5;
-  const visibleToPlayers = data.visibleToPlayers !== false;
-  const displays = visibleToPlayers ? sceneDisplays : localDisplays;
-
-  if (visibleToPlayers && localDisplays.length) {
-    await OBR.scene.local.deleteItems(localDisplays.map((item) => item.id));
-  } else if (!visibleToPlayers && sceneDisplays.length) {
-    await OBR.scene.items.deleteItems(sceneDisplays.map((item) => item.id));
-  }
-
-  if (displays.length === expected && displays.every((item) => item.metadata[DISPLAY_RENDER_KEY] === renderKey)) return;
-
-  if (displays.length) {
-    const ids = displays.map((item) => item.id);
-    if (visibleToPlayers) await OBR.scene.items.deleteItems(ids);
-    else await OBR.scene.local.deleteItems(ids);
-  }
-  const bounds = await OBR.scene.items.getItemBounds([token.id]);
-  const overlays = buildOverlayItems(token, data, bounds, renderKey);
-  if (visibleToPlayers) await OBR.scene.items.addItems(overlays);
-  else await OBR.scene.local.addItems(overlays);
+  return desired;
 }
 
-export async function syncAllDisplays(items?: Item[]): Promise<void> {
-  const sceneItems = items ?? await OBR.scene.items.getItems();
-  const localItems = await OBR.scene.local.getItems();
-  const tokens = sceneItems.filter(
-    (item) => item.layer === "CHARACTER" && isCreatureData(item.metadata[CREATURE_KEY]),
-  );
-  for (const token of tokens) await syncCreatureDisplay(token, sceneItems, localItems);
+export function planDisplayReconciliation(
+  currentDisplays: Item[],
+  desiredDisplays: Item[],
+): ReconciliationPlan {
+  const currentById = new Map(currentDisplays.map((item) => [item.id, item]));
+  const desiredById = new Map(desiredDisplays.map((item) => [item.id, item]));
+  const plan: ReconciliationPlan = { add: [], update: [], deleteIds: [] };
+
+  for (const current of currentDisplays) {
+    const desired = desiredById.get(current.id);
+    if (!desired) {
+      plan.deleteIds.push(current.id);
+    } else if (current.type !== desired.type) {
+      plan.deleteIds.push(current.id);
+      plan.add.push(desired);
+    } else if (
+      current.metadata[DISPLAY_RENDER_KEY] !== desired.metadata[DISPLAY_RENDER_KEY]
+      || current.attachedTo !== desired.attachedTo
+      || current.layer !== desired.layer
+    ) {
+      plan.update.push({ current, desired });
+    }
+  }
+
+  for (const desired of desiredDisplays) {
+    if (!currentById.has(desired.id)) plan.add.push(desired);
+  }
+
+  return plan;
+}
+
+export function applyDesiredItem(target: Item, desired: Item): void {
+  target.name = desired.name;
+  target.visible = desired.visible;
+  target.locked = desired.locked;
+  target.zIndex = desired.zIndex;
+  target.position = { ...desired.position };
+  target.rotation = desired.rotation;
+  target.scale = { ...desired.scale };
+  target.metadata = { ...desired.metadata };
+  target.layer = desired.layer;
+  target.attachedTo = desired.attachedTo;
+  target.disableHit = desired.disableHit;
+  target.disableAutoZIndex = desired.disableAutoZIndex;
+  target.disableAttachmentBehavior = desired.disableAttachmentBehavior
+    ? [...desired.disableAttachmentBehavior]
+    : undefined;
+  target.description = desired.description;
+
+  if (isCurve(target) && isCurve(desired)) {
+    target.points = desired.points.map((point) => ({ ...point }));
+    target.style = {
+      ...desired.style,
+      strokeDash: [...desired.style.strokeDash],
+    };
+  } else if (isText(target) && isText(desired)) {
+    target.text = {
+      ...desired.text,
+      richText: desired.text.richText.map((entry) => ({ ...entry })),
+      style: { ...desired.text.style },
+    };
+  }
+}
+
+export async function applyLocalDisplayPlan(plan: ReconciliationPlan): Promise<void> {
+  if (plan.update.length) {
+    const desiredById = new Map(plan.update.map(({ desired }) => [desired.id, desired]));
+    await OBR.scene.local.updateItems(
+      plan.update.map(({ current }) => current),
+      (drafts) => {
+        for (const draft of drafts) {
+          const desired = desiredById.get(draft.id);
+          if (desired) applyDesiredItem(draft as Item, desired);
+        }
+      },
+    );
+  }
+  if (plan.add.length) await OBR.scene.local.addItems(plan.add);
+  if (plan.deleteIds.length) await OBR.scene.local.deleteItems(plan.deleteIds);
+}
+
+export async function prepareLocalDisplayPlan(
+  sceneItems: Item[],
+  role: PlayerRole,
+  sceneDpi: number,
+): Promise<ReconciliationPlan> {
+  const currentDisplays = await OBR.scene.local.getItems(isDisplay);
+  const desiredDisplays = buildDesiredDisplays(sceneItems, role, sceneDpi);
+  return planDisplayReconciliation(currentDisplays, desiredDisplays);
 }
 
 export async function clearLocalDisplays(): Promise<void> {
-  const displays = (await OBR.scene.local.getItems()).filter(isDisplay);
+  const displays = await OBR.scene.local.getItems(isDisplay);
   if (displays.length) await OBR.scene.local.deleteItems(displays.map((item) => item.id));
 }

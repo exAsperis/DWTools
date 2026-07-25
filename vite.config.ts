@@ -1,10 +1,13 @@
 import { resolve } from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
-const buildVersion = "0.1.9";
+const buildVersion = "0.2.0";
 
 export default defineConfig({
   base: "/DWTools/",
+  test: {
+    setupFiles: ["./src/testSetup.ts"],
+  },
   server: {
     cors: {
       origin: "https://www.owlbear.rodeo",

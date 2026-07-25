@@ -1,9 +1,16 @@
 # DWTools agent notes
 
-Before changing token overlays, read
-[`docs/overlay-engineering-notes.md`](docs/overlay-engineering-notes.md) in full.
-It records the known failure modes, prior implementations, Owlbear-specific
-geometry rules, and the planned renderer redesign.
+Before changing DWTools behavior or presentation, read both of these in full:
+
+- [`docs/product-and-ux-decisions.md`](docs/product-and-ux-decisions.md) records
+  the project's goals and explicit product/design choices.
+- [`docs/overlay-engineering-notes.md`](docs/overlay-engineering-notes.md)
+  records known failure modes, prior implementations, Owlbear-specific
+  geometry rules, and the renderer architecture.
+
+Do not reinterpret an intentional choice as an accidental implementation
+detail. If a future request changes a documented choice, update the decision
+record in the same change.
 
 ## Overlay guardrails
 
@@ -49,4 +56,3 @@ geometry rules, and the planned renderer redesign.
   update, tests, a production build, and review of generated output.
 - Owlbear reloads can reset the viewport. When preserving a test view, record
   Position X, Position Y, and Zoom; restore Zoom first, then Y, then X.
-

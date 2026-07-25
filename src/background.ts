@@ -1,6 +1,18 @@
-import OBR from "@owlbear-rodeo/sdk";
+import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import { EXTENSION_ID } from "./constants";
-import { clearLocalDisplays, syncAllDisplays, syncCreatureDisplay } from "./display";
+import {
+  applyLocalDisplayPlan,
+  clearLocalDisplays,
+  isDisplay,
+  prepareLocalDisplayPlan,
+  type ReconciliationPlan,
+} from "./display";
+import { LatestTaskQueue } from "./latestTaskQueue";
+import {
+  getOverlaySourceSignatures,
+  signatureMapsEqual,
+  type PlayerRole,
+} from "./overlayModel";
 
 const characterFilter = {
   min: 1,
@@ -22,55 +34,149 @@ function setupContextMenus() {
       filter: characterFilter,
     }],
     embed: {
-      url: assetUrl("context-menu.html?v=0.1.9"),
+      url: assetUrl("context-menu.html?v=0.2.0"),
       height: 360,
     },
   });
 }
 
-let unsubscribeItems: (() => void) | undefined;
-let syncing = false;
-let queued = false;
-let activeRole: "GM" | "PLAYER" | undefined;
+interface RenderRequest {
+  generation: number;
+  items: Item[];
+  role: PlayerRole;
+  sceneDpi: number;
+}
 
-async function startSceneSync() {
+interface PreparedRender {
+  generation: number;
+  plan: ReconciliationPlan;
+}
+
+let sceneGeneration = 0;
+let lifecycleChain = Promise.resolve();
+let latestSceneItems: Item[] = [];
+let activeRole: PlayerRole | undefined;
+let activeSceneDpi: number | undefined;
+let lastSourceSignatures = new Map<string, string>();
+let unsubscribeItems: (() => void) | undefined;
+let unsubscribeGrid: (() => void) | undefined;
+const pendingLegacyIds = new Set<string>();
+let legacyCleanupRunning = false;
+
+const renderQueue = new LatestTaskQueue<RenderRequest, PreparedRender>(
+  async (request) => ({
+    generation: request.generation,
+    plan: await prepareLocalDisplayPlan(request.items, request.role, request.sceneDpi),
+  }),
+  async ({ generation, plan }) => {
+    if (generation !== sceneGeneration) return;
+    await applyLocalDisplayPlan(plan);
+  },
+  (error) => console.error("DWTools overlay render failed", error),
+);
+
+function scheduleLegacyCleanup(items: Item[]) {
+  if (activeRole !== "GM") return;
+  for (const item of items) {
+    if (isDisplay(item)) pendingLegacyIds.add(item.id);
+  }
+  if (!legacyCleanupRunning && pendingLegacyIds.size) void drainLegacyCleanup();
+}
+
+async function drainLegacyCleanup() {
+  legacyCleanupRunning = true;
+  try {
+    while (pendingLegacyIds.size) {
+      const ids = [...pendingLegacyIds];
+      pendingLegacyIds.clear();
+      try {
+        await OBR.scene.items.deleteItems(ids);
+      } catch (error) {
+        console.warn("DWTools could not remove legacy shared overlays", error);
+      }
+    }
+  } finally {
+    legacyCleanupRunning = false;
+  }
+}
+
+function scheduleRender(force = false) {
+  if (activeRole === undefined || activeSceneDpi === undefined) return;
+  const signatures = getOverlaySourceSignatures(
+    latestSceneItems,
+    activeRole,
+    activeSceneDpi,
+  );
+  if (!force && signatureMapsEqual(signatures, lastSourceSignatures)) return;
+  lastSourceSignatures = signatures;
+  renderQueue.schedule({
+    generation: sceneGeneration,
+    items: latestSceneItems,
+    role: activeRole,
+    sceneDpi: activeSceneDpi,
+  });
+}
+
+function handleSceneItems(items: Item[], force = false) {
+  latestSceneItems = items;
+  scheduleLegacyCleanup(items);
+  scheduleRender(force);
+}
+
+function restartSceneSync() {
+  const requestedGeneration = ++sceneGeneration;
+  lifecycleChain = lifecycleChain
+    .then(() => startSceneSync(requestedGeneration))
+    .catch((error) => console.error("DWTools scene initialization failed", error));
+}
+
+async function startSceneSync(requestedGeneration: number) {
+  if (requestedGeneration !== sceneGeneration) return;
+
   unsubscribeItems?.();
   unsubscribeItems = undefined;
-  if (!await OBR.scene.isReady()) return;
-  activeRole = await OBR.player.getRole();
-  if (activeRole !== "GM") {
-    await clearLocalDisplays();
-    return;
-  }
-  await syncAllDisplays();
-  unsubscribeItems = OBR.scene.items.onChange((items) => {
-    if (syncing) {
-      queued = true;
-      return;
-    }
-    syncing = true;
-    void syncAllDisplays(items).finally(async () => {
-      syncing = false;
-      if (queued) {
-        queued = false;
-        await syncAllDisplays();
-      }
-    });
+  unsubscribeGrid?.();
+  unsubscribeGrid = undefined;
+  activeRole = undefined;
+  activeSceneDpi = undefined;
+  latestSceneItems = [];
+  lastSourceSignatures = new Map();
+
+  await renderQueue.whenIdle();
+  if (requestedGeneration !== sceneGeneration) return;
+  await clearLocalDisplays();
+  if (requestedGeneration !== sceneGeneration || !await OBR.scene.isReady()) return;
+
+  const [role, sceneDpi] = await Promise.all([
+    OBR.player.getRole(),
+    OBR.scene.grid.getDpi(),
+  ]);
+  if (requestedGeneration !== sceneGeneration) return;
+
+  activeRole = role;
+  activeSceneDpi = sceneDpi;
+  unsubscribeItems = OBR.scene.items.onChange((items) => handleSceneItems(items));
+  unsubscribeGrid = OBR.scene.grid.onChange((grid) => {
+    if (grid.dpi === activeSceneDpi) return;
+    activeSceneDpi = grid.dpi;
+    lastSourceSignatures = new Map();
+    scheduleRender(true);
   });
+
+  const items = await OBR.scene.items.getItems();
+  if (requestedGeneration !== sceneGeneration) return;
+  handleSceneItems(items, true);
 }
 
 OBR.onReady(() => {
   setupContextMenus();
-  void startSceneSync();
-  OBR.scene.onReadyChange(() => void startSceneSync());
+  restartSceneSync();
+  OBR.scene.onReadyChange(() => restartSceneSync());
   OBR.player.onChange((player) => {
-    if (player.role !== activeRole) void startSceneSync();
-  });
-  window.addEventListener("message", (event) => {
-    if (activeRole !== "GM") return;
-    if (event.data?.type !== `${EXTENSION_ID}/sync` || typeof event.data.itemId !== "string") return;
-    void OBR.scene.items.getItems([event.data.itemId]).then(([item]) => {
-      if (item) return syncCreatureDisplay(item);
-    });
+    if (player.role === activeRole) return;
+    activeRole = player.role;
+    lastSourceSignatures = new Map();
+    scheduleLegacyCleanup(latestSceneItems);
+    scheduleRender(true);
   });
 });
