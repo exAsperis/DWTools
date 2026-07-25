@@ -109,6 +109,7 @@ function buildOverlayItems(
   const gap = width * 0.025;
   const bottomInset = width * 0.07;
   const hpY = bounds.max.y - bottomInset - hpHeight / 2;
+  const hpTop = hpY - hpHeight / 2;
   const rowY = hpY - hpHeight / 2 - gap - rowHeight / 2;
   const visible = data.visibleToPlayers !== false;
   const hpPercent = data.hpMax && data.hpMax > 0
@@ -121,9 +122,9 @@ function buildOverlayItems(
     label(token, "visibility", renderKey, visible ? "◉" : "⊘", left + width * 0.09, rowY, fontSize, visible),
     label(token, "armor", renderKey, `◆${data.armor ?? "—"}`, left + width * 0.31, rowY, fontSize, visible),
     label(token, "damage", renderKey, `⚄${data.damage ?? "—"}`, left + width * 0.67, rowY, fontSize * 0.9, visible),
-    shape(token, "hp-bg", renderKey, bounds.center.x, hpY, width, hpHeight, "#27272a", visible),
+    shape(token, "hp-bg", renderKey, left, hpTop, width, hpHeight, "#27272a", visible),
     ...(fillWidth > 0
-      ? [shape(token, "hp-fill", renderKey, left + fillWidth / 2, hpY, fillWidth, hpHeight, hpColor(hpPercent), visible)]
+      ? [shape(token, "hp-fill", renderKey, left, hpTop, fillWidth, hpHeight, hpColor(hpPercent), visible)]
       : []),
     label(
       token,
@@ -153,7 +154,7 @@ export async function syncCreatureDisplay(token: Item, allItems?: Item[]): Promi
   }
 
   const renderKey = JSON.stringify({
-    layout: 5,
+    layout: 6,
     hpCurrent: data.hpCurrent,
     hpMax: data.hpMax,
     armor: data.armor,

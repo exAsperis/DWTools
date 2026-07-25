@@ -22,7 +22,7 @@ function setupContextMenus() {
       filter: characterFilter,
     }],
     embed: {
-      url: assetUrl("context-menu.html?v=0.1.6"),
+      url: assetUrl("context-menu.html?v=0.1.7"),
       height: 360,
     },
   });
