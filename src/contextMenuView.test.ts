@@ -40,7 +40,9 @@ describe("buildContextSummary", () => {
     });
 
     expect(markup).not.toContain("<script>");
-    expect(markup).toContain("&lt;script&gt;alert(&quot;tag&quot;)&lt;/script&gt;");
+    expect(markup).toContain(
+      "&lt;script&gt;alert(&quot;tag&quot;)&lt;/script&gt;",
+    );
     expect(markup).toContain("(&lt;Claws&gt;)");
     expect(markup).toContain("Close &amp; Messy");
   });

@@ -51,8 +51,14 @@ export function parseDamage(input: string): DamageExpression | null {
 }
 
 function isValidDice(count: number, sides: number): boolean {
-  return Number.isInteger(count) && count >= 1 && count <= 100 &&
-    Number.isInteger(sides) && sides >= 2 && sides <= 1000;
+  return (
+    Number.isInteger(count) &&
+    count >= 1 &&
+    count <= 100 &&
+    Number.isInteger(sides) &&
+    sides >= 2 &&
+    sides <= 1000
+  );
 }
 
 export function rollDamage(
@@ -63,18 +69,28 @@ export function rollDamage(
     { length: expression.count },
     () => Math.floor(random() * expression.sides) + 1,
   );
-  const subtotal = expression.mode === "best"
-    ? Math.max(...rolls)
-    : expression.mode === "worst"
-      ? Math.min(...rolls)
-      : rolls.reduce((sum, roll) => sum + roll, 0);
-  return { ...expression, rolls, subtotal, total: subtotal + expression.modifier };
+  const subtotal =
+    expression.mode === "best"
+      ? Math.max(...rolls)
+      : expression.mode === "worst"
+        ? Math.min(...rolls)
+        : rolls.reduce((sum, roll) => sum + roll, 0);
+  return {
+    ...expression,
+    rolls,
+    subtotal,
+    total: subtotal + expression.modifier,
+  };
 }
 
-export function formatDamageResult(source: string, result: DamageResult): string {
+export function formatDamageResult(
+  source: string,
+  result: DamageResult,
+): string {
   const choice = result.mode === "sum" ? "sum" : result.mode;
-  const modifier = result.modifier === 0
-    ? ""
-    : ` ${result.modifier > 0 ? "+" : "−"} ${Math.abs(result.modifier)}`;
+  const modifier =
+    result.modifier === 0
+      ? ""
+      : ` ${result.modifier > 0 ? "+" : "−"} ${Math.abs(result.modifier)}`;
   return `${source}: [${result.rolls.join(", ")}] ${choice}${modifier} = ${result.total}`;
 }

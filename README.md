@@ -11,14 +11,19 @@ A minimal Owlbear Rodeo extension for keeping Dungeon World creature information
 - GM-only context-menu editor for instinct, moves, and treasure
 - Quick HP adjustments from the token context menu
 - Damage rolls for `d6`, `2d6+1`, `b[2d6]+1`, and `w[2d8]-1` style expressions
+- Persistent room-level character records that synchronize linked tokens across scenes
 
-## Run locally
+## Testing workflow
 
-1. Install dependencies with `npm install` (or `pnpm install`).
-2. Start the development server with `npm run dev`.
-3. In Owlbear Rodeo, install `http://localhost:5173/manifest.json` as an extension.
+Local extension testing through a local server is currently nonfunctional.
+Until the project owner explicitly revokes this standing directive:
 
-The development server allows requests from `https://www.owlbear.rodeo`.
+1. complete internal QC with the formatter, linter, type checker, tests, and
+   production build;
+2. push the reviewed changes to GitHub;
+3. allow GitHub Pages to update the hosted extension automatically; and
+4. perform Owlbear integration and manual testing in that live pre-production
+   environment.
 
 ## Build
 

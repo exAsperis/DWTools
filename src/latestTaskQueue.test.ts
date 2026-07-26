@@ -14,7 +14,7 @@ describe("LatestTaskQueue", () => {
     const first = deferred<string>();
     const committed: string[] = [];
     const queue = new LatestTaskQueue(
-      async (input: string) => input === "old" ? first.promise : input,
+      async (input: string) => (input === "old" ? first.promise : input),
       async (prepared) => {
         committed.push(prepared);
       },

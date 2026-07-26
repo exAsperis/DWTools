@@ -17,14 +17,20 @@ describe("buildHomeMarkup", () => {
     const markup = buildHomeMarkup("GM", false, true);
 
     expect(markup).toContain('aria-label="Default: hidden from players"');
-    expect(markup).toContain('disabled');
+    expect(markup).toContain("disabled");
     expect(markup).toContain("19.1 19.1");
   });
 
   it("hides the room setting from players", () => {
-    const markup = buildHomeMarkup("PLAYER", false, false);
+    const markup = buildHomeMarkup(
+      "PLAYER",
+      false,
+      false,
+      '<section id="character-manager">Character Records</section>',
+    );
 
     expect(markup).not.toContain("Default character overlay visibility:");
     expect(markup).not.toContain('id="default-visibility"');
+    expect(markup).not.toContain("Character Records");
   });
 });

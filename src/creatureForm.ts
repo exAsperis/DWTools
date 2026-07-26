@@ -1,4 +1,4 @@
-import type { CreatureData } from "./constants";
+import type { CreatureData, CreatureFields } from "./constants";
 
 export function maximumHpAutofill(
   currentValue: string,
@@ -41,4 +41,15 @@ export function readCreatureForm(
   next.treasure = optionalText(form, "treasure");
   next.visibleToPlayers = form.get("visibleToPlayers") === "on";
   return next;
+}
+
+export function readCreatureFieldsForm(
+  form: FormData,
+  current: CreatureFields,
+  hpOnly: boolean,
+): CreatureFields {
+  return {
+    name: hpOnly ? current.name : String(form.get("name") ?? "").trim(),
+    ...readCreatureForm(form, current, hpOnly),
+  };
 }

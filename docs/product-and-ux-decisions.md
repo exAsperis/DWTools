@@ -21,8 +21,10 @@ The extension should:
 - remain a reliable base for future Dungeon World-specific features.
 
 The overlay is a presentation of token metadata, not the source of truth.
-Creature data belongs on the token. Each client independently derives the
-visual overlay appropriate to that player's role.
+For unlinked creatures, creature data belongs on the token. For linked
+creatures, a persistent room character record is authoritative and the token
+contains a synchronized scene-local copy. Each client independently derives
+the visual overlay appropriate to that player's role from the token copy.
 
 ## Information hierarchy
 
@@ -119,6 +121,9 @@ UX:
 See `overlay-engineering-notes.md` for implementation detail and failure
 history.
 
+Persistent character-record architecture and limits are recorded in
+[`character-records.md`](character-records.md).
+
 ## Acceptance criteria for future changes
 
 Before treating an overlay change as complete, verify:
@@ -145,6 +150,48 @@ The persistent overlay retains its compact two-line information hierarchy and
 client-local, single-writer renderer architecture.
 
 ## Decision history
+
+### 2026-07-26 — Room character records are authoritative for linked tokens
+
+DWTools supports versioned room-level character records that persist across
+scenes. Tokens opt into persistence through a separate versioned link metadata
+key; existing tokens are never linked or converted automatically.
+
+Each record uses an independent namespaced room-metadata key. The record
+contains every persistent DWTools creature field, including the native token
+name and player-overlay visibility. A linked token keeps a complete copy in its
+existing creature metadata so established overlays and editor surfaces remain
+compatible.
+
+Explicit DWTools mutation commands update the record first and then synchronize
+all linked tokens in the current scene. Room-record changes and scene readiness
+also synchronize record data down to tokens. Arbitrary scene-item changes never
+write back to records.
+
+Deletion uses compact tombstones. Current-scene tokens are unlinked without
+losing fields, and stale links encountered in later scenes are removed when
+that scene opens. Missing records without tombstones retain their links for
+explicit orphan recovery.
+
+Reason: characters need durable identity and state across scenes without
+replacing the stable token-metadata overlay architecture or creating
+bidirectional synchronization loops.
+
+### 2026-07-26 — Live deployment is the integration-test environment
+
+Local extension testing through a local server is currently nonfunctional.
+Until the project owner explicitly revokes this directive, changes must first
+complete internal quality checks, then be pushed to GitHub. The push
+automatically updates the hosted site, after which integration and manual
+testing may be performed in the live environment.
+
+This is a temporary standing workflow decision while the extension is not yet
+in production. It authorizes live-environment testing only after internal QC;
+it does not reduce the project's automated-test, build, generated-output
+review, or other release-verification requirements.
+
+Reason: the local-server extension workflow cannot currently provide a usable
+test environment, while the pre-production hosted site can.
 
 ### 2026-07-26 — Version 1.0 uses the supplied DWTools brand
 

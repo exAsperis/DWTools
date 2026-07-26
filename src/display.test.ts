@@ -47,28 +47,43 @@ function creatureImage(
 
 describe("buildDesiredDisplays", () => {
   it("builds opaque text in front of attachment-layer HP shapes", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        hpCurrent: 8,
-        hpMax: 12,
-        armor: 1,
-        damage: "d6",
-        visibleToPlayers: false,
-      }),
-    ], "GM", 100);
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            hpCurrent: 8,
+            hpMax: 12,
+            armor: 1,
+            damage: "d6",
+            visibleToPlayers: false,
+          },
+        ),
+      ],
+      "GM",
+      100,
+    );
 
     expect(desired).toHaveLength(10);
     expect(new Set(desired.map((item) => item.id)).size).toBe(desired.length);
-    expect(desired.every((item) => item.metadata[DISPLAY_KEY] === true)).toBe(true);
+    expect(desired.every((item) => item.metadata[DISPLAY_KEY] === true)).toBe(
+      true,
+    );
 
     const hpText = desired.find((item) => item.id.endsWith("-hp-text"));
     const hpBackground = desired.find((item) => item.id.endsWith("-hp-bg"));
     const hpFill = desired.find((item) => item.id.endsWith("-hp-fill-bg"));
-    const visibilityIcon = desired.find((item) => item.id.endsWith("-visibility-icon"));
-    const visibilityBackground = desired.find((item) => item.id.endsWith("-visibility-bg"));
+    const visibilityIcon = desired.find((item) =>
+      item.id.endsWith("-visibility-icon"),
+    );
+    const visibilityBackground = desired.find((item) =>
+      item.id.endsWith("-visibility-bg"),
+    );
     const armorIcon = desired.find((item) => item.id.endsWith("-armor-icon"));
     const armorText = desired.find((item) => item.id.endsWith("-armor-text"));
-    const damageBackground = desired.find((item) => item.id.endsWith("-damage-bg"));
+    const damageBackground = desired.find((item) =>
+      item.id.endsWith("-damage-bg"),
+    );
     const damageIcon = desired.find((item) => item.id.endsWith("-damage-icon"));
     const damageText = desired.find((item) => item.id.endsWith("-damage-text"));
 
@@ -93,43 +108,51 @@ describe("buildDesiredDisplays", () => {
     expect(damageIcon && isPath(damageIcon)).toBe(true);
     expect(armorText && isText(armorText)).toBe(true);
     expect(damageText && isText(damageText)).toBe(true);
-    if (armorText && isText(armorText)) expect(armorText.text.plainText).toBe("1");
-    if (damageText && isText(damageText)) expect(damageText.text.plainText).toBe("d6");
+    if (armorText && isText(armorText))
+      expect(armorText.text.plainText).toBe("1");
+    if (damageText && isText(damageText))
+      expect(damageText.text.plainText).toBe("d6");
     if (visibilityIcon && isPath(visibilityIcon)) {
-      const layout = getOverlayLayout(getImageGeometry(
-        creatureImage({ x: 300, y: 400 }, {}),
-        100,
-      ));
+      const layout = getOverlayLayout(
+        getImageGeometry(creatureImage({ x: 300, y: 400 }, {}), 100),
+      );
       const markerWidth = 24 * visibilityIcon.scale.x;
       const markerHeight = 24 * visibilityIcon.scale.y;
 
       expect(visibilityIcon.style.strokeColor).toBe("#ffffff");
       expect(visibilityIcon.position.x).toBeGreaterThanOrEqual(layout.hpLeft);
       expect(visibilityIcon.position.y).toBeGreaterThanOrEqual(layout.hpTop);
-      expect(visibilityIcon.position.x + markerWidth)
-        .toBeLessThanOrEqual(layout.hpLeft + layout.hpHeight);
-      expect(visibilityIcon.position.y + markerHeight)
-        .toBeLessThanOrEqual(layout.hpTop + layout.hpHeight);
+      expect(visibilityIcon.position.x + markerWidth).toBeLessThanOrEqual(
+        layout.hpLeft + layout.hpHeight,
+      );
+      expect(visibilityIcon.position.y + markerHeight).toBeLessThanOrEqual(
+        layout.hpTop + layout.hpHeight,
+      );
     }
     if (
-      hpText && isText(hpText)
-      && armorText && isText(armorText)
-      && damageText && isText(damageText)
+      hpText &&
+      isText(hpText) &&
+      armorText &&
+      isText(armorText) &&
+      damageText &&
+      isText(damageText)
     ) {
       expect(armorText.text.style.fontSize).toBe(hpText.text.style.fontSize);
       expect(damageText.text.style.fontSize).toBe(hpText.text.style.fontSize);
     }
     if (damageIcon && isPath(damageIcon)) {
-      const expectedCommands = iconCommands("sword").map(([kind, ...coordinates]) => [
-        kind === "M"
-          ? Command.MOVE
-          : kind === "L"
-            ? Command.LINE
-            : kind === "C"
-              ? Command.CUBIC
-              : Command.CLOSE,
-        ...coordinates,
-      ]);
+      const expectedCommands = iconCommands("sword").map(
+        ([kind, ...coordinates]) => [
+          kind === "M"
+            ? Command.MOVE
+            : kind === "L"
+              ? Command.LINE
+              : kind === "C"
+                ? Command.CUBIC
+                : Command.CLOSE,
+          ...coordinates,
+        ],
+      );
       expect(damageIcon.commands).toEqual(expectedCommands);
     }
   });
@@ -140,44 +163,70 @@ describe("buildDesiredDisplays", () => {
     ["red", { hpCurrent: 2, hpMax: 10 }],
     ["purple", { hpCurrent: 11, hpMax: 10 }],
     ["empty", { hpCurrent: 0, hpMax: 10 }],
-  ] as const)("keeps the hidden marker white over a %s HP bar", (_state, hp) => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        ...hp,
-        visibleToPlayers: false,
-      }),
-    ], "GM", 100);
-    const marker = desired.find((item) => item.id.endsWith("-visibility-icon"));
+  ] as const)(
+    "keeps the hidden marker white over a %s HP bar",
+    (_state, hp) => {
+      const desired = buildDesiredDisplays(
+        [
+          creatureImage(
+            { x: 300, y: 400 },
+            {
+              ...hp,
+              visibleToPlayers: false,
+            },
+          ),
+        ],
+        "GM",
+        100,
+      );
+      const marker = desired.find((item) =>
+        item.id.endsWith("-visibility-icon"),
+      );
 
-    expect(marker && isPath(marker)).toBe(true);
-    if (marker && isPath(marker)) {
-      expect(marker.style.strokeColor).toBe("#ffffff");
-      expect(marker.layer).toBe("TEXT");
-    }
-  });
+      expect(marker && isPath(marker)).toBe(true);
+      if (marker && isPath(marker)) {
+        expect(marker.style.strokeColor).toBe("#ffffff");
+        expect(marker.layer).toBe("TEXT");
+      }
+    },
+  );
 
   it("renders no visibility component when shared with players", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        hpCurrent: 8,
-        hpMax: 10,
-        visibleToPlayers: true,
-      }),
-    ], "GM", 100);
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            hpCurrent: 8,
+            hpMax: 10,
+            visibleToPlayers: true,
+          },
+        ),
+      ],
+      "GM",
+      100,
+    );
 
-    expect(desired.some((item) => item.id.includes("-visibility-"))).toBe(false);
+    expect(desired.some((item) => item.id.includes("-visibility-"))).toBe(
+      false,
+    );
   });
 
   it.each(["w[2d10]+2", "b[2d10]+10", "2d100+25"])(
     "keeps long damage formula %s on one expanded text item",
     (formula) => {
-      const token = creatureImage({ x: 300, y: 400 }, {
-        hpCurrent: 8,
-        hpMax: 10,
-        damage: formula,
-      });
+      const token = creatureImage(
+        { x: 300, y: 400 },
+        {
+          hpCurrent: 8,
+          hpMax: 10,
+          damage: formula,
+        },
+      );
       const desired = buildDesiredDisplays([token], "GM", 100);
-      const damageText = desired.find((item) => item.id.endsWith("-damage-text"));
+      const damageText = desired.find((item) =>
+        item.id.endsWith("-damage-text"),
+      );
       const layout = getOverlayLayout(getImageGeometry(token, 100));
       const previousDamageTextWidth = layout.width * 0.56 * 0.82;
 
@@ -185,46 +234,66 @@ describe("buildDesiredDisplays", () => {
       if (damageText && isText(damageText)) {
         expect(damageText.text.plainText).toBe(formula);
         expect(damageText.text.width).toBeCloseTo(layout.width * 0.66);
-        expect(Number(damageText.text.width) / previousDamageTextWidth)
-          .toBeCloseTo(1.437, 2);
+        expect(
+          Number(damageText.text.width) / previousDamageTextWidth,
+        ).toBeCloseTo(1.437, 2);
       }
     },
   );
 
   it("keeps hidden-token displays local and visible for the GM", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            hpCurrent: 8,
+            hpMax: 12,
+            armor: 1,
+            damage: "d6",
+            visibleToPlayers: true,
+          },
+        ),
+      ],
+      "GM",
+      100,
+    );
+    const hiddenToken = creatureImage(
+      { x: 300, y: 400 },
+      {
         hpCurrent: 8,
         hpMax: 12,
         armor: 1,
         damage: "d6",
         visibleToPlayers: true,
-      }),
-    ], "GM", 100);
-    const hiddenToken = creatureImage({ x: 300, y: 400 }, {
-      hpCurrent: 8,
-      hpMax: 12,
-      armor: 1,
-      damage: "d6",
-      visibleToPlayers: true,
-    });
+      },
+    );
     hiddenToken.visible = false;
     const hiddenDesired = buildDesiredDisplays([hiddenToken], "GM", 100);
 
     expect(hiddenDesired).toHaveLength(desired.length);
     expect(hiddenDesired.every((item) => item.visible)).toBe(true);
-    expect(hiddenDesired.every((item) =>
-      item.disableAttachmentBehavior?.includes("VISIBLE"),
-    )).toBe(true);
+    expect(
+      hiddenDesired.every((item) =>
+        item.disableAttachmentBehavior?.includes("VISIBLE"),
+      ),
+    ).toBe(true);
   });
 
   it("renders an over-maximum HP fill in purple", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        hpCurrent: 9,
-        hpMax: 8,
-      }),
-    ], "GM", 100);
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            hpCurrent: 9,
+            hpMax: 8,
+          },
+        ),
+      ],
+      "GM",
+      100,
+    );
     const hpFill = desired.find((item) => item.id.endsWith("-hp-fill-bg"));
 
     expect(hpFill && isCurve(hpFill)).toBe(true);
@@ -234,29 +303,41 @@ describe("buildDesiredDisplays", () => {
   });
 
   it("removes player displays when a shared token becomes hidden", () => {
-    const hiddenToken = creatureImage({ x: 300, y: 400 }, {
-      hpCurrent: 8,
-      hpMax: 12,
-      visibleToPlayers: true,
-    });
+    const hiddenToken = creatureImage(
+      { x: 300, y: 400 },
+      {
+        hpCurrent: 8,
+        hpMax: 12,
+        visibleToPlayers: true,
+      },
+    );
     hiddenToken.visible = false;
 
     expect(buildDesiredDisplays([hiddenToken], "PLAYER", 100)).toEqual([]);
   });
 
   it("lets visible player displays inherit token visibility", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        hpCurrent: 8,
-        hpMax: 12,
-        visibleToPlayers: true,
-      }),
-    ], "PLAYER", 100);
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            hpCurrent: 8,
+            hpMax: 12,
+            visibleToPlayers: true,
+          },
+        ),
+      ],
+      "PLAYER",
+      100,
+    );
 
     expect(desired.length).toBeGreaterThan(0);
-    expect(desired.every((item) =>
-      !item.disableAttachmentBehavior?.includes("VISIBLE"),
-    )).toBe(true);
+    expect(
+      desired.every(
+        (item) => !item.disableAttachmentBehavior?.includes("VISIBLE"),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -269,12 +350,16 @@ describe("planDisplayReconciliation", () => {
   };
 
   it("performs zero writes for a position-only token change", () => {
-    const current = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, data),
-    ], "GM", 100);
-    const moved = buildDesiredDisplays([
-      creatureImage({ x: 900, y: 1000 }, data),
-    ], "GM", 100);
+    const current = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, data)],
+      "GM",
+      100,
+    );
+    const moved = buildDesiredDisplays(
+      [creatureImage({ x: 900, y: 1000 }, data)],
+      "GM",
+      100,
+    );
 
     expect(planDisplayReconciliation(current, moved)).toEqual({
       add: [],
@@ -284,92 +369,131 @@ describe("planDisplayReconciliation", () => {
   });
 
   it("updates components in place when HP changes", () => {
-    const current = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, data),
-    ], "GM", 100);
-    const changed = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, { ...data, hpCurrent: 7 }),
-    ], "GM", 100);
+    const current = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, data)],
+      "GM",
+      100,
+    );
+    const changed = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, { ...data, hpCurrent: 7 })],
+      "GM",
+      100,
+    );
     const plan = planDisplayReconciliation(current, changed);
 
     expect(plan.add).toEqual([]);
     expect(plan.deleteIds).toEqual([]);
     expect(plan.update).toHaveLength(current.length);
-    expect(plan.update.every(({ current: item, desired }) => item.id === desired.id)).toBe(true);
-    expect(plan.update.every(({ current: item, desired }) =>
-      item.metadata[DISPLAY_RENDER_KEY] !== desired.metadata[DISPLAY_RENDER_KEY],
-    )).toBe(true);
+    expect(
+      plan.update.every(({ current: item, desired }) => item.id === desired.id),
+    ).toBe(true);
+    expect(
+      plan.update.every(
+        ({ current: item, desired }) =>
+          item.metadata[DISPLAY_RENDER_KEY] !==
+          desired.metadata[DISPLAY_RENDER_KEY],
+      ),
+    ).toBe(true);
   });
 
   it("adds the new sword while updating existing layout components in place", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, data),
-    ], "GM", 100);
+    const desired = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, data)],
+      "GM",
+      100,
+    );
     const current = desired
       .filter((item) => !item.id.endsWith("-damage-icon"))
-      .map((item) => ({
-        ...item,
-        metadata: {
-          ...item.metadata,
-          [DISPLAY_RENDER_KEY]: "layout-13",
-        },
-      }) as Item);
+      .map(
+        (item) =>
+          ({
+            ...item,
+            metadata: {
+              ...item.metadata,
+              [DISPLAY_RENDER_KEY]: "layout-13",
+            },
+          }) as Item,
+      );
     const plan = planDisplayReconciliation(current, desired);
 
-    expect(plan.add.map((item) => item.id))
-      .toEqual(["creature-1-dwtools-damage-icon"]);
+    expect(plan.add.map((item) => item.id)).toEqual([
+      "creature-1-dwtools-damage-icon",
+    ]);
     expect(plan.update).toHaveLength(current.length);
-    expect(plan.update.every(({ current: item, desired: replacement }) =>
-      item.id === replacement.id,
-    )).toBe(true);
+    expect(
+      plan.update.every(
+        ({ current: item, desired: replacement }) => item.id === replacement.id,
+      ),
+    ).toBe(true);
     expect(plan.deleteIds).toEqual([]);
   });
 
   it("adds the hidden marker and removes it again without replacing other components", () => {
-    const visible = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, data),
-    ], "GM", 100);
-    const hidden = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, { ...data, visibleToPlayers: false }),
-    ], "GM", 100);
+    const visible = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, data)],
+      "GM",
+      100,
+    );
+    const hidden = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, { ...data, visibleToPlayers: false })],
+      "GM",
+      100,
+    );
     const hidePlan = planDisplayReconciliation(visible, hidden);
     const showPlan = planDisplayReconciliation(hidden, visible);
 
-    expect(hidePlan.add.map((item) => item.id))
-      .toEqual(["creature-1-dwtools-visibility-icon"]);
+    expect(hidePlan.add.map((item) => item.id)).toEqual([
+      "creature-1-dwtools-visibility-icon",
+    ]);
     expect(hidePlan.deleteIds).toEqual([]);
     expect(showPlan.add).toEqual([]);
     expect(showPlan.deleteIds).toEqual(["creature-1-dwtools-visibility-icon"]);
-    expect(hidePlan.update.every(({ current, desired }) => current.id === desired.id))
-      .toBe(true);
-    expect(showPlan.update.every(({ current, desired }) => current.id === desired.id))
-      .toBe(true);
+    expect(
+      hidePlan.update.every(
+        ({ current, desired }) => current.id === desired.id,
+      ),
+    ).toBe(true);
+    expect(
+      showPlan.update.every(
+        ({ current, desired }) => current.id === desired.id,
+      ),
+    ).toBe(true);
   });
 
   it("upgrades a hidden pre-0.5.1 overlay by deleting only its visibility background", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        ...data,
-        visibleToPlayers: false,
-      }),
-    ], "GM", 100);
-    const current = desired.map((item) => ({
-      ...item,
-      position: item.id.endsWith("-visibility-icon")
-        ? { x: 0, y: 0 }
-        : item.position,
-      metadata: {
-        ...item.metadata,
-        [DISPLAY_RENDER_KEY]: "layout-16",
-      },
-    }) as Item);
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            ...data,
+            visibleToPlayers: false,
+          },
+        ),
+      ],
+      "GM",
+      100,
+    );
+    const current = desired.map(
+      (item) =>
+        ({
+          ...item,
+          position: item.id.endsWith("-visibility-icon")
+            ? { x: 0, y: 0 }
+            : item.position,
+          metadata: {
+            ...item.metadata,
+            [DISPLAY_RENDER_KEY]: "layout-16",
+          },
+        }) as Item,
+    );
     current.push({
       ...current[0],
       id: "creature-1-dwtools-visibility-bg",
     } as Item);
     const plan = planDisplayReconciliation(current, desired);
     const markerUpdate = plan.update.find(({ current: item }) =>
-      item.id.endsWith("-visibility-icon")
+      item.id.endsWith("-visibility-icon"),
     );
 
     expect(plan.add).toEqual([]);
@@ -380,19 +504,29 @@ describe("planDisplayReconciliation", () => {
   });
 
   it("upgrades a visible pre-0.5.1 overlay by deleting both visibility components", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, {
-        ...data,
-        visibleToPlayers: true,
-      }),
-    ], "GM", 100);
-    const current = desired.map((item) => ({
-      ...item,
-      metadata: {
-        ...item.metadata,
-        [DISPLAY_RENDER_KEY]: "layout-16",
-      },
-    }) as Item);
+    const desired = buildDesiredDisplays(
+      [
+        creatureImage(
+          { x: 300, y: 400 },
+          {
+            ...data,
+            visibleToPlayers: true,
+          },
+        ),
+      ],
+      "GM",
+      100,
+    );
+    const current = desired.map(
+      (item) =>
+        ({
+          ...item,
+          metadata: {
+            ...item.metadata,
+            [DISPLAY_RENDER_KEY]: "layout-16",
+          },
+        }) as Item,
+    );
     current.push(
       { ...current[0], id: "creature-1-dwtools-visibility-bg" } as Item,
       { ...current[0], id: "creature-1-dwtools-visibility-icon" } as Item,
@@ -408,9 +542,11 @@ describe("planDisplayReconciliation", () => {
   });
 
   it("adds missing deterministic components and removes stale displays", () => {
-    const desired = buildDesiredDisplays([
-      creatureImage({ x: 300, y: 400 }, data),
-    ], "GM", 100);
+    const desired = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, data)],
+      "GM",
+      100,
+    );
     const stale = {
       ...desired[0],
       id: "obsolete-display",

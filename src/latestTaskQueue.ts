@@ -19,7 +19,8 @@ export class LatestTaskQueue<Input, Prepared> {
   }
 
   whenIdle(): Promise<void> {
-    if (!this.running && this.appliedRevision === this.revision) return Promise.resolve();
+    if (!this.running && this.appliedRevision === this.revision)
+      return Promise.resolve();
     return new Promise((resolve) => this.idleResolvers.push(resolve));
   }
 
@@ -49,4 +50,3 @@ export class LatestTaskQueue<Input, Prepared> {
     }
   }
 }
-

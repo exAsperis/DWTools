@@ -45,7 +45,7 @@ export interface OverlayBox {
 }
 
 function rotate(vector: { x: number; y: number }, degrees: number) {
-  const radians = degrees * Math.PI / 180;
+  const radians = (degrees * Math.PI) / 180;
   const cosine = Math.cos(radians);
   const sine = Math.sin(radians);
   return {
@@ -54,12 +54,24 @@ function rotate(vector: { x: number; y: number }, degrees: number) {
   };
 }
 
-export function getImageGeometry(token: Image, sceneDpi: number): ImageGeometry {
+export function getImageGeometry(
+  token: Image,
+  sceneDpi: number,
+): ImageGeometry {
   const dpiScale = sceneDpi / token.grid.dpi;
-  const centerFromPosition = rotate({
-    x: (token.image.width / 2 - token.grid.offset.x) * dpiScale * token.scale.x,
-    y: (token.image.height / 2 - token.grid.offset.y) * dpiScale * token.scale.y,
-  }, token.rotation);
+  const centerFromPosition = rotate(
+    {
+      x:
+        (token.image.width / 2 - token.grid.offset.x) *
+        dpiScale *
+        token.scale.x,
+      y:
+        (token.image.height / 2 - token.grid.offset.y) *
+        dpiScale *
+        token.scale.y,
+    },
+    token.rotation,
+  );
   const center = {
     x: token.position.x + centerFromPosition.x,
     y: token.position.y + centerFromPosition.y,
@@ -79,14 +91,18 @@ export function getImageGeometry(token: Image, sceneDpi: number): ImageGeometry 
 }
 
 export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
-  const width = Math.max(24, geometry.width * (1 - OVERLAY_HORIZONTAL_INSET_RATIO * 2));
+  const width = Math.max(
+    24,
+    geometry.width * (1 - OVERLAY_HORIZONTAL_INSET_RATIO * 2),
+  );
   const baseFontSize = Math.max(8, width * 0.095);
   const fontSize = baseFontSize * 1.4;
   const rowHeight = baseFontSize * 1.55;
   const hpHeight = baseFontSize * 1.4;
   const gap = width * 0.008;
   const bottomInset = width * 0.07;
-  const hpLeft = geometry.left + geometry.width * OVERLAY_HORIZONTAL_INSET_RATIO;
+  const hpLeft =
+    geometry.left + geometry.width * OVERLAY_HORIZONTAL_INSET_RATIO;
   const hpTop = geometry.bottom - bottomInset - hpHeight;
   const rowTop = hpTop - gap - rowHeight;
   const boxGap = width * 0.02;
@@ -138,8 +154,11 @@ export function hpColor(percent: number, overMaximum = false): string {
 }
 
 export function isHpOverMaximum(data: CreatureData): boolean {
-  return data.hpCurrent !== undefined && data.hpMax !== undefined
-    && data.hpCurrent > data.hpMax;
+  return (
+    data.hpCurrent !== undefined &&
+    data.hpMax !== undefined &&
+    data.hpCurrent > data.hpMax
+  );
 }
 
 export function hpPercent(data: CreatureData): number {
@@ -150,8 +169,12 @@ export function hpPercent(data: CreatureData): number {
 }
 
 export function hasOverlayData(data: CreatureData): boolean {
-  return data.hpCurrent !== undefined || data.hpMax !== undefined
-    || data.armor !== undefined || Boolean(data.damage);
+  return (
+    data.hpCurrent !== undefined ||
+    data.hpMax !== undefined ||
+    data.armor !== undefined ||
+    Boolean(data.damage)
+  );
 }
 
 export function getCreatureData(token: Item): CreatureData {
@@ -164,11 +187,10 @@ export function shouldRenderOverlay(
   data: CreatureData,
   role: PlayerRole,
 ): boolean {
-  return hasOverlayData(data)
-    && (
-      role === "GM"
-      || (token.visible && data.visibleToPlayers !== false)
-    );
+  return (
+    hasOverlayData(data) &&
+    (role === "GM" || (token.visible && data.visibleToPlayers !== false))
+  );
 }
 
 export function overlayItemId(tokenId: string, role: string): string {
@@ -243,7 +265,7 @@ export function roundedRectanglePoints(
   ];
   for (const corner of corners) {
     for (let index = 0; index <= cornerSegments; index++) {
-      const angle = corner.start + index * Math.PI / 2 / cornerSegments;
+      const angle = corner.start + (index * Math.PI) / 2 / cornerSegments;
       points.push({
         x: corner.x + Math.cos(angle) * radius,
         y: corner.y + Math.sin(angle) * radius,

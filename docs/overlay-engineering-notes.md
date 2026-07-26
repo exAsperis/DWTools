@@ -1,6 +1,6 @@
 # DWTools overlay engineering notes
 
-Last updated: 2026-07-25
+Last updated: 2026-07-26
 
 This document is the durable record for DWTools token-overlay work. It explains
 the current defects, the evidence behind the diagnosis, prior approaches, the
@@ -413,6 +413,15 @@ Never delete a computed or unverified broad path.
 
 ### Browser testing
 
+- Local extension testing through a local server is currently nonfunctional.
+- Until the project owner explicitly revokes this directive, complete internal
+  QC first, then push the updates to GitHub. GitHub automatically updates the
+  hosted site; perform integration and manual testing in that live environment
+  after the update is deployed.
+- The extension is not yet in production, so the hosted site is the approved
+  integration-test environment under this temporary standing directive.
+- This workflow does not waive automated tests, a production build, generated
+  output review, or the other release checks documented above.
 - Refreshing Owlbear may reset the viewport.
 - Record Position X, Position Y, and Zoom before reload.
 - Restore in this order: **Zoom, then Position Y, then Position X**. Setting zoom
@@ -423,6 +432,18 @@ Never delete a computed or unverified broad path.
   movement over time or record video.
 - Multiple GM clients are not harmless test noise when shared scene items are
   used; each client runs its own background extension instance.
+
+### Character-record synchronization
+
+Room-level character persistence is implemented alongside, but does not alter,
+the client-local overlay ownership model. The background page also coordinates
+record-to-token synchronization on room metadata changes and scene readiness.
+It writes only established creature metadata and character-link metadata on
+shared tokens; overlays remain derived client-local items.
+
+See [`character-records.md`](character-records.md) for authoritative-record
+semantics, optimistic retries, metadata-capacity protection, tombstones, and
+closed-scene limitations.
 
 ## Decision log
 

@@ -1,4 +1,5 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
+import { CharacterSyncCoordinator } from "./characterSync";
 import { EXTENSION_ID } from "./constants";
 import {
   applyLocalDisplayPlan,
@@ -8,6 +9,10 @@ import {
   type ReconciliationPlan,
 } from "./display";
 import { LatestTaskQueue } from "./latestTaskQueue";
+import {
+  createObrCharacterRepository,
+  obrSceneItemStore,
+} from "./obrCharacterServices";
 import {
   getOverlaySourceSignatures,
   signatureMapsEqual,
@@ -28,13 +33,15 @@ const assetUrl = (path: string) => new URL(path, extensionUrl).toString();
 function setupContextMenus() {
   OBR.contextMenu.create({
     id: `${EXTENSION_ID}/menu`,
-    icons: [{
-      icon: assetUrl("icon.svg"),
-      label: "DWTools",
-      filter: characterFilter,
-    }],
+    icons: [
+      {
+        icon: assetUrl("icon.svg"),
+        label: "DWTools",
+        filter: characterFilter,
+      },
+    ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.0.0"),
+      url: assetUrl("context-menu.html?v=1.1.0"),
       height: 360,
     },
   });
@@ -66,7 +73,11 @@ let legacyCleanupRunning = false;
 const renderQueue = new LatestTaskQueue<RenderRequest, PreparedRender>(
   async (request) => ({
     generation: request.generation,
-    plan: await prepareLocalDisplayPlan(request.items, request.role, request.sceneDpi),
+    plan: await prepareLocalDisplayPlan(
+      request.items,
+      request.role,
+      request.sceneDpi,
+    ),
   }),
   async ({ generation, plan }) => {
     if (generation !== sceneGeneration) return;
@@ -127,7 +138,9 @@ function restartSceneSync() {
   const requestedGeneration = ++sceneGeneration;
   lifecycleChain = lifecycleChain
     .then(() => startSceneSync(requestedGeneration))
-    .catch((error) => console.error("DWTools scene initialization failed", error));
+    .catch((error) =>
+      console.error("DWTools scene initialization failed", error),
+    );
 }
 
 async function startSceneSync(requestedGeneration: number) {
@@ -145,7 +158,8 @@ async function startSceneSync(requestedGeneration: number) {
   await renderQueue.whenIdle();
   if (requestedGeneration !== sceneGeneration) return;
   await clearLocalDisplays();
-  if (requestedGeneration !== sceneGeneration || !await OBR.scene.isReady()) return;
+  if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
+    return;
 
   const [role, sceneDpi] = await Promise.all([
     OBR.player.getRole(),
@@ -155,7 +169,9 @@ async function startSceneSync(requestedGeneration: number) {
 
   activeRole = role;
   activeSceneDpi = sceneDpi;
-  unsubscribeItems = OBR.scene.items.onChange((items) => handleSceneItems(items));
+  unsubscribeItems = OBR.scene.items.onChange((items) =>
+    handleSceneItems(items),
+  );
   unsubscribeGrid = OBR.scene.grid.onChange((grid) => {
     if (grid.dpi === activeSceneDpi) return;
     activeSceneDpi = grid.dpi;
@@ -170,6 +186,16 @@ async function startSceneSync(requestedGeneration: number) {
 
 OBR.onReady(() => {
   setupContextMenus();
+  const characterSync = new CharacterSyncCoordinator(
+    createObrCharacterRepository(),
+    obrSceneItemStore,
+    {
+      isReady: () => OBR.scene.isReady(),
+      onReadyChange: (callback) => OBR.scene.onReadyChange(callback),
+    },
+    (error) => console.error("DWTools character synchronization failed", error),
+  );
+  characterSync.start();
   restartSceneSync();
   OBR.scene.onReadyChange(() => restartSceneSync());
   OBR.player.onChange((player) => {
@@ -179,4 +205,5 @@ OBR.onReady(() => {
     scheduleLegacyCleanup(latestSceneItems);
     scheduleRender(true);
   });
+  window.addEventListener("unload", () => characterSync.stop(), { once: true });
 });

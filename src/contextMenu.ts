@@ -1,9 +1,20 @@
 import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./contextMenu.css";
-import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
+import {
+  CREATURE_KEY,
+  EDIT_POPOVER_ID,
+  isCreatureData,
+  type CreatureData,
+} from "./constants";
+import type { CreatureService } from "./characterService";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
 import { adjustedHp } from "./hp";
-import { buildContextSummary, displayValue, escapeHtml } from "./contextMenuView";
+import {
+  buildContextSummary,
+  displayValue,
+  escapeHtml,
+} from "./contextMenuView";
+import { createObrCreatureService } from "./obrCharacterServices";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
@@ -11,6 +22,7 @@ const params = new URLSearchParams(window.location.search);
 const preview = params.get("preview");
 let token: Item | undefined;
 let updatingHp = false;
+let creatureService: CreatureService | undefined;
 
 function getData(item: Item): CreatureData {
   const raw = item.metadata[CREATURE_KEY];
@@ -32,7 +44,10 @@ function render() {
   }
 
   const data = getData(token);
-  const moves = (data.moves ?? "").split(/\r?\n/).map((move) => move.trim()).filter(Boolean);
+  const moves = (data.moves ?? "")
+    .split(/\r?\n/)
+    .map((move) => move.trim())
+    .filter(Boolean);
   app.innerHTML = `
     <section class="panel">
       <div class="summary" aria-label="Creature summary">${buildContextSummary(data)}</div>
@@ -40,9 +55,11 @@ function render() {
         <div class="line"><span class="label">Instinct:</span> ${displayValue(data.instinct)}</div>
         <div class="line">
           <span class="label">Moves:</span>
-          ${moves.length
-            ? `<ul class="moves">${moves.map((move) => `<li>${escapeHtml(move)}</li>`).join("")}</ul>`
-            : '<span class="empty">—</span>'}
+          ${
+            moves.length
+              ? `<ul class="moves">${moves.map((move) => `<li>${escapeHtml(move)}</li>`).join("")}</ul>`
+              : '<span class="empty">—</span>'
+          }
         </div>
         <div class="line"><span class="label">Treasure:</span> ${displayValue(data.treasure)}</div>
       </div>
@@ -50,57 +67,88 @@ function render() {
     </section>`;
 
   for (const button of app.querySelectorAll<HTMLButtonElement>("[data-hp]")) {
-    button.addEventListener("click", () => void adjustHp(Number(button.dataset.hp)));
+    button.addEventListener(
+      "click",
+      () => void adjustHp(Number(button.dataset.hp)),
+    );
   }
   app.querySelector("#damage")?.addEventListener("click", rollTokenDamage);
-  app.querySelector("#visibility")?.addEventListener("click", () => void toggleVisibility());
-  app.querySelector("#edit")?.addEventListener("click", () => void openEditor());
+  app
+    .querySelector("#visibility")
+    ?.addEventListener("click", () => void toggleVisibility());
+  app
+    .querySelector("#edit")
+    ?.addEventListener("click", () => void openEditor());
 }
 
 async function adjustHp(amount: number) {
-  if (!token || updatingHp) return;
+  if (!token || !creatureService || updatingHp) return;
   updatingHp = true;
-  for (const button of app.querySelectorAll<HTMLButtonElement>("[data-hp]")) button.disabled = true;
+  for (const button of app.querySelectorAll<HTMLButtonElement>("[data-hp]"))
+    button.disabled = true;
   try {
     const latest = (await OBR.scene.items.getItems([token.id]))[0];
     if (!latest) return;
     const data = getData(latest);
     const current = data.hpCurrent ?? 0;
     const next = adjustedHp(current, amount);
-    await OBR.scene.items.updateItems([latest], (items) => {
-      items[0].metadata[CREATURE_KEY] = { ...data, hpCurrent: next };
-    });
+    await creatureService.updateCreatureFields(latest.id, { hpCurrent: next });
+  } catch (error) {
+    console.error("DWTools could not update creature HP", error);
+    void OBR.notification.show(
+      error instanceof Error
+        ? error.message
+        : "DWTools could not update creature HP.",
+      "ERROR",
+    );
   } finally {
     updatingHp = false;
+    render();
   }
 }
 
 async function toggleVisibility() {
-  if (!token) return;
+  if (!token || !creatureService) return;
   const latest = (await OBR.scene.items.getItems([token.id]))[0];
   if (!latest) return;
   const data = getData(latest);
-  await OBR.scene.items.updateItems([latest], (items) => {
-    items[0].metadata[CREATURE_KEY] = {
-      ...data,
+  try {
+    await creatureService.updateCreatureFields(latest.id, {
       visibleToPlayers: data.visibleToPlayers === false,
-    };
-  });
+    });
+  } catch (error) {
+    console.error("DWTools could not update overlay visibility", error);
+    void OBR.notification.show(
+      error instanceof Error
+        ? error.message
+        : "DWTools could not update overlay visibility.",
+      "ERROR",
+    );
+  }
 }
 
 function rollTokenDamage() {
   if (!token) return;
   const damage = getData(token).damage?.trim();
   if (!damage) {
-    void OBR.notification.show("This creature has no damage expression.", "WARNING");
+    void OBR.notification.show(
+      "This creature has no damage expression.",
+      "WARNING",
+    );
     return;
   }
   const parsed = parseDamage(damage);
   if (!parsed) {
-    void OBR.notification.show(`Unsupported damage expression: ${damage}`, "ERROR");
+    void OBR.notification.show(
+      `Unsupported damage expression: ${damage}`,
+      "ERROR",
+    );
     return;
   }
-  void OBR.notification.show(formatDamageResult(damage, rollDamage(parsed)), "SUCCESS");
+  void OBR.notification.show(
+    formatDamageResult(damage, rollDamage(parsed)),
+    "SUCCESS",
+  );
 }
 
 async function openEditor() {
@@ -110,16 +158,17 @@ async function openEditor() {
   await OBR.popover.open({
     id: EDIT_POPOVER_ID,
     url: url.toString(),
-    height: 620,
+    height: 760,
     width: 390,
   });
 }
 
 async function loadSelectedToken() {
   const selection = await OBR.player.getSelection();
-  token = selection?.length === 1
-    ? (await OBR.scene.items.getItems([selection[0]]))[0]
-    : undefined;
+  token =
+    selection?.length === 1
+      ? (await OBR.scene.items.getItems([selection[0]]))[0]
+      : undefined;
   render();
 }
 
@@ -145,14 +194,21 @@ if (preview === "context") {
   } as unknown as Item;
   const previewIsLight = params.get("theme") === "light";
   document.documentElement.dataset.obrTheme = previewIsLight ? "light" : "dark";
-  document.documentElement.style.setProperty("--dw-text", previewIsLight ? "#27272a" : "#f4f4f5");
-  document.documentElement.style.setProperty("--dw-text-secondary", previewIsLight ? "#52525b" : "#d4d4d8");
+  document.documentElement.style.setProperty(
+    "--dw-text",
+    previewIsLight ? "#27272a" : "#f4f4f5",
+  );
+  document.documentElement.style.setProperty(
+    "--dw-text-secondary",
+    previewIsLight ? "#52525b" : "#d4d4d8",
+  );
   document.documentElement.style.setProperty("--dw-primary", "#7c3aed");
   render();
 } else if (!OBR.isAvailable) {
   app.innerHTML = '<p class="error">Open this menu inside Owlbear Rodeo.</p>';
 } else {
   OBR.onReady(async () => {
+    creatureService = createObrCreatureService();
     applyTheme(await OBR.theme.getTheme());
     OBR.theme.onChange(applyTheme);
     await loadSelectedToken();

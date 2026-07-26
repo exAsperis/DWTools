@@ -12,7 +12,10 @@ import {
   shouldRenderOverlay,
 } from "./overlayModel";
 
-function creatureImage(overrides: Partial<Image> = {}, data: CreatureData = {}): Image {
+function creatureImage(
+  overrides: Partial<Image> = {},
+  data: CreatureData = {},
+): Image {
   return {
     id: "creature-1",
     type: "IMAGE",
@@ -55,11 +58,14 @@ describe("getImageGeometry", () => {
   });
 
   it("honors the image grid offset and token scale", () => {
-    const geometry = getImageGeometry(creatureImage({
-      grid: { dpi: 100, offset: { x: 100, y: 50 } },
-      scale: { x: 1.5, y: 2 },
-      position: { x: 300, y: 400 },
-    }), 100);
+    const geometry = getImageGeometry(
+      creatureImage({
+        grid: { dpi: 100, offset: { x: 100, y: 50 } },
+        scale: { x: 1.5, y: 2 },
+        position: { x: 300, y: 400 },
+      }),
+      100,
+    );
 
     expect(geometry.center).toEqual({ x: 300, y: 400 });
     expect(geometry.width).toBe(300);
@@ -76,9 +82,12 @@ describe("getImageGeometry", () => {
   });
 
   it("uses absolute rendered size for negative scale at a different scene DPI", () => {
-    const geometry = getImageGeometry(creatureImage({
-      scale: { x: -2, y: 0.5 },
-    }), 50);
+    const geometry = getImageGeometry(
+      creatureImage({
+        scale: { x: -2, y: 0.5 },
+      }),
+      50,
+    );
 
     expect(geometry.center).toEqual({ x: -90, y: 32.5 });
     expect(geometry.width).toBe(200);
@@ -102,10 +111,12 @@ describe("getOverlayLayout", () => {
     });
     expect(layout.rowHeight).toBeCloseTo(24.738);
     expect(layout.rowGap).toBeCloseTo(layout.width * 0.008);
-    expect(layout.hpTop - (layout.rowTop + layout.rowHeight))
-      .toBeCloseTo(layout.width * 0.008);
-    expect(layout.rowHeight + layout.rowGap + layout.hpHeight)
-      .toBeLessThan(layout.rowHeight + layout.width * 0.025 + layout.hpHeight);
+    expect(layout.hpTop - (layout.rowTop + layout.rowHeight)).toBeCloseTo(
+      layout.width * 0.008,
+    );
+    expect(layout.rowHeight + layout.rowGap + layout.hpHeight).toBeLessThan(
+      layout.rowHeight + layout.width * 0.025 + layout.hpHeight,
+    );
   });
 
   it("uses one shared font size at 140% of the original HP type scale", () => {
@@ -129,8 +140,9 @@ describe("getOverlayLayout", () => {
     );
     expect(layout.damage.width).toBeCloseTo(layout.width * 0.76);
     expect(damageTextWidth / previousDamageTextWidth).toBeCloseTo(1.437, 2);
-    expect(layout.damage.left + layout.damage.width)
-      .toBeCloseTo(layout.hpLeft + layout.hpWidth);
+    expect(layout.damage.left + layout.damage.width).toBeCloseTo(
+      layout.hpLeft + layout.hpWidth,
+    );
   });
 
   it("places the hidden marker inside a square at the unchanged HP origin", () => {
@@ -151,16 +163,18 @@ describe("HP status", () => {
 
     expect(isHpOverMaximum(overMaximum)).toBe(true);
     expect(hpPercent(overMaximum)).toBe(1);
-    expect(hpColor(hpPercent(overMaximum), isHpOverMaximum(overMaximum)))
-      .toBe("#7e22ce");
+    expect(hpColor(hpPercent(overMaximum), isHpOverMaximum(overMaximum))).toBe(
+      "#7e22ce",
+    );
   });
 
   it("also renders over-zero HP as full and purple when maximum HP is zero", () => {
     const overZero = { hpCurrent: 1, hpMax: 0 };
 
     expect(hpPercent(overZero)).toBe(1);
-    expect(hpColor(hpPercent(overZero), isHpOverMaximum(overZero)))
-      .toBe("#7e22ce");
+    expect(hpColor(hpPercent(overZero), isHpOverMaximum(overZero))).toBe(
+      "#7e22ce",
+    );
   });
 });
 
@@ -177,7 +191,9 @@ describe("overlay visibility", () => {
   };
 
   it("keeps a player-hidden overlay fully present for the GM", () => {
-    expect(shouldRenderOverlay(creatureImage({}, hiddenData), hiddenData, "GM")).toBe(true);
+    expect(
+      shouldRenderOverlay(creatureImage({}, hiddenData), hiddenData, "GM"),
+    ).toBe(true);
   });
 
   it("keeps the overlay present for the GM when the token is hidden", () => {
@@ -187,7 +203,9 @@ describe("overlay visibility", () => {
   });
 
   it("omits a player-hidden overlay for players", () => {
-    expect(shouldRenderOverlay(creatureImage({}, hiddenData), hiddenData, "PLAYER")).toBe(false);
+    expect(
+      shouldRenderOverlay(creatureImage({}, hiddenData), hiddenData, "PLAYER"),
+    ).toBe(false);
   });
 
   it("omits a player-shared overlay when the token itself is hidden", () => {
@@ -197,13 +215,17 @@ describe("overlay visibility", () => {
   });
 
   it("shows a player-shared overlay when the token is visible", () => {
-    expect(shouldRenderOverlay(creatureImage({}, sharedData), sharedData, "PLAYER")).toBe(true);
+    expect(
+      shouldRenderOverlay(creatureImage({}, sharedData), sharedData, "PLAYER"),
+    ).toBe(true);
   });
 });
 
 describe("overlay identity and source signatures", () => {
   it("uses deterministic component IDs", () => {
-    expect(overlayItemId("token-42", "hp-text")).toBe("token-42-dwtools-hp-text");
+    expect(overlayItemId("token-42", "hp-text")).toBe(
+      "token-42-dwtools-hp-text",
+    );
   });
 
   it("ignores position-only movement but reacts to rendering inputs", () => {
@@ -213,12 +235,15 @@ describe("overlay identity and source signatures", () => {
     const scaled = creatureImage({ scale: { x: 1.5, y: 1.5 } }, data);
     const damagedData: CreatureData = { hpCurrent: 7, hpMax: 12 };
 
-    expect(overlaySourceSignature(moved, data, "GM", 100))
-      .toBe(overlaySourceSignature(original, data, "GM", 100));
-    expect(overlaySourceSignature(scaled, data, "GM", 100))
-      .not.toBe(overlaySourceSignature(original, data, "GM", 100));
-    expect(overlaySourceSignature(original, damagedData, "GM", 100))
-      .not.toBe(overlaySourceSignature(original, data, "GM", 100));
+    expect(overlaySourceSignature(moved, data, "GM", 100)).toBe(
+      overlaySourceSignature(original, data, "GM", 100),
+    );
+    expect(overlaySourceSignature(scaled, data, "GM", 100)).not.toBe(
+      overlaySourceSignature(original, data, "GM", 100),
+    );
+    expect(overlaySourceSignature(original, damagedData, "GM", 100)).not.toBe(
+      overlaySourceSignature(original, data, "GM", 100),
+    );
   });
 
   it("ignores token visibility for GM rendering but reacts for player rendering", () => {
@@ -230,9 +255,11 @@ describe("overlay identity and source signatures", () => {
     const visible = creatureImage({ visible: true }, data);
     const hidden = creatureImage({ visible: false }, data);
 
-    expect(overlaySourceSignature(hidden, data, "GM", 100))
-      .toBe(overlaySourceSignature(visible, data, "GM", 100));
-    expect(overlaySourceSignature(hidden, data, "PLAYER", 100))
-      .not.toBe(overlaySourceSignature(visible, data, "PLAYER", 100));
+    expect(overlaySourceSignature(hidden, data, "GM", 100)).toBe(
+      overlaySourceSignature(visible, data, "GM", 100),
+    );
+    expect(overlaySourceSignature(hidden, data, "PLAYER", 100)).not.toBe(
+      overlaySourceSignature(visible, data, "PLAYER", 100),
+    );
   });
 });

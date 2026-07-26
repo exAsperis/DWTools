@@ -218,14 +218,7 @@ function buildTokenOverlay(
 
   const items: Item[] = [
     buildBackground(token, "armor", renderKey, layout.armor),
-    buildOverlayIcon(
-      token,
-      "armor",
-      renderKey,
-      "shield",
-      armorIconBox,
-      0.7,
-    ),
+    buildOverlayIcon(token, "armor", renderKey, "shield", armorIconBox, 0.7),
     buildOverlayText(
       token,
       "armor",
@@ -235,14 +228,7 @@ function buildTokenOverlay(
       layout.fontSize,
     ),
     buildBackground(token, "damage", renderKey, layout.damage),
-    buildOverlayIcon(
-      token,
-      "damage",
-      renderKey,
-      "sword",
-      damageIconBox,
-      0.85,
-    ),
+    buildOverlayIcon(token, "damage", renderKey, "sword", damageIconBox, 0.85),
     buildOverlayText(
       token,
       "damage",
@@ -253,25 +239,29 @@ function buildTokenOverlay(
     ),
     buildBackground(token, "hp", renderKey, hpBox, "#27272a", 0.88, 20),
     ...(fillBox.width > 0
-      ? [buildBackground(
-        token,
-        "hp-fill",
-        renderKey,
-        fillBox,
-        hpColor(percent, isHpOverMaximum(data)),
-        0.96,
-        21,
-      )]
+      ? [
+          buildBackground(
+            token,
+            "hp-fill",
+            renderKey,
+            fillBox,
+            hpColor(percent, isHpOverMaximum(data)),
+            0.96,
+            21,
+          ),
+        ]
       : []),
     ...(data.visibleToPlayers === false
-      ? [buildOverlayIcon(
-        token,
-        "visibility",
-        renderKey,
-        "eye-off",
-        layout.visibilityIndicator,
-        0.72,
-      )]
+      ? [
+          buildOverlayIcon(
+            token,
+            "visibility",
+            renderKey,
+            "eye-off",
+            layout.visibilityIndicator,
+            0.72,
+          ),
+        ]
       : []),
     buildOverlayText(
       token,
@@ -282,9 +272,10 @@ function buildTokenOverlay(
       layout.fontSize,
     ),
   ];
-  const disabledAttachmentBehaviors = role === "GM"
-    ? GM_DISABLED_ATTACHMENT_BEHAVIORS
-    : BASE_DISABLED_ATTACHMENT_BEHAVIORS;
+  const disabledAttachmentBehaviors =
+    role === "GM"
+      ? GM_DISABLED_ATTACHMENT_BEHAVIORS
+      : BASE_DISABLED_ATTACHMENT_BEHAVIORS;
   for (const item of items) {
     item.disableAttachmentBehavior = [...disabledAttachmentBehaviors];
   }
@@ -299,7 +290,9 @@ export function buildDesiredDisplays(
   const desired: Item[] = [];
   for (const item of sceneItems) {
     if (item.layer !== "CHARACTER" || !isImage(item)) continue;
-    desired.push(...buildTokenOverlay(item, getCreatureData(item), role, sceneDpi));
+    desired.push(
+      ...buildTokenOverlay(item, getCreatureData(item), role, sceneDpi),
+    );
   }
   return desired;
 }
@@ -320,9 +313,10 @@ export function planDisplayReconciliation(
       plan.deleteIds.push(current.id);
       plan.add.push(desired);
     } else if (
-      current.metadata[DISPLAY_RENDER_KEY] !== desired.metadata[DISPLAY_RENDER_KEY]
-      || current.attachedTo !== desired.attachedTo
-      || current.layer !== desired.layer
+      current.metadata[DISPLAY_RENDER_KEY] !==
+        desired.metadata[DISPLAY_RENDER_KEY] ||
+      current.attachedTo !== desired.attachedTo ||
+      current.layer !== desired.layer
     ) {
       plan.update.push({ current, desired });
     }
@@ -387,9 +381,13 @@ export function applyDesiredItem(target: Item, desired: Item): void {
   }
 }
 
-export async function applyLocalDisplayPlan(plan: ReconciliationPlan): Promise<void> {
+export async function applyLocalDisplayPlan(
+  plan: ReconciliationPlan,
+): Promise<void> {
   if (plan.update.length) {
-    const desiredById = new Map(plan.update.map(({ desired }) => [desired.id, desired]));
+    const desiredById = new Map(
+      plan.update.map(({ desired }) => [desired.id, desired]),
+    );
     await OBR.scene.local.updateItems(
       plan.update.map(({ current }) => current),
       (drafts) => {
@@ -416,5 +414,6 @@ export async function prepareLocalDisplayPlan(
 
 export async function clearLocalDisplays(): Promise<void> {
   const displays = await OBR.scene.local.getItems(isDisplay);
-  if (displays.length) await OBR.scene.local.deleteItems(displays.map((item) => item.id));
+  if (displays.length)
+    await OBR.scene.local.deleteItems(displays.map((item) => item.id));
 }
