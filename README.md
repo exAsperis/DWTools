@@ -62,6 +62,18 @@ copies in closed scenes retain their creature fields but become orphaned. When
 their scene is opened, use the creature editor to relink them, create a new
 record from their current fields, or unlink them while retaining those fields.
 
+### Recover an orphaned copy
+
+When a token points to a character record that no longer exists, its creature
+editor displays **Orphaned link (missing)**. Choose one of these actions:
+
+- **Relink to existing** replaces the token's persistent DWTools fields with
+  the selected room character.
+- **Create new from creature** preserves the token's current copied fields,
+  creates a new room character from them, and links the token to it.
+- **Unlink and retain fields** keeps the token as an ordinary scene-local
+  creature and removes only the broken character link.
+
 Counts always apply only to the current scene because Owlbear extensions cannot
 inspect closed scenes.
 

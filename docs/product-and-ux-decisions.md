@@ -169,6 +169,9 @@ deleted character is rare, while orphan recovery already preserves the copied
 creature data and provides appropriate manual choices. Direct deletion is
 simpler and avoids a permanent metadata cost for an uncommon case.
 
+The project owner confirmed this direct-delete and orphan-recovery workflow in
+live Owlbear testing on 2026-07-26.
+
 ### 2026-07-26 — Tombstones are visible on demand and can be purged
 
 The GM character manager places a **Show tombstoned characters** checkbox

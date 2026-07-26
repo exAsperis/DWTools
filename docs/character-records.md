@@ -118,6 +118,9 @@ GM manager removes those legacy tombstone keys idempotently before listing
 records, freeing their room-metadata space. DWTools no longer creates new
 tombstones.
 
+The direct-delete and missing-record recovery workflow was confirmed by the
+project owner in the live Owlbear environment on 2026-07-26.
+
 ## Durable limitations
 
 - DWTools cannot inspect or update tokens in closed scenes. Those tokens

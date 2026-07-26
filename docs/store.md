@@ -81,6 +81,13 @@ copies in closed scenes retain their creature data but become orphaned from the
 missing record. The creature editor can relink them, create a new record from
 their current fields, or unlink them while retaining those fields.
 
+When the editor reports **Orphaned link (missing)**:
+
+- **Relink to existing** adopts the selected character's latest fields;
+- **Create new from creature** turns the token's preserved copy into a new room
+  character; and
+- **Unlink and retain fields** removes only the broken link.
+
 Linked-token counts cover only the current scene; Owlbear extensions cannot
 inspect closed scenes. Character records share Owlbear's limited room-metadata
 space with other extensions, so DWTools warns near capacity and rejects writes
