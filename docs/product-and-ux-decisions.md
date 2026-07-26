@@ -146,6 +146,21 @@ architecture remain unchanged.
 
 ## Decision history
 
+### 2026-07-26 — New-creature visibility default is room-scoped
+
+The main DWTools panel gives GMs a shared per-room default for whether newly
+created creature overlays are visible to players. A missing or malformed room
+setting defaults to visible, preserving prior behavior. Players do not see the
+setting.
+
+The preference is consulted only when a token has no valid DWTools creature
+metadata. Existing and legacy creature data remain unchanged, even when their
+visibility is implicit. Removing data and adding it again initializes from the
+room's current default.
+
+Reason: different rooms can adopt different sharing conventions without a
+preference change rewriting token metadata or causing overlay renderer work.
+
 ### 2026-07-26 — Sword icon uses a complete upright silhouette
 
 The damage sword uses a centered upright design with a pointed double-edged

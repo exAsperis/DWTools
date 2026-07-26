@@ -25,16 +25,13 @@ data, and tests without changing the persistent token overlay.
 
 ## Main extension panel
 
-### Default overlay visibility — Moderate
+### Default overlay visibility — Implemented in 0.4.0
 
-Let the GM choose whether newly created creature overlays are shown to players
-by default. Put the control on the main DWTools extension panel.
-
-This requires a GM-scoped persisted setting and initialization behavior for new
-creature data. It must not retroactively overwrite the explicit
-`visibleToPlayers` value on existing creatures. The default should be defined
-for rooms/settings that predate the feature, and player clients must continue
-to derive visibility from token metadata.
+The main DWTools extension panel gives GMs a per-room eye/eye-off toggle that
+chooses whether newly created creature overlays are shown to players by
+default. Rooms without a stored setting retain the original visible default.
+The setting initializes new creature metadata only and never changes existing
+creatures or overlays.
 
 ## Context menu panel
 
@@ -116,7 +113,8 @@ The separate HP-only editor retains its quick adjustment controls.
 
 1. Add the three metadata fields, editor layout, context-menu icons, and
    three-line layout. **Completed in 0.3.0.**
-2. Add and persist the GM's default visibility setting.
+2. Add and persist the GM's default visibility setting. **Completed in
+   0.4.0.**
 3. Adjust the token overlay's type scale and replace its damage die with the
    sword Path icon.
 

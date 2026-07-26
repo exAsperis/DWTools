@@ -2,6 +2,7 @@ export const EXTENSION_ID = "com.bryan.dungeon-world-creatures";
 export const CREATURE_KEY = `${EXTENSION_ID}/creature`;
 export const DISPLAY_KEY = `${EXTENSION_ID}/display`;
 export const EDIT_POPOVER_ID = `${EXTENSION_ID}/edit-popover`;
+export const DEFAULT_OVERLAY_VISIBILITY_KEY = `${EXTENSION_ID}/default-overlay-visible`;
 
 export interface CreatureData {
   tags?: string;

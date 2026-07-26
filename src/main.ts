@@ -1,7 +1,19 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import "./style.css";
-import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
+import {
+  CREATURE_KEY,
+  DEFAULT_OVERLAY_VISIBILITY_KEY,
+  EDIT_POPOVER_ID,
+  type CreatureData,
+} from "./constants";
 import { readCreatureForm } from "./creatureForm";
+import {
+  getDefaultOverlayVisibility,
+  initializeCreatureData,
+  persistDefaultOverlayVisibility,
+  type RoomMetadata,
+} from "./defaultVisibility";
+import { buildHomeMarkup, type HomeRole } from "./homeView";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const params = new URLSearchParams(window.location.search);
@@ -19,15 +31,63 @@ function numberValue(value: unknown): string {
   return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
 }
 
+let homeRole: HomeRole = "PLAYER";
+let homeMetadata: RoomMetadata = {};
+let savingDefaultVisibility = false;
+
 function renderHome() {
-  app.innerHTML = `
-    <section class="home">
-      <div class="crest">DW</div>
-      <h1>DWTools</h1>
-      <p>Right-click a character token to add or edit its creature stats.</p>
-      <div class="sample"><strong>HP 7/10</strong> &nbsp;███████░░░<br><strong>ARM 1</strong> &nbsp; DMG d8+2</div>
-      <p class="muted">The editor and quick HP controls are available to the GM.</p>
-    </section>`;
+  const defaultVisibleToPlayers = getDefaultOverlayVisibility(homeMetadata);
+  app.innerHTML = buildHomeMarkup(
+    homeRole,
+    defaultVisibleToPlayers,
+    savingDefaultVisibility,
+  );
+  document.querySelector("#default-visibility")?.addEventListener(
+    "click",
+    () => void toggleDefaultVisibility(),
+  );
+}
+
+async function toggleDefaultVisibility() {
+  if (homeRole !== "GM" || savingDefaultVisibility) return;
+  const next = !getDefaultOverlayVisibility(homeMetadata);
+  savingDefaultVisibility = true;
+  renderHome();
+  try {
+    await persistDefaultOverlayVisibility(
+      (update) => OBR.room.setMetadata(update),
+      next,
+    );
+    homeMetadata = {
+      ...homeMetadata,
+      [DEFAULT_OVERLAY_VISIBILITY_KEY]: next,
+    };
+  } catch (error) {
+    console.error("DWTools could not save the default overlay visibility", error);
+    void OBR.notification.show(
+      "DWTools could not save the default overlay visibility.",
+      "ERROR",
+    );
+  } finally {
+    savingDefaultVisibility = false;
+    renderHome();
+  }
+}
+
+async function startHome() {
+  [homeRole, homeMetadata] = await Promise.all([
+    OBR.player.getRole(),
+    OBR.room.getMetadata(),
+  ]);
+  renderHome();
+  OBR.room.onMetadataChange((metadata) => {
+    homeMetadata = metadata;
+    renderHome();
+  });
+  OBR.player.onChange((player) => {
+    homeRole = player.role;
+    renderHome();
+  });
 }
 
 function renderEditor(token: Item, data: CreatureData) {
@@ -96,7 +156,13 @@ function renderEditor(token: Item, data: CreatureData) {
   });
 }
 
-if (preview === "editor") {
+if (preview === "home") {
+  homeRole = "GM";
+  homeMetadata = {
+    [DEFAULT_OVERLAY_VISIBILITY_KEY]: params.get("default") !== "hidden",
+  };
+  renderHome();
+} else if (preview === "editor") {
   renderEditor(
     { id: "preview", name: "Frogman", metadata: {} } as Item,
     {
@@ -114,16 +180,26 @@ if (preview === "editor") {
   );
 } else if (!itemId) {
   renderHome();
+  if (OBR.isAvailable) OBR.onReady(() => void startHome());
 } else if (!OBR.isAvailable) {
   app.innerHTML = '<p class="error">Open this editor from a token inside Owlbear Rodeo.</p>';
 } else {
   OBR.onReady(async () => {
-    const token = (await OBR.scene.items.getItems([itemId]))[0];
+    const [token, roomMetadata] = await Promise.all([
+      OBR.scene.items.getItems([itemId]).then((items) => items[0]),
+      OBR.room.getMetadata().catch((error) => {
+        console.warn("DWTools could not load room visibility settings", error);
+        return {};
+      }),
+    ]);
     if (!token) {
       app.innerHTML = '<p class="error">That token is no longer in the scene.</p>';
       return;
     }
     const raw = token.metadata[CREATURE_KEY];
-    renderEditor(token, isCreatureData(raw) ? raw : {});
+    renderEditor(
+      token,
+      initializeCreatureData(raw, getDefaultOverlayVisibility(roomMetadata)),
+    );
   });
 }

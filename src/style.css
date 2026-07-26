@@ -15,6 +15,11 @@ button, input, textarea { font: inherit; }
 .crest { width: 58px; height: 58px; margin: 0 auto; display: grid; place-items: center; border-radius: 16px; background: #7c3aed; font-weight: 900; letter-spacing: -.04em; }
 .sample { margin: 24px 0; padding: 16px; border: 1px solid #3f3f46; border-radius: 10px; background: #09090b; line-height: 1.7; }
 .muted { font-size: 13px; }
+.default-visibility { display: flex; align-items: center; justify-content: center; gap: 8px; color: #d4d4d8; font-size: 13px; }
+.default-visibility-toggle { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #52525b; border-radius: 999px; padding: 0; color: #f4f4f5; background: #27272a; cursor: pointer; }
+.default-visibility-toggle:hover { background: #3f3f46; }
+.default-visibility-toggle:disabled { cursor: wait; opacity: .55; }
+.default-visibility-icon { display: block; width: 20px; height: 20px; }
 
 .editor { padding: 18px; display: grid; gap: 14px; }
 header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -44,6 +49,9 @@ footer button { border: 0; border-radius: 7px; padding: 9px 14px; font-weight: 8
 @media (prefers-color-scheme: light) {
   :root, body { color: #18181b; background: #fafafa; }
   .home p, label { color: #52525b; }
+  .default-visibility { color: #52525b; }
+  .default-visibility-toggle { border-color: #d4d4d8; color: #18181b; background: white; }
+  .default-visibility-toggle:hover { background: #f4f4f5; }
   .sample { border-color: #d4d4d8; color: #18181b; background: white; }
   input, textarea, .quick-hp button { border-color: #d4d4d8; color: #18181b; background: white; }
   .quick-hp button:hover { background: #f4f4f5; }
