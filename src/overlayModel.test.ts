@@ -116,6 +116,33 @@ describe("getOverlayLayout", () => {
     expect(layout.fontSize / originalHpFontSize).toBeCloseTo(1.4);
     expect(layout.fontSize).toBeCloseTo(layout.hpHeight);
   });
+
+  it("moves armor left and expands damage without changing the outer footprint", () => {
+    const layout = getOverlayLayout(getImageGeometry(creatureImage(), 100));
+    const previousDamageTextWidth = layout.width * 0.56 * 0.82;
+    const damageTextWidth = layout.damage.width - layout.width * 0.1;
+
+    expect(layout.armor.left).toBe(layout.hpLeft);
+    expect(layout.armor.width).toBeCloseTo(layout.width * 0.22);
+    expect(layout.damage.left).toBeCloseTo(
+      layout.hpLeft + layout.width * 0.22 + layout.width * 0.02,
+    );
+    expect(layout.damage.width).toBeCloseTo(layout.width * 0.76);
+    expect(damageTextWidth / previousDamageTextWidth).toBeCloseTo(1.437, 2);
+    expect(layout.damage.left + layout.damage.width)
+      .toBeCloseTo(layout.hpLeft + layout.hpWidth);
+  });
+
+  it("places the hidden marker inside a square at the unchanged HP origin", () => {
+    const layout = getOverlayLayout(getImageGeometry(creatureImage(), 100));
+
+    expect(layout.visibilityIndicator).toEqual({
+      left: layout.hpLeft,
+      top: layout.hpTop,
+      width: layout.hpHeight,
+      height: layout.hpHeight,
+    });
+  });
 });
 
 describe("HP status", () => {

@@ -208,24 +208,15 @@ function buildTokenOverlay(
   };
   const damageIconBox = {
     ...layout.damage,
-    width: layout.damage.width * 0.18,
+    width: layout.width * 0.1,
   };
   const damageValueBox = {
     ...layout.damage,
-    left: layout.damage.left + layout.damage.width * 0.18,
-    width: layout.damage.width * 0.82,
+    left: layout.damage.left + damageIconBox.width,
+    width: layout.damage.width - damageIconBox.width,
   };
 
   const items: Item[] = [
-    buildBackground(token, "visibility", renderKey, layout.visibility),
-    buildOverlayIcon(
-      token,
-      "visibility",
-      renderKey,
-      data.visibleToPlayers === false ? "eye-off" : "eye",
-      layout.visibility,
-      data.visibleToPlayers === false ? 0.76 : 0.7,
-    ),
     buildBackground(token, "armor", renderKey, layout.armor),
     buildOverlayIcon(
       token,
@@ -270,6 +261,16 @@ function buildTokenOverlay(
         hpColor(percent, isHpOverMaximum(data)),
         0.96,
         21,
+      )]
+      : []),
+    ...(data.visibleToPlayers === false
+      ? [buildOverlayIcon(
+        token,
+        "visibility",
+        renderKey,
+        "eye-off",
+        layout.visibilityIndicator,
+        0.72,
       )]
       : []),
     buildOverlayText(

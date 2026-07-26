@@ -83,6 +83,17 @@ Do not use a color emoji in overlay Text. Prior live testing showed Owlbear's
 canvas Text renderer corrupts color emoji. Native Path icons are the established
 compatible approach.
 
+### Expanded damage row and hidden marker — Implemented in 0.5.1
+
+The persistent overlay removed the dedicated visibility pill, shifted the
+unchanged armor box left, and expanded damage to the remaining 76% of the stat
+row. The sword retains approximately its previous physical width, giving the
+damage formula about 44% more text space.
+
+An eye-off marker appears at the far-left of the HP bar only when the overlay
+is hidden from players. Shared overlays show no marker. Outer geometry and font
+sizes remain unchanged.
+
 ## Creature edit form
 
 ### Normalize and validate damage on field exit — Implemented in 0.5.0

@@ -42,8 +42,7 @@ should earn persistent map space by being needed at a glance during play.
 
 These choices are intentional:
 
-- The compact visibility, armor, and damage row sits immediately above the HP
-  bar.
+- The compact armor and damage row sits immediately above the HP bar.
 - The HP bar sits near the bottom of the token portrait.
 - The HP bar is aligned from the rendered portrait's **left edge**, with an
   explicit equal inset on both sides. It does not need to be 100% of the token
@@ -60,12 +59,13 @@ These choices are intentional:
 - The GM retains a full-bright overlay when the token itself is hidden.
 - A hidden token never leaves its overlay visible to players, even when the
   overlay's player-visibility setting is enabled.
-- Player visibility uses an open eye when visible and an eye inside a
-  prohibition circle when hidden. The overlay and context menu derive from the
-  same native vector geometry.
+- The persistent overlay uses no marker when shared with players and places an
+  eye inside a prohibition circle at the far-left of the HP bar when hidden.
+  Interactive controls retain explicit eye/eye-off states.
 - Armor uses a shield outline on the overlay. A diamond is not an armor symbol.
 - Overlay components use compact dark backgrounds, white icon/text treatment,
-  and green/amber/red HP status colors.
+  and green/amber/red HP status colors, with purple reserved for over-maximum
+  HP.
 
 If exact spacing or type scale later needs adjustment for a real token, retain
 the relationships above unless the user explicitly changes them.
@@ -145,6 +145,22 @@ The persistent overlay retains its compact two-line information hierarchy and
 client-local, single-writer renderer architecture.
 
 ## Decision history
+
+### 2026-07-26 — Hidden-only visibility marker moves into the HP bar
+
+The persistent overlay no longer reserves a stat-row pill for visibility.
+Armor starts at the overlay's left inset and keeps its existing width. Damage
+uses the remaining row width, increasing its formula box by approximately 44%
+without changing the font or outer geometry.
+
+When the overlay is hidden from players, the existing eye-off Path appears at
+the far-left of the HP bar. Shared overlays show no marker. Player clients
+still omit hidden overlays entirely, while context-menu and main-panel controls
+retain their explicit eye/eye-off states.
+
+Reason: long Dungeon World damage formulas need more horizontal space, and a
+hidden-only HP marker preserves GM feedback without adding player-facing visual
+clutter.
 
 ### 2026-07-26 — Over-maximum HP is allowed and visually distinct
 

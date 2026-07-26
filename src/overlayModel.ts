@@ -3,7 +3,7 @@ import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
 
 export type PlayerRole = "GM" | "PLAYER";
 
-export const OVERLAY_LAYOUT_VERSION = 16;
+export const OVERLAY_LAYOUT_VERSION = 17;
 export const OVERLAY_HORIZONTAL_INSET_RATIO = 0.08;
 
 export interface ImageGeometry {
@@ -32,7 +32,7 @@ export interface OverlayLayout {
     width: number;
     height: number;
   };
-  visibility: OverlayBox;
+  visibilityIndicator: OverlayBox;
   armor: OverlayBox;
   damage: OverlayBox;
 }
@@ -90,9 +90,8 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
   const hpTop = geometry.bottom - bottomInset - hpHeight;
   const rowTop = hpTop - gap - rowHeight;
   const boxGap = width * 0.02;
-  const visibilityWidth = width * 0.18;
   const armorWidth = width * 0.22;
-  const damageWidth = width - visibilityWidth - armorWidth - boxGap * 2;
+  const damageWidth = width - armorWidth - boxGap;
 
   return {
     width,
@@ -110,20 +109,20 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
       width,
       height: hpHeight,
     },
-    visibility: {
+    visibilityIndicator: {
       left: hpLeft,
-      top: rowTop,
-      width: visibilityWidth,
-      height: rowHeight,
+      top: hpTop,
+      width: hpHeight,
+      height: hpHeight,
     },
     armor: {
-      left: hpLeft + visibilityWidth + boxGap,
+      left: hpLeft,
       top: rowTop,
       width: armorWidth,
       height: rowHeight,
     },
     damage: {
-      left: hpLeft + visibilityWidth + armorWidth + boxGap * 2,
+      left: hpLeft + armorWidth + boxGap,
       top: rowTop,
       width: damageWidth,
       height: rowHeight,

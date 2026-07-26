@@ -1,4 +1,4 @@
-import{g as c,O as s,C as l,i as h,h as w}from"./icons-0.5.0.js";import{p as T,f as $,r as S}from"./damage-0.5.0.js";function P(e,t){return Math.max(0,e+t)}function o(e){return e.replace(/[&<>'"]/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[t])}function r(e){return e===void 0||e===""?"—":o(String(e))}function C(e){const t=e.damageDescription?.trim(),a=e.damageTags?.trim();return`
+import{g as c,O as s,C as l,i as h,h as w}from"./icons-0.5.1.js";import{p as T,f as $,r as S}from"./damage-0.5.1.js";function P(e,t){return Math.max(0,e+t)}function o(e){return e.replace(/[&<>'"]/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[t])}function r(e){return e===void 0||e===""?"—":o(String(e))}function C(e){const t=e.damageDescription?.trim(),a=e.damageTags?.trim();return`
     <div class="summary-row tags-row">
       <button class="visibility-button" type="button" id="visibility" aria-label="${e.visibleToPlayers===!1?"Hidden from players":"Visible to players"}" title="${e.visibleToPlayers===!1?"Hidden from players":"Visible to players"}">
         ${c(e.visibleToPlayers===!1?"eye-off":"eye")}
