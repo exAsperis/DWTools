@@ -86,6 +86,14 @@ describe("buildDesiredDisplays", () => {
     expect(damageText && isText(damageText)).toBe(true);
     if (armorText && isText(armorText)) expect(armorText.text.plainText).toBe("1");
     if (damageText && isText(damageText)) expect(damageText.text.plainText).toBe("d6");
+    if (
+      hpText && isText(hpText)
+      && armorText && isText(armorText)
+      && damageText && isText(damageText)
+    ) {
+      expect(armorText.text.style.fontSize).toBe(hpText.text.style.fontSize);
+      expect(damageText.text.style.fontSize).toBe(hpText.text.style.fontSize);
+    }
     if (damageIcon && isPath(damageIcon)) {
       const expectedCommands = iconCommands("sword").map(([kind, ...coordinates]) => [
         kind === "M"

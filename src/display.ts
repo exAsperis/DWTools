@@ -240,7 +240,7 @@ function buildTokenOverlay(
       renderKey,
       `${data.armor ?? "—"}`,
       armorValueBox,
-      layout.armorFontSize,
+      layout.fontSize,
     ),
     buildBackground(token, "damage", renderKey, layout.damage),
     buildOverlayIcon(
@@ -257,7 +257,7 @@ function buildTokenOverlay(
       renderKey,
       data.damage ?? "—",
       damageValueBox,
-      layout.damageFontSize,
+      layout.fontSize,
     ),
     buildBackground(token, "hp", renderKey, hpBox, "#27272a", 0.88, 20),
     ...(fillBox.width > 0

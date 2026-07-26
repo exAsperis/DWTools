@@ -146,6 +146,20 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-26 — All overlay text uses one 140% shared scale
+
+Armor, damage, and HP now use the original HP font size as one common baseline,
+increased by 40%. The overlay width, background boxes, insets, row height, HP
+geometry, and compact row gap remain unchanged.
+
+This supersedes the independent approximately-eight-percent armor and damage
+increase recorded below. Live normal-zoom testing showed that adjustment was
+too subtle to solve the readability problem.
+
+Reason: a substantial shared increase makes every numeric combat value readable
+at the same visual scale while preserving the overlay footprint already proven
+stable in Owlbear.
+
 ### 2026-07-26 — Overlay readability changes preserve HP geometry
 
 Armor and damage text use independent type scales approximately eight percent

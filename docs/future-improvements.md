@@ -64,12 +64,13 @@ values, and manually verify both Owlbear themes.
 
 ## Token overlay
 
-### Slightly larger type — Implemented in 0.4.1
+### Larger shared type — Implemented in 0.4.1 and increased in 0.4.2
 
-Armor and damage use independent type scales approximately eight percent larger
-than their previous sizes. HP type and geometry remain unchanged. The gap
-between the stat row and HP bar was reduced from 2.5% to 0.8% of overlay width,
-so the overall two-line footprint became slightly smaller rather than larger.
+Version 0.4.1 increased armor and damage approximately eight percent. Live
+normal-zoom testing showed that change was still too small. Version 0.4.2 uses
+the original HP type scale as the common baseline, increases it by 40%, and
+applies that same size to armor, damage, and HP. All background boxes, overlay
+width, insets, and compact 0.8% row gap remain unchanged.
 
 ### Damage icon — Implemented in 0.4.1
 

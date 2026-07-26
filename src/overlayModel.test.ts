@@ -105,14 +105,13 @@ describe("getOverlayLayout", () => {
       .toBeLessThan(layout.rowHeight + layout.width * 0.025 + layout.hpHeight);
   });
 
-  it("increases armor and damage type by about eight percent without changing HP type", () => {
+  it("uses one shared font size at 140% of the original HP type scale", () => {
     const layout = getOverlayLayout(getImageGeometry(creatureImage(), 100));
-    const previousArmorFontSize = layout.width * 0.095;
-    const previousDamageFontSize = layout.width * 0.095 * 0.9;
+    const originalHpFontSize = layout.width * 0.095;
 
-    expect(layout.fontSize).toBeCloseTo(layout.width * 0.095);
-    expect(layout.armorFontSize / previousArmorFontSize).toBeCloseTo(1.079, 2);
-    expect(layout.damageFontSize / previousDamageFontSize).toBeCloseTo(1.082, 2);
+    expect(layout.fontSize).toBeCloseTo(originalHpFontSize * 1.4);
+    expect(layout.fontSize / originalHpFontSize).toBeCloseTo(1.4);
+    expect(layout.fontSize).toBeCloseTo(layout.hpHeight);
   });
 });
 

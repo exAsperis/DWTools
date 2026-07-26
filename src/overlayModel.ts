@@ -3,7 +3,7 @@ import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
 
 export type PlayerRole = "GM" | "PLAYER";
 
-export const OVERLAY_LAYOUT_VERSION = 14;
+export const OVERLAY_LAYOUT_VERSION = 15;
 export const OVERLAY_HORIZONTAL_INSET_RATIO = 0.08;
 
 export interface ImageGeometry {
@@ -19,8 +19,6 @@ export interface ImageGeometry {
 export interface OverlayLayout {
   width: number;
   fontSize: number;
-  armorFontSize: number;
-  damageFontSize: number;
   rowTop: number;
   rowHeight: number;
   rowGap: number;
@@ -82,11 +80,10 @@ export function getImageGeometry(token: Image, sceneDpi: number): ImageGeometry 
 
 export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
   const width = Math.max(24, geometry.width * (1 - OVERLAY_HORIZONTAL_INSET_RATIO * 2));
-  const fontSize = Math.max(8, width * 0.095);
-  const armorFontSize = Math.max(8, width * 0.1025);
-  const damageFontSize = Math.max(8, width * 0.0925);
-  const rowHeight = fontSize * 1.55;
-  const hpHeight = fontSize * 1.4;
+  const baseFontSize = Math.max(8, width * 0.095);
+  const fontSize = baseFontSize * 1.4;
+  const rowHeight = baseFontSize * 1.55;
+  const hpHeight = baseFontSize * 1.4;
   const gap = width * 0.008;
   const bottomInset = width * 0.07;
   const hpLeft = geometry.left + geometry.width * OVERLAY_HORIZONTAL_INSET_RATIO;
@@ -100,8 +97,6 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
   return {
     width,
     fontSize,
-    armorFontSize,
-    damageFontSize,
     rowTop,
     rowHeight,
     rowGap: gap,
