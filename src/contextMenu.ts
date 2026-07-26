@@ -2,26 +2,18 @@ import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./contextMenu.css";
 import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
-import { iconMarkup } from "./icons";
+import { buildContextSummary, displayValue, escapeHtml } from "./contextMenuView";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
+const params = new URLSearchParams(window.location.search);
+const preview = params.get("preview");
 let token: Item | undefined;
 let updatingHp = false;
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
-  })[character]!);
-}
 
 function getData(item: Item): CreatureData {
   const raw = item.metadata[CREATURE_KEY];
   return isCreatureData(raw) ? raw : {};
-}
-
-function displayValue(value: string | number | undefined): string {
-  return value === undefined || value === "" ? "—" : escapeHtml(String(value));
 }
 
 function applyTheme(theme: Theme) {
@@ -42,18 +34,7 @@ function render() {
   const moves = (data.moves ?? "").split(/\r?\n/).map((move) => move.trim()).filter(Boolean);
   app.innerHTML = `
     <section class="panel">
-      <div class="stats">
-        <button class="visibility-button" type="button" id="visibility" aria-label="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}" title="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}">
-          ${iconMarkup(data.visibleToPlayers === false ? "eye-off" : "eye")}
-        </button>
-        <span>ARM ${displayValue(data.armor)}</span>
-        <button class="damage" type="button" id="damage" title="Roll damage">DMG ${displayValue(data.damage)}</button>
-      </div>
-      <div class="hp" aria-label="Hit points">
-        <button type="button" data-hp="-1" aria-label="Decrease HP">−</button>
-        <span class="hp-value">HP ${displayValue(data.hpCurrent)}/${displayValue(data.hpMax)}</span>
-        <button type="button" data-hp="1" aria-label="Increase HP">+</button>
-      </div>
+      <div class="summary" aria-label="Creature summary">${buildContextSummary(data)}</div>
       <div class="details">
         <div class="line"><span class="label">Instinct:</span> ${displayValue(data.instinct)}</div>
         <div class="line">
@@ -144,7 +125,33 @@ async function loadSelectedToken() {
   render();
 }
 
-if (!OBR.isAvailable) {
+if (preview === "context") {
+  token = {
+    id: "preview",
+    name: "Frogman",
+    metadata: {
+      [CREATURE_KEY]: {
+        tags: "Solitary, Small, Intelligent, Stealthy, Devious",
+        armor: 1,
+        hpCurrent: 7,
+        hpMax: 10,
+        damage: "b[2d6]+1",
+        damageDescription: "Claws",
+        damageTags: "Close, Messy",
+        instinct: "To defend the drowned temple",
+        moves: "Strike from beneath the water\nCall the marsh to its aid",
+        treasure: "A waterlogged purse and a silver idol",
+        visibleToPlayers: true,
+      } satisfies CreatureData,
+    },
+  } as unknown as Item;
+  const previewIsLight = params.get("theme") === "light";
+  document.documentElement.dataset.obrTheme = previewIsLight ? "light" : "dark";
+  document.documentElement.style.setProperty("--dw-text", previewIsLight ? "#27272a" : "#f4f4f5");
+  document.documentElement.style.setProperty("--dw-text-secondary", previewIsLight ? "#52525b" : "#d4d4d8");
+  document.documentElement.style.setProperty("--dw-primary", "#7c3aed");
+  render();
+} else if (!OBR.isAvailable) {
   app.innerHTML = '<p class="error">Open this menu inside Owlbear Rodeo.</p>';
 } else {
   OBR.onReady(async () => {

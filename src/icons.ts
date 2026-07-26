@@ -1,4 +1,4 @@
-export type DwIconName = "eye" | "eye-off" | "shield";
+export type DwIconName = "eye" | "eye-off" | "shield" | "sword";
 
 export type IconCommand =
   | ["M" | "L", number, number]
@@ -57,6 +57,19 @@ const ICON_COMMANDS: Record<DwIconName, IconCommand[]> = {
     ["L", 4, 5],
     ["L", 12, 2.5],
     ["Z"],
+  ],
+  sword: [
+    ["M", 14.5, 3],
+    ["L", 21, 3],
+    ["L", 21, 9.5],
+    ["L", 9.2, 21.3],
+    ["L", 2.7, 14.8],
+    ["L", 14.5, 3],
+    ["Z"],
+    ["M", 6.1, 11.4],
+    ["L", 12.6, 17.9],
+    ["M", 4.2, 19.8],
+    ["L", 8.2, 15.8],
   ],
 };
 

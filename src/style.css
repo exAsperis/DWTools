@@ -27,12 +27,11 @@ input:focus, textarea:focus { border-color: #8b5cf6; box-shadow: 0 0 0 2px #8b5c
 textarea { resize: vertical; line-height: 1.4; }
 .hp-row { display: grid; grid-template-columns: 1fr 18px 1fr; align-items: end; gap: 6px; }
 .slash { padding-bottom: 8px; text-align: center; color: #71717a; }
-.two-column { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.vitals-row { display: grid; grid-template-columns: .8fr 1fr 18px 1fr; align-items: end; gap: 8px; }
+.damage-fields { display: grid; grid-template-columns: 1fr 1.25fr; gap: 10px; }
 .quick-hp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.quick-hp button, .secondary { border: 1px solid #52525b; border-radius: 7px; padding: 8px; color: #e4e4e7; background: #27272a; cursor: pointer; }
-.quick-hp button:hover, .secondary:hover { background: #3f3f46; }
-.roll { margin-top: -6px; }
-.message { min-height: 18px; margin: 0; color: #c4b5fd; font-size: 12px; line-height: 1.4; }
+.quick-hp button { border: 1px solid #52525b; border-radius: 7px; padding: 8px; color: #e4e4e7; background: #27272a; cursor: pointer; }
+.quick-hp button:hover { background: #3f3f46; }
 .visibility { grid-template-columns: auto 1fr; align-items: center; gap: 9px; }
 .visibility input { width: 16px; height: 16px; margin: 0; accent-color: #7c3aed; }
 footer { display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; padding-top: 4px; background: #18181b; }
@@ -46,7 +45,7 @@ footer button { border: 0; border-radius: 7px; padding: 9px 14px; font-weight: 8
   :root, body { color: #18181b; background: #fafafa; }
   .home p, label { color: #52525b; }
   .sample { border-color: #d4d4d8; color: #18181b; background: white; }
-  input, textarea, .quick-hp button, .secondary { border-color: #d4d4d8; color: #18181b; background: white; }
-  .quick-hp button:hover, .secondary:hover { background: #f4f4f5; }
+  input, textarea, .quick-hp button { border-color: #d4d4d8; color: #18181b; background: white; }
+  .quick-hp button:hover { background: #f4f4f5; }
   footer { background: #fafafa; }
 }

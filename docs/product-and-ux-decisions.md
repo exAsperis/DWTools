@@ -136,7 +136,26 @@ Before treating an overlay change as complete, verify:
 Some integration cases require more than one signed-in client. If those clients
 are unavailable, record the unverified cases rather than implying they passed.
 
+## Planned changes
+
+The proposals in [`future-improvements.md`](future-improvements.md) are
+recorded future work, not current behavior. The proposed three-line layout is
+for the interactive context-menu panel, not the persistent token overlay. The
+current overlay information hierarchy and client-local, single-writer renderer
+architecture remain unchanged.
+
 ## Decision history
+
+### 2026-07-26 — Rich creature details remain in interactive UI
+
+Creature tags, damage descriptions, and damage tags are optional token metadata
+shown in the editor and interactive context-menu panel. The context menu uses a
+three-line summary with wrapping descriptive text and retains HP, visibility,
+and damage-roll interactions. The persistent scene overlay remains limited to
+its existing compact combat summary.
+
+Reason: the added Dungeon World details are valuable when inspecting a creature,
+but they should not enlarge or destabilize the always-visible token overlay.
 
 ### 2026-07-25 — Hidden tokens retain GM-only overlays
 

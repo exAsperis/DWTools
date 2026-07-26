@@ -4,10 +4,13 @@ export const DISPLAY_KEY = `${EXTENSION_ID}/display`;
 export const EDIT_POPOVER_ID = `${EXTENSION_ID}/edit-popover`;
 
 export interface CreatureData {
+  tags?: string;
   hpCurrent?: number;
   hpMax?: number;
   armor?: number;
   damage?: string;
+  damageDescription?: string;
+  damageTags?: string;
   instinct?: string;
   moves?: string;
   treasure?: string;
