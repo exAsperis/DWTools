@@ -151,6 +151,25 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-26 — Tombstones are visible on demand and can be purged
+
+The GM character manager places a **Show tombstoned characters** checkbox
+directly beneath room-metadata usage. Deleted records remain absent from the
+ordinary list; when requested, they appear as muted, explicitly labeled cards.
+New compact tombstones retain the character name for recognition, while older
+tombstones fall back to a shortened record ID.
+
+Only tombstoned records offer **Delete permanently**. Permanent deletion
+removes that character's independent room-metadata key and warns that links in
+closed scenes will become orphaned. Current-scene stale links are removed
+without changing creature fields. The outdated sample overlay is no longer
+shown in the main panel.
+
+Reason: tombstones provide safe cross-scene deletion semantics but consume
+scarce shared room metadata. An explicit, GM-only purge path makes that cost
+recoverable while preserving the safe default and clearly communicating the
+closed-scene consequence.
+
 ### 2026-07-26 — Room character records are authoritative for linked tokens
 
 DWTools supports versioned room-level character records that persist across

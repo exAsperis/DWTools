@@ -1,6 +1,8 @@
 import type {
   CharacterRecord,
   CharacterStorageUsage,
+  CharacterTombstone,
+  StoredCharacterRecord,
 } from "./characterRepository";
 import type { CreatureFields } from "./constants";
 
@@ -59,6 +61,8 @@ export function buildCharacterSummary(record: CharacterRecord): string {
 
 export interface CharacterManagerViewState {
   records: CharacterRecord[];
+  tombstones: CharacterTombstone[];
+  showTombstones: boolean;
   counts: Map<string, number>;
   usage?: CharacterStorageUsage;
   loading: boolean;
@@ -102,13 +106,17 @@ export function buildCharacterManagerMarkup(
   }
 
   const query = state.search.trim().toLocaleLowerCase();
-  const records = query
-    ? state.records.filter(
-        (record) =>
-          record.fields.name.toLocaleLowerCase().includes(query) ||
-          record.fields.tags?.toLocaleLowerCase().includes(query),
-      )
+  const displayedRecords: StoredCharacterRecord[] = state.showTombstones
+    ? [...state.records, ...state.tombstones]
     : state.records;
+  const records = query
+    ? displayedRecords.filter((record) => {
+        const searchText = record.deleted
+          ? `${record.name ?? ""} ${record.id}`
+          : `${record.fields.name} ${record.fields.tags ?? ""}`;
+        return searchText.toLocaleLowerCase().includes(query);
+      })
+    : displayedRecords;
   return `
     <section class="character-manager">
       <div class="manager-heading">
@@ -116,6 +124,10 @@ export function buildCharacterManagerMarkup(
         <button type="button" class="primary compact" id="manager-create">New</button>
       </div>
       ${usageMarkup(state.usage)}
+      <label class="tombstone-toggle">
+        <input id="show-tombstones" type="checkbox" ${state.showTombstones ? "checked" : ""}>
+        <span>Show tombstoned characters</span>
+      </label>
       <label class="manager-search">Search<input id="manager-search" type="search" value="${escapeHtml(state.search)}" placeholder="Name or tags"></label>
       ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
       ${
@@ -123,8 +135,23 @@ export function buildCharacterManagerMarkup(
           ? '<p class="manager-status">Loading character records…</p>'
           : records.length
             ? `<div class="character-list">${records
-                .map(
-                  (record) => `
+                .map((record) =>
+                  record.deleted
+                    ? `
+              <article class="character-card tombstoned" data-character-search="${escapeHtml(`${record.name ?? ""} ${record.id}`.toLocaleLowerCase())}">
+                <div>
+                  <div class="character-card-title">
+                    <strong>${escapeHtml(record.name ?? `Deleted character ${record.id.slice(0, 8)}`)}</strong>
+                    <span class="tombstone-badge">Tombstoned</span>
+                  </div>
+                  <span>Deleted ${escapeHtml(new Date(record.deletedAt).toLocaleString())}</span>
+                </div>
+                <div class="card-actions">
+                  <button type="button" class="danger compact" data-delete-permanently="${escapeHtml(record.id)}" ${state.saving ? "disabled" : ""}>Delete permanently</button>
+                </div>
+                <span class="permanent-delete-warning">This action will orphan linked creature tokens in other scenes.</span>
+              </article>`
+                    : `
               <article class="character-card" data-character-search="${escapeHtml(`${record.fields.name} ${record.fields.tags ?? ""}`.toLocaleLowerCase())}">
                 <div>
                   <strong>${escapeHtml(record.fields.name)}</strong>

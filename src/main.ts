@@ -5,6 +5,7 @@ import {
   type CharacterRecord,
   type CharacterRepository,
   type CharacterStorageUsage,
+  type CharacterTombstone,
 } from "./characterRepository";
 import {
   CharacterManagerService,
@@ -116,17 +117,21 @@ let homeRepository: CharacterRepository | undefined;
 let homeCreatureService: CreatureService | undefined;
 let homeManagerService: CharacterManagerService | undefined;
 let managerRecords: CharacterRecord[] = [];
+let managerTombstones: CharacterTombstone[] = [];
 let managerCounts = new Map<string, number>();
 let managerUsage: CharacterStorageUsage | undefined;
 let managerLoading = false;
 let managerSaving = false;
 let managerError: string | undefined;
 let managerSearch = "";
+let managerShowTombstones = false;
 let managerEditing: CharacterManagerViewState["editing"];
 
 function managerState(): CharacterManagerViewState {
   return {
     records: managerRecords,
+    tombstones: managerTombstones,
+    showTombstones: managerShowTombstones,
     counts: managerCounts,
     usage: managerUsage,
     loading: managerLoading,
@@ -168,6 +173,12 @@ function bindManagerControls(): void {
     renderHome();
   });
   document
+    .querySelector<HTMLInputElement>("#show-tombstones")
+    ?.addEventListener("change", (event) => {
+      managerShowTombstones = (event.currentTarget as HTMLInputElement).checked;
+      renderHome();
+    });
+  document
     .querySelector<HTMLInputElement>("#manager-search")
     ?.addEventListener("input", (event) => {
       managerSearch = (event.currentTarget as HTMLInputElement).value;
@@ -203,6 +214,17 @@ function bindManagerControls(): void {
       () => void deleteManagedCharacter(button.dataset.deleteCharacter),
     );
   }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-delete-permanently]",
+  )) {
+    button.addEventListener(
+      "click",
+      () =>
+        void deleteManagedCharacterPermanently(
+          button.dataset.deletePermanently,
+        ),
+    );
+  }
   const form = document.querySelector<HTMLFormElement>(
     "#character-manager-form",
   );
@@ -223,11 +245,19 @@ async function refreshManager(render = true): Promise<void> {
   managerError = undefined;
   if (render && !managerEditing) renderHome();
   try {
-    [managerRecords, managerCounts, managerUsage] = await Promise.all([
-      homeRepository.list(),
+    const [storedRecords, counts, usage] = await Promise.all([
+      homeRepository.listStored(),
       currentSceneLinkedTokenCounts(homeCreatureService.scene),
       homeRepository.estimateUsage(),
     ]);
+    managerRecords = storedRecords.flatMap((record) =>
+      record.deleted ? [] : [record],
+    );
+    managerTombstones = storedRecords.flatMap((record) =>
+      record.deleted ? [record] : [],
+    );
+    managerCounts = counts;
+    managerUsage = usage;
   } catch (error) {
     managerError = messageFrom(
       error,
@@ -295,6 +325,39 @@ async function deleteManagedCharacter(
     await refreshManager(false);
   } catch (error) {
     managerError = messageFrom(error, "DWTools could not delete the record.");
+  } finally {
+    managerSaving = false;
+    renderHome();
+  }
+}
+
+async function deleteManagedCharacterPermanently(
+  characterId: string | undefined,
+): Promise<void> {
+  if (!characterId || !homeManagerService || managerSaving) return;
+  const tombstone = managerTombstones.find((entry) => entry.id === characterId);
+  if (!tombstone) return;
+  const displayName =
+    tombstone.name ?? `deleted character ${tombstone.id.slice(0, 8)}`;
+  if (
+    !window.confirm(
+      `Permanently delete "${displayName}"? This cannot be undone and will orphan linked creature tokens in other scenes.`,
+    )
+  ) {
+    return;
+  }
+  managerSaving = true;
+  managerError = undefined;
+  renderHome();
+  try {
+    await homeManagerService.deletePermanently(characterId);
+    notify("Character record permanently deleted.", "SUCCESS");
+    await refreshManager(false);
+  } catch (error) {
+    managerError = messageFrom(
+      error,
+      "DWTools could not permanently delete the record.",
+    );
   } finally {
     managerSaving = false;
     renderHome();
@@ -786,7 +849,47 @@ if (preview === "home") {
   homeMetadata = {
     [DEFAULT_OVERLAY_VISIBILITY_KEY]: params.get("default") !== "hidden",
   };
-  managerRecords = [];
+  managerRecords = [
+    {
+      schemaVersion: 1,
+      id: "preview-active",
+      fields: {
+        name: "Raganah",
+        hpCurrent: 8,
+        hpMax: 10,
+        armor: 1,
+        damage: "d8+2",
+        tags: "Cautious, Loyal",
+      },
+      revision: 3,
+      createdAt: "2026-07-25T15:00:00.000Z",
+      createdBy: "preview-gm",
+      updatedAt: "2026-07-26T15:00:00.000Z",
+      updatedBy: "preview-gm",
+      writeId: "preview-active-write",
+    },
+  ];
+  managerTombstones = [
+    {
+      schemaVersion: 1,
+      id: "preview-deleted",
+      name: "The Ashen Seer",
+      revision: 4,
+      writeId: "preview-deleted-write",
+      deleted: true,
+      deletedAt: "2026-07-26T16:30:00.000Z",
+      deletedBy: "preview-gm",
+    },
+  ];
+  managerCounts = new Map([["preview-active", 2]]);
+  managerUsage = {
+    bytes: 7_168,
+    limitBytes: 16_384,
+    safeMaximumBytes: 15_360,
+    warningBytes: 13_107,
+    nearLimit: false,
+    percentOfLimit: 43.75,
+  };
   renderHome();
 } else if (preview === "editor") {
   editorToken = {

@@ -53,8 +53,8 @@ component.
 ## Repository and concurrency
 
 `CharacterRepository` owns record discovery, validation, schema migration,
-creation, patching, replacement, tombstoning, subscriptions, and metadata-size
-estimation.
+creation, patching, replacement, tombstoning, permanent deletion,
+subscriptions, and metadata-size estimation.
 
 Record patches use bounded optimistic retries:
 
@@ -106,9 +106,18 @@ orphan recovery; tombstones remove stale links while preserving token fields.
 ## Deletion
 
 Deletion first unlinks current-scene tokens without changing their creature
-fields, then replaces the active record with a compact tombstone. Tombstones
-are hidden from normal lists and prevent a deleted record from being recreated
-when another scene later opens.
+fields, then replaces the active record with a compact tombstone. New
+tombstones retain only their audit fields and a display name; older schema-1
+tombstones without a display name remain valid. Tombstones are hidden from
+normal lists and prevent a deleted record from being recreated when another
+scene later opens.
+
+The GM manager can opt into showing tombstones beneath the room-metadata usage
+bar. Permanent deletion removes only the tombstone's independent namespaced
+room-metadata key. It also removes any stale links in the current scene without
+changing creature fields. DWTools cannot inspect closed scenes, so tokens still
+linked there become missing-record orphans and retain their current creature
+data when that scene opens.
 
 ## Durable limitations
 

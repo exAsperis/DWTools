@@ -405,6 +405,31 @@ export class CharacterManagerService {
     }
   }
 
+  async deletePermanently(characterId: string): Promise<void> {
+    await this.requireGm();
+    const lookup = await this.repository.inspect(characterId);
+    if (lookup.status !== "deleted") {
+      throw new CharacterRepositoryError(
+        lookup.status === "active" ? "VALIDATION" : "NOT_FOUND",
+        lookup.status === "active"
+          ? "Delete this character record before deleting it permanently."
+          : "That tombstoned character record is no longer available.",
+        { characterId, status: lookup.status },
+      );
+    }
+
+    const items = await this.creatures.scene.getItems();
+    const linked = items.filter(
+      (item) => getCharacterLink(item)?.characterId === characterId,
+    );
+    if (linked.length) {
+      await this.creatures.scene.updateItems(linked, (drafts) => {
+        for (const draft of drafts) removeCharacterLink(draft);
+      });
+    }
+    await this.repository.deletePermanently(characterId);
+  }
+
   private async requireGm(): Promise<void> {
     if ((await this.roleProvider.getRole()) !== "GM") {
       throw new CharacterRepositoryError(

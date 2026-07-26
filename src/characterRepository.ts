@@ -33,6 +33,7 @@ export interface CharacterRecord extends CharacterAuditFields {
 }
 
 export interface CharacterTombstone extends CharacterAuditFields {
+  name?: string;
   deleted: true;
   deletedAt: string;
   deletedBy: string;
@@ -140,6 +141,9 @@ function parseVersionOneCharacterRecord(
       id: expectedId,
       revision: Number(value.revision),
       writeId: String(value.writeId),
+      ...(typeof value.name === "string" && value.name
+        ? { name: value.name }
+        : {}),
       deleted: true,
       deletedAt: value.deletedAt,
       deletedBy: value.deletedBy,
@@ -269,14 +273,31 @@ export class CharacterRepository {
   }
 
   async list(): Promise<CharacterRecord[]> {
+    return (await this.listStored()).flatMap((record) =>
+      record.deleted ? [] : [record],
+    );
+  }
+
+  async listStored(): Promise<StoredCharacterRecord[]> {
     const metadata = await this.readMetadata();
     this.cachedLookups = parseCharacterManifest(metadata);
     return [...this.cachedLookups.values()]
-      .flatMap((lookup) => (lookup.status === "active" ? [lookup.record] : []))
+      .flatMap((lookup) =>
+        lookup.status === "active" || lookup.status === "deleted"
+          ? [lookup.record]
+          : [],
+      )
       .sort((left, right) =>
-        left.fields.name.localeCompare(right.fields.name, undefined, {
-          sensitivity: "base",
-        }),
+        (left.deleted
+          ? (left.name ?? left.id)
+          : left.fields.name
+        ).localeCompare(
+          right.deleted ? (right.name ?? right.id) : right.fields.name,
+          undefined,
+          {
+            sensitivity: "base",
+          },
+        ),
       );
   }
 
@@ -397,6 +418,7 @@ export class CharacterRepository {
     const tombstone: CharacterTombstone = {
       schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
       id: characterId,
+      name: current.fields.name,
       revision: current.revision + 1,
       writeId: this.randomUUID(),
       deleted: true,
@@ -422,6 +444,40 @@ export class CharacterRepository {
       );
     }
     return readBack.record;
+  }
+
+  async deletePermanently(characterId: string): Promise<void> {
+    const metadata = await this.readMetadata();
+    const lookup = lookupFromMetadata(metadata, characterId);
+    if (lookup.status !== "deleted") {
+      throw new CharacterRepositoryError(
+        lookup.status === "active" ? "VALIDATION" : "NOT_FOUND",
+        lookup.status === "active"
+          ? "Only tombstoned character records can be deleted permanently."
+          : "That tombstoned character record is no longer available.",
+        { characterId, status: lookup.status },
+      );
+    }
+
+    const key = characterMetadataKey(characterId);
+    try {
+      await this.store.setMetadata({ [key]: undefined });
+    } catch (error) {
+      throw repositoryError(
+        error,
+        "Owlbear could not permanently delete the character record.",
+      );
+    }
+
+    const readBack = await this.inspect(characterId);
+    if (readBack.status !== "missing") {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "The character record changed while it was being permanently deleted. Reload and try again.",
+        { characterId, status: readBack.status },
+      );
+    }
+    this.cachedLookups.set(characterId, { status: "missing" });
   }
 
   async estimateUsage(): Promise<CharacterStorageUsage> {

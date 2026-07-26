@@ -27,7 +27,10 @@ export class FakeMetadataStore implements CharacterMetadataStore {
   }
 
   async setMetadata(update: RoomMetadata): Promise<void> {
-    this.metadata = { ...this.metadata, ...update };
+    for (const [key, value] of Object.entries(update)) {
+      if (value === undefined) delete this.metadata[key];
+      else this.metadata[key] = value;
+    }
     this.afterSet?.(update, this);
     this.emit();
   }

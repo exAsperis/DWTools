@@ -58,8 +58,16 @@ there, the GM can:
 
 Deleting a record unlinks its tokens in the current scene without erasing
 their copied creature fields. Tokens encountered later in another scene are
-also safely unlinked when that scene opens. Counts always apply only to the
-current scene because Owlbear extensions cannot inspect closed scenes.
+also safely unlinked when that scene opens.
+
+Select **Show tombstoned characters** beneath the metadata-usage bar to review
+deleted records. Tombstones appear as muted, labeled cards. A tombstone can be
+deleted permanently to reclaim its room-metadata space, but doing so cannot
+unlink tokens in closed scenes; those tokens retain their creature fields and
+show an orphaned link when their scene is opened.
+
+Counts always apply only to the current scene because Owlbear extensions cannot
+inspect closed scenes.
 
 ## Testing workflow
 

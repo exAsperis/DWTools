@@ -16,7 +16,6 @@ export function buildHomeMarkup(
       <img class="extension-logo" src="./icon.svg" alt="DWTools logo">
       <h1>DWTools</h1>
       <p>Right-click a character token to add or edit its creature stats.</p>
-      <div class="sample"><strong>HP 7/10</strong> &nbsp;███████░░░<br><strong>ARM 1</strong> &nbsp; DMG d8+2</div>
       ${
         role === "GM"
           ? `

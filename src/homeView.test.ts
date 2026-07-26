@@ -11,6 +11,8 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain('aria-label="Default: visible to players"');
     expect(markup).toContain('id="default-visibility"');
     expect(markup).not.toContain("disabled");
+    expect(markup).not.toContain("HP 7/10");
+    expect(markup).not.toContain('class="sample"');
   });
 
   it("shows the hidden icon state and saving state", () => {

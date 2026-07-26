@@ -139,4 +139,67 @@ describe("CharacterRepository writes", () => {
       }) as CharacterRepositoryError,
     );
   });
+
+  it("lists active records and tombstones without exposing unrelated metadata", async () => {
+    const record = activeRecord("raganah");
+    const tombstone = {
+      schemaVersion: 1 as const,
+      id: "old-hero",
+      name: "Old Hero",
+      revision: 2,
+      writeId: "deleted-write",
+      deleted: true as const,
+      deletedAt: "2026-07-26T15:00:00.000Z",
+      deletedBy: "user-1",
+    };
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+      [characterMetadataKey(tombstone.id)]: tombstone,
+      "com.other/data": { preserved: true },
+    });
+
+    await expect(repository(store).list()).resolves.toEqual([record]);
+    await expect(repository(store).listStored()).resolves.toEqual([
+      tombstone,
+      record,
+    ]);
+  });
+
+  it("permanently deletes only the selected tombstone key", async () => {
+    const tombstone = {
+      schemaVersion: 1 as const,
+      id: "old-hero",
+      name: "Old Hero",
+      revision: 2,
+      writeId: "deleted-write",
+      deleted: true as const,
+      deletedAt: "2026-07-26T15:00:00.000Z",
+      deletedBy: "user-1",
+    };
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(tombstone.id)]: tombstone,
+      "com.other/data": { preserved: true },
+    });
+
+    await repository(store).deletePermanently(tombstone.id);
+
+    expect(store.metadata).not.toHaveProperty(
+      characterMetadataKey(tombstone.id),
+    );
+    expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
+  });
+
+  it("retains the character name in a compact tombstone", async () => {
+    const record = activeRecord("raganah");
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+    });
+
+    const tombstone = await repository(store, ["deleted-write"]).tombstone(
+      record.id,
+    );
+
+    expect(tombstone.name).toBe("Raganah");
+    expect(tombstone).not.toHaveProperty("fields");
+  });
 });
