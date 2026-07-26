@@ -85,15 +85,23 @@ compatible approach.
 
 ## Creature edit form
 
-### Normalize integer damage on field exit — Simple
+### Normalize and validate damage on field exit — Implemented in 0.5.0
 
-When the damage field loses focus, convert a positive integer to standard die
-notation; for example, `8` becomes `d8`. Preserve already valid expressions
-such as `d6`, `2d6+1`, `b[2d10]+1`, and `w[2d8]-1`.
+When the damage field loses focus, a positive integer is converted to standard
+die notation; for example, `8` becomes `d8`. Already structured expressions
+such as `d6`, `2d6+1`, `b[2d10]+1`, and `w[2d8]-1` are preserved.
 
-Define invalid and edge-case behavior in tests, including blank input, zero,
-negative values, decimals, surrounding whitespace, and integers above the
-parser's supported side limit.
+After normalization, a nonblank unsupported expression receives a red border
+and `aria-invalid="true"`. Blank values are not marked invalid. Tests cover
+blank input, zero, negative and descriptive input, surrounding whitespace,
+valid expressions, and parser side limits.
+
+### HP data-entry conveniences — Implemented in 0.5.0
+
+When Current HP loses focus, its nonnegative numeric value is copied to an empty
+Maximum HP field. An existing maximum is never overwritten. Quick HP increases
+may exceed the stored maximum, while decreases retain the zero floor. An
+over-maximum overlay displays a full purple HP bar.
 
 ### Layout update — Implemented in 0.3.0
 

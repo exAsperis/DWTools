@@ -1,5 +1,14 @@
 import type { CreatureData } from "./constants";
 
+export function maximumHpAutofill(
+  currentValue: string,
+  maximumValue: string,
+): string | null {
+  if (maximumValue.trim() !== "" || currentValue.trim() === "") return null;
+  const current = Number(currentValue);
+  return Number.isFinite(current) && current >= 0 ? currentValue.trim() : null;
+}
+
 function optionalNumber(form: FormData, key: string): number | undefined {
   const raw = String(form.get(key) ?? "").trim();
   if (!raw) return undefined;

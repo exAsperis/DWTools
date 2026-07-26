@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { readCreatureForm } from "./creatureForm";
+import { maximumHpAutofill, readCreatureForm } from "./creatureForm";
+
+describe("maximumHpAutofill", () => {
+  it("copies a nonnegative numeric current HP when maximum HP is blank", () => {
+    expect(maximumHpAutofill("8", "")).toBe("8");
+    expect(maximumHpAutofill(" 8 ", "   ")).toBe("8");
+    expect(maximumHpAutofill("0", "")).toBe("0");
+  });
+
+  it("preserves an existing maximum and ignores missing or invalid current HP", () => {
+    expect(maximumHpAutofill("8", "10")).toBeNull();
+    expect(maximumHpAutofill("", "")).toBeNull();
+    expect(maximumHpAutofill("not a number", "")).toBeNull();
+    expect(maximumHpAutofill("-1", "")).toBeNull();
+  });
+});
 
 describe("readCreatureForm", () => {
   it("trims and saves all full-editor creature fields", () => {

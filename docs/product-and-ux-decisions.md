@@ -146,6 +146,24 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-26 — Over-maximum HP is allowed and visually distinct
+
+Quick HP increases are no longer capped at Maximum HP. When Current HP exceeds
+Maximum HP, the overlay uses a full purple HP bar, including the edge case of a
+positive current value with a zero maximum. Quick decreases retain the existing
+zero floor.
+
+For faster initial entry, leaving Current HP copies a nonnegative numeric value
+into Maximum HP only when Maximum HP is blank. Existing maximum values are
+never overwritten.
+
+Damage entry converts a positive integer such as `8` to `d8` on blur. A
+nonblank expression unsupported by the existing damage parser receives a red
+border and accessible invalid state after blur; blank values are allowed.
+
+Reason: these behaviors reduce repetitive entry, permit temporary HP beyond a
+creature's normal maximum, and make that exceptional state immediately visible.
+
 ### 2026-07-26 — All overlay text uses one 140% shared scale
 
 Armor, damage, and HP now use the original HP font size as one common baseline,

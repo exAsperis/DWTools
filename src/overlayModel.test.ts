@@ -4,6 +4,9 @@ import { CREATURE_KEY, type CreatureData } from "./constants";
 import {
   getImageGeometry,
   getOverlayLayout,
+  hpColor,
+  hpPercent,
+  isHpOverMaximum,
   overlayItemId,
   overlaySourceSignature,
   shouldRenderOverlay,
@@ -112,6 +115,25 @@ describe("getOverlayLayout", () => {
     expect(layout.fontSize).toBeCloseTo(originalHpFontSize * 1.4);
     expect(layout.fontSize / originalHpFontSize).toBeCloseTo(1.4);
     expect(layout.fontSize).toBeCloseTo(layout.hpHeight);
+  });
+});
+
+describe("HP status", () => {
+  it("uses a full purple bar whenever current HP exceeds maximum HP", () => {
+    const overMaximum = { hpCurrent: 9, hpMax: 8 };
+
+    expect(isHpOverMaximum(overMaximum)).toBe(true);
+    expect(hpPercent(overMaximum)).toBe(1);
+    expect(hpColor(hpPercent(overMaximum), isHpOverMaximum(overMaximum)))
+      .toBe("#7e22ce");
+  });
+
+  it("also renders over-zero HP as full and purple when maximum HP is zero", () => {
+    const overZero = { hpCurrent: 1, hpMax: 0 };
+
+    expect(hpPercent(overZero)).toBe(1);
+    expect(hpColor(hpPercent(overZero), isHpOverMaximum(overZero)))
+      .toBe("#7e22ce");
   });
 });
 

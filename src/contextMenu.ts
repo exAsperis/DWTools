@@ -2,6 +2,7 @@ import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./contextMenu.css";
 import { CREATURE_KEY, EDIT_POPOVER_ID, isCreatureData, type CreatureData } from "./constants";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
+import { adjustedHp } from "./hp";
 import { buildContextSummary, displayValue, escapeHtml } from "./contextMenuView";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
@@ -65,10 +66,7 @@ async function adjustHp(amount: number) {
     if (!latest) return;
     const data = getData(latest);
     const current = data.hpCurrent ?? 0;
-    const maximum = data.hpMax;
-    const next = maximum === undefined
-      ? current + amount
-      : Math.max(0, Math.min(maximum, current + amount));
+    const next = adjustedHp(current, amount);
     await OBR.scene.items.updateItems([latest], (items) => {
       items[0].metadata[CREATURE_KEY] = { ...data, hpCurrent: next };
     });

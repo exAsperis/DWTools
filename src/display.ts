@@ -19,6 +19,7 @@ import {
   getOverlayLayout,
   hpColor,
   hpPercent,
+  isHpOverMaximum,
   overlayItemId,
   overlaySourceSignature,
   roundedRectanglePoints,
@@ -261,7 +262,15 @@ function buildTokenOverlay(
     ),
     buildBackground(token, "hp", renderKey, hpBox, "#27272a", 0.88, 20),
     ...(fillBox.width > 0
-      ? [buildBackground(token, "hp-fill", renderKey, fillBox, hpColor(percent), 0.96, 21)]
+      ? [buildBackground(
+        token,
+        "hp-fill",
+        renderKey,
+        fillBox,
+        hpColor(percent, isHpOverMaximum(data)),
+        0.96,
+        21,
+      )]
       : []),
     buildOverlayText(
       token,

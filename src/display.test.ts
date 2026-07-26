@@ -1,4 +1,11 @@
-import { Command, isPath, isText, type Image, type Item } from "@owlbear-rodeo/sdk";
+import {
+  Command,
+  isCurve,
+  isPath,
+  isText,
+  type Image,
+  type Item,
+} from "@owlbear-rodeo/sdk";
 import { describe, expect, it } from "vitest";
 import { CREATURE_KEY, DISPLAY_KEY, type CreatureData } from "./constants";
 import {
@@ -134,6 +141,21 @@ describe("buildDesiredDisplays", () => {
     expect(hiddenDesired.every((item) =>
       item.disableAttachmentBehavior?.includes("VISIBLE"),
     )).toBe(true);
+  });
+
+  it("renders an over-maximum HP fill in purple", () => {
+    const desired = buildDesiredDisplays([
+      creatureImage({ x: 300, y: 400 }, {
+        hpCurrent: 9,
+        hpMax: 8,
+      }),
+    ], "GM", 100);
+    const hpFill = desired.find((item) => item.id.endsWith("-hp-fill-bg"));
+
+    expect(hpFill && isCurve(hpFill)).toBe(true);
+    if (hpFill && isCurve(hpFill)) {
+      expect(hpFill.style.fillColor).toBe("#7e22ce");
+    }
   });
 
   it("removes player displays when a shared token becomes hidden", () => {

@@ -16,6 +16,17 @@ export interface DamageResult extends DamageExpression {
 const STANDARD = /^(?:(\d+))?d(\d+)([+-]\d+)?$/i;
 const BEST_WORST = /^([bw])\[(\d+)d(\d+)\]([+-]\d+)?$/i;
 
+export function normalizeDamageFormula(input: string): string {
+  const trimmed = input.trim();
+  if (!/^\d+$/.test(trimmed)) return input;
+  const sides = Number(trimmed);
+  return Number.isSafeInteger(sides) && sides > 0 ? `d${sides}` : input;
+}
+
+export function isDamageFormulaInvalid(input: string): boolean {
+  return input.trim() !== "" && parseDamage(input) === null;
+}
+
 export function parseDamage(input: string): DamageExpression | null {
   const compact = input.replace(/\s+/g, "");
   let match = compact.match(BEST_WORST);

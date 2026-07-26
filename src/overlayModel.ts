@@ -3,7 +3,7 @@ import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
 
 export type PlayerRole = "GM" | "PLAYER";
 
-export const OVERLAY_LAYOUT_VERSION = 15;
+export const OVERLAY_LAYOUT_VERSION = 16;
 export const OVERLAY_HORIZONTAL_INSET_RATIO = 0.08;
 
 export interface ImageGeometry {
@@ -131,13 +131,20 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
   };
 }
 
-export function hpColor(percent: number): string {
+export function hpColor(percent: number, overMaximum = false): string {
+  if (overMaximum) return "#7e22ce";
   if (percent > 0.5) return "#15803d";
   if (percent > 0.25) return "#b45309";
   return "#b91c1c";
 }
 
+export function isHpOverMaximum(data: CreatureData): boolean {
+  return data.hpCurrent !== undefined && data.hpMax !== undefined
+    && data.hpCurrent > data.hpMax;
+}
+
 export function hpPercent(data: CreatureData): number {
+  if (isHpOverMaximum(data)) return 1;
   return data.hpMax && data.hpMax > 0
     ? Math.max(0, Math.min(1, (data.hpCurrent ?? 0) / data.hpMax))
     : 0;

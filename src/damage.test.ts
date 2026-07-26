@@ -1,5 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { parseDamage, rollDamage } from "./damage";
+import {
+  isDamageFormulaInvalid,
+  normalizeDamageFormula,
+  parseDamage,
+  rollDamage,
+} from "./damage";
+
+describe("damage input feedback", () => {
+  it("normalizes a positive integer to one-die notation", () => {
+    expect(normalizeDamageFormula("8")).toBe("d8");
+    expect(normalizeDamageFormula(" 008 ")).toBe("d8");
+  });
+
+  it("preserves non-integer formulas for validation", () => {
+    expect(normalizeDamageFormula("2d8+3")).toBe("2d8+3");
+    expect(normalizeDamageFormula("fire breath")).toBe("fire breath");
+    expect(normalizeDamageFormula("0")).toBe("0");
+    expect(normalizeDamageFormula("-8")).toBe("-8");
+    expect(normalizeDamageFormula("8.5")).toBe("8.5");
+  });
+
+  it("flags only nonblank unsupported formulas", () => {
+    expect(isDamageFormulaInvalid("")).toBe(false);
+    expect(isDamageFormulaInvalid("   ")).toBe(false);
+    expect(isDamageFormulaInvalid("d8")).toBe(false);
+    expect(isDamageFormulaInvalid("b[2d10]+1")).toBe(false);
+    expect(isDamageFormulaInvalid("fire breath")).toBe(true);
+    expect(isDamageFormulaInvalid("0")).toBe(true);
+    expect(isDamageFormulaInvalid("-8")).toBe(true);
+    expect(isDamageFormulaInvalid("8.5")).toBe(true);
+    expect(isDamageFormulaInvalid("d1")).toBe(true);
+    expect(isDamageFormulaInvalid(normalizeDamageFormula("1001"))).toBe(true);
+  });
+});
 
 describe("parseDamage", () => {
   it.each([

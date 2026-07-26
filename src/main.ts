@@ -6,7 +6,8 @@ import {
   EDIT_POPOVER_ID,
   type CreatureData,
 } from "./constants";
-import { readCreatureForm } from "./creatureForm";
+import { maximumHpAutofill, readCreatureForm } from "./creatureForm";
+import { isDamageFormulaInvalid, normalizeDamageFormula } from "./damage";
 import {
   getDefaultOverlayVisibility,
   initializeCreatureData,
@@ -136,6 +137,20 @@ function renderEditor(token: Item, data: CreatureData) {
 
   const form = document.querySelector<HTMLFormElement>("#creature-form")!;
   const hpInput = form.elements.namedItem("hpCurrent") as HTMLInputElement;
+  const hpMaxInput = form.elements.namedItem("hpMax") as HTMLInputElement;
+  hpInput.addEventListener("blur", () => {
+    const autofill = maximumHpAutofill(hpInput.value, hpMaxInput.value);
+    if (autofill !== null) hpMaxInput.value = autofill;
+  });
+  const damageInput = form.elements.namedItem("damage");
+  if (damageInput instanceof HTMLInputElement) {
+    damageInput.addEventListener("blur", () => {
+      damageInput.value = normalizeDamageFormula(damageInput.value);
+      const invalid = isDamageFormulaInvalid(damageInput.value);
+      damageInput.classList.toggle("field-invalid", invalid);
+      damageInput.setAttribute("aria-invalid", String(invalid));
+    });
+  }
   for (const button of form.querySelectorAll<HTMLButtonElement>("[data-hp]")) {
     button.addEventListener("click", () => {
       hpInput.value = String((Number(hpInput.value) || 0) + Number(button.dataset.hp));
