@@ -5,6 +5,8 @@ describe("buildHomeMarkup", () => {
   it("shows the visible default toggle to GMs", () => {
     const markup = buildHomeMarkup("GM", true, false);
 
+    expect(markup).toContain('src="./icon.svg"');
+    expect(markup).toContain('alt="DWTools logo"');
     expect(markup).toContain("Default character overlay visibility:");
     expect(markup).toContain('aria-label="Default: visible to players"');
     expect(markup).toContain('id="default-visibility"');

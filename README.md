@@ -1,5 +1,7 @@
 # DWTools for Owlbear Rodeo
 
+![DWTools logo](public/icon.svg)
+
 A minimal Owlbear Rodeo extension for keeping Dungeon World creature information on character tokens.
 
 ## Features
@@ -21,5 +23,9 @@ The development server allows requests from `https://www.owlbear.rodeo`.
 ## Build
 
 Run `npm run build`. The static extension is written to `dist/`; host that folder and install its public `manifest.json` URL in Owlbear Rodeo.
+
+The production extension is hosted at
+`https://exasperis.github.io/DWTools/manifest.json`. Store submission content
+is maintained in [`docs/store.md`](docs/store.md).
 
 Creature data is stored in scene-item metadata. It is hidden from players by this extension's UI, but metadata synchronized through Owlbear Rodeo should not be treated as secure secret storage.

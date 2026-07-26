@@ -146,6 +146,16 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-26 — Version 1.0 uses the supplied DWTools brand
+
+The supplied crossed wrench-and-sword DWTools logo is the extension icon in
+Owlbear Rodeo, the main panel brand, the browser icon, and the store listing.
+The release version is 1.0.0, with synchronized manifest, embedded URL, context
+menu, and generated-asset cache-busters.
+
+Reason: the extension is functionally ready for its first public release and
+needs one consistent identity across its installed UI and public listing.
+
 ### 2026-07-26 — Hidden-only visibility marker moves into the HP bar
 
 The persistent overlay no longer reserves a stat-row pill for visibility.

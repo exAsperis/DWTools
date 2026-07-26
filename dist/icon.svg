@@ -1,4 +1,93 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-  <path fill="#8b5cf6" d="M4 3h16v4l-2 2v10l-2 2H8l-2-2V9L4 7V3Z"/>
-  <path fill="#fff" d="M7 6h10v2H7V6Zm2 5h6v2H9v-2Zm1 4h4v3h-4v-3Z"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- DWTools extension logo -->
+
+<svg
+   width="800px"
+   height="800px"
+   viewBox="0 0 16 16"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="extension-logo.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.729375"
+     inkscape:cx="1142.7592"
+     inkscape:cy="409.2545"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="1072"
+     inkscape:window-y="259"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer3" />
+  <path
+     fill="#444444"
+     d="M 15.5,13.4 7.7,5.6 C 7.9,5.1 8,4.6 8,4 8,1.8 6.2,0 4,0 3.4,0 2.9,0.1 2.4,0.3 L 5.3,3.2 3.2,5.3 0.3,2.4 C 0.1,2.9 0,3.4 0,4 0,6.2 1.8,8 4,8 4.6,8 5.1,7.9 5.6,7.7 l 7.8,7.8 c 0.6,0.6 1.5,0.6 2.1,0 0.6,-0.6 0.6,-1.5 0,-2.1 z M 14.2,15 c -0.4,0 -0.8,-0.3 -0.8,-0.8 0,-0.4 0.3,-0.8 0.8,-0.8 0.5,0 0.8,0.3 0.8,0.8 0,0.5 -0.3,0.8 -0.8,0.8 z"
+     id="path1"
+     inkscape:label="wrench"
+     sodipodi:nodetypes="scssccccsscssssssss" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="sword">
+    <g
+       inkscape:groupmode="layer"
+       id="layer1"
+       inkscape:label="Vector"
+       transform="matrix(0.14438751,0,0,0.14438751,-3.2985674,-3.3458817)">
+      <path
+         style="fill:#000000"
+         d="M 133.25313,23.412511 109.9246,27.980806"
+         id="path1-8" />
+      <path
+         style="fill:#454545;fill-opacity:1"
+         d="M 133.30352,23.378921 109.9078,27.980806 53.946188,83.992804 60.311569,90.37498 93.448502,63.28432 66.341047,96.421253 72.756814,102.82022 128.85279,46.875408 Z"
+         id="path2" />
+      <path
+         style="fill:#454545;fill-opacity:1"
+         d="m 42.514795,81.670833 32.747883,32.526907 -12.06501,4.77298 -8.131728,-7.86657 -11.667261,11.62307 v 4.15425 l -6.850097,6.71752 -13.479223,-13.43503 6.894291,-6.8059 3.933281,-0.0442 11.711456,-11.62307 -7.822368,-7.954947 z"
+         id="path3" />
+    </g>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="D">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke:#000000;stroke-width:0.131939"
+       x="1.8019882"
+       y="10.409349"
+       id="text1"><tspan
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';stroke-width:0.131939"
+         x="1.8019882"
+         y="10.409349"
+         sodipodi:role="line">D</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke:#000000;stroke-width:0.117256"
+       x="4.5831537"
+       y="14.369035"
+       id="text1-5"><tspan
+         id="tspan1-1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';stroke-width:0.117256"
+         x="4.5831537"
+         y="14.369035"
+         sodipodi:role="line">W</tspan></text>
+  </g>
 </svg>
