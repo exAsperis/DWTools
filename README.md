@@ -13,6 +13,54 @@ A minimal Owlbear Rodeo extension for keeping Dungeon World creature information
 - Damage rolls for `d6`, `2d6+1`, `b[2d6]+1`, and `w[2d8]-1` style expressions
 - Persistent room-level character records that synchronize linked tokens across scenes
 
+## Using DWTools
+
+### Add or edit creature data
+
+1. As the GM, right-click a character token and choose **DWTools**.
+2. Select **Edit creature**.
+3. Enter the creature's name, tags, armor, HP, damage, instinct, moves,
+   treasure, and player-overlay visibility.
+4. Select **Save**.
+
+The token menu provides immediate HP adjustments and damage rolls after
+creature data has been added.
+
+### Persist a character across scenes
+
+Open the token's creature editor and use its **Character record** section:
+
+- **Link to character** associates the token with an existing room character.
+  Confirming the link replaces the token's DWTools fields with the latest
+  fields from that character record.
+- **Create new from this creature** creates a room character using the token's
+  current name and creature fields, then links the token to it.
+- **Change link** replaces the token's fields with a different character
+  record.
+- **Unlink** keeps the token's current fields but stops future synchronization.
+
+Once linked, the room character record is authoritative. Editing any linked
+token updates the record and every token linked to that character in the
+current scene. Linked tokens in another scene receive the latest record when
+that scene is opened.
+
+### Manage room characters
+
+The main DWTools action contains a GM-only **Character Records** section. From
+there, the GM can:
+
+- search all active room characters;
+- create a blank character record;
+- edit every persistent creature field;
+- see how many tokens are linked in the current scene;
+- review approximate room-metadata usage; and
+- delete a record.
+
+Deleting a record unlinks its tokens in the current scene without erasing
+their copied creature fields. Tokens encountered later in another scene are
+also safely unlinked when that scene opens. Counts always apply only to the
+current scene because Owlbear extensions cannot inspect closed scenes.
+
 ## Testing workflow
 
 Local extension testing through a local server is currently nonfunctional.
