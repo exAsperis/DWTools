@@ -75,6 +75,59 @@ describe("buildDesiredDisplays", () => {
     expect(armorText && isText(armorText)).toBe(true);
     if (armorText && isText(armorText)) expect(armorText.text.plainText).toBe("1");
   });
+
+  it("keeps hidden-token displays local and visible for the GM", () => {
+    const desired = buildDesiredDisplays([
+      creatureImage({ x: 300, y: 400 }, {
+        hpCurrent: 8,
+        hpMax: 12,
+        armor: 1,
+        damage: "d6",
+        visibleToPlayers: true,
+      }),
+    ], "GM", 100);
+    const hiddenToken = creatureImage({ x: 300, y: 400 }, {
+      hpCurrent: 8,
+      hpMax: 12,
+      armor: 1,
+      damage: "d6",
+      visibleToPlayers: true,
+    });
+    hiddenToken.visible = false;
+    const hiddenDesired = buildDesiredDisplays([hiddenToken], "GM", 100);
+
+    expect(hiddenDesired).toHaveLength(desired.length);
+    expect(hiddenDesired.every((item) => item.visible)).toBe(true);
+    expect(hiddenDesired.every((item) =>
+      item.disableAttachmentBehavior?.includes("VISIBLE"),
+    )).toBe(true);
+  });
+
+  it("removes player displays when a shared token becomes hidden", () => {
+    const hiddenToken = creatureImage({ x: 300, y: 400 }, {
+      hpCurrent: 8,
+      hpMax: 12,
+      visibleToPlayers: true,
+    });
+    hiddenToken.visible = false;
+
+    expect(buildDesiredDisplays([hiddenToken], "PLAYER", 100)).toEqual([]);
+  });
+
+  it("lets visible player displays inherit token visibility", () => {
+    const desired = buildDesiredDisplays([
+      creatureImage({ x: 300, y: 400 }, {
+        hpCurrent: 8,
+        hpMax: 12,
+        visibleToPlayers: true,
+      }),
+    ], "PLAYER", 100);
+
+    expect(desired.length).toBeGreaterThan(0);
+    expect(desired.every((item) =>
+      !item.disableAttachmentBehavior?.includes("VISIBLE"),
+    )).toBe(true);
+  });
 });
 
 describe("planDisplayReconciliation", () => {

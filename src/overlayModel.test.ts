@@ -104,13 +104,34 @@ describe("overlay visibility", () => {
     hpMax: 12,
     visibleToPlayers: false,
   };
+  const sharedData: CreatureData = {
+    hpCurrent: 8,
+    hpMax: 12,
+    visibleToPlayers: true,
+  };
 
   it("keeps a player-hidden overlay fully present for the GM", () => {
     expect(shouldRenderOverlay(creatureImage({}, hiddenData), hiddenData, "GM")).toBe(true);
   });
 
+  it("keeps the overlay present for the GM when the token is hidden", () => {
+    const hiddenToken = creatureImage({ visible: false }, sharedData);
+
+    expect(shouldRenderOverlay(hiddenToken, sharedData, "GM")).toBe(true);
+  });
+
   it("omits a player-hidden overlay for players", () => {
     expect(shouldRenderOverlay(creatureImage({}, hiddenData), hiddenData, "PLAYER")).toBe(false);
+  });
+
+  it("omits a player-shared overlay when the token itself is hidden", () => {
+    const hiddenToken = creatureImage({ visible: false }, sharedData);
+
+    expect(shouldRenderOverlay(hiddenToken, sharedData, "PLAYER")).toBe(false);
+  });
+
+  it("shows a player-shared overlay when the token is visible", () => {
+    expect(shouldRenderOverlay(creatureImage({}, sharedData), sharedData, "PLAYER")).toBe(true);
   });
 });
 
@@ -132,5 +153,20 @@ describe("overlay identity and source signatures", () => {
       .not.toBe(overlaySourceSignature(original, data, "GM", 100));
     expect(overlaySourceSignature(original, damagedData, "GM", 100))
       .not.toBe(overlaySourceSignature(original, data, "GM", 100));
+  });
+
+  it("ignores token visibility for GM rendering but reacts for player rendering", () => {
+    const data: CreatureData = {
+      hpCurrent: 8,
+      hpMax: 12,
+      visibleToPlayers: true,
+    };
+    const visible = creatureImage({ visible: true }, data);
+    const hidden = creatureImage({ visible: false }, data);
+
+    expect(overlaySourceSignature(hidden, data, "GM", 100))
+      .toBe(overlaySourceSignature(visible, data, "GM", 100));
+    expect(overlaySourceSignature(hidden, data, "PLAYER", 100))
+      .not.toBe(overlaySourceSignature(visible, data, "PLAYER", 100));
   });
 });

@@ -29,11 +29,14 @@ import {
 
 export const DISPLAY_RENDER_KEY = `${DISPLAY_KEY}/render`;
 const DISPLAY_ROLE_KEY = `${DISPLAY_KEY}/role`;
-const DISABLED_ATTACHMENT_BEHAVIORS: AttachmentBehavior[] = [
+const BASE_DISABLED_ATTACHMENT_BEHAVIORS: AttachmentBehavior[] = [
   "ROTATION",
-  "VISIBLE",
   "COPY",
   "SCALE",
+];
+const GM_DISABLED_ATTACHMENT_BEHAVIORS: AttachmentBehavior[] = [
+  ...BASE_DISABLED_ATTACHMENT_BEHAVIORS,
+  "VISIBLE",
 ];
 
 export interface ReconciliationPlan {
@@ -80,7 +83,6 @@ function buildBackground(
     .disableAutoZIndex(true)
     .locked(true)
     .disableHit(true)
-    .disableAttachmentBehavior(DISABLED_ATTACHMENT_BEHAVIORS)
     .visible(true)
     .metadata(displayMetadata(`${role}-bg`, renderKey))
     .build();
@@ -120,7 +122,6 @@ function buildOverlayText(
     .disableAutoZIndex(true)
     .locked(true)
     .disableHit(true)
-    .disableAttachmentBehavior(DISABLED_ATTACHMENT_BEHAVIORS)
     .visible(true)
     .metadata(displayMetadata(`${role}-text`, renderKey))
     .build();
@@ -171,7 +172,6 @@ function buildOverlayIcon(
     .disableAutoZIndex(true)
     .locked(true)
     .disableHit(true)
-    .disableAttachmentBehavior(DISABLED_ATTACHMENT_BEHAVIORS)
     .visible(true)
     .metadata(displayMetadata(`${role}-icon`, renderKey))
     .build();
@@ -206,7 +206,7 @@ function buildTokenOverlay(
     width: layout.armor.width * 0.62,
   };
 
-  return [
+  const items: Item[] = [
     buildBackground(token, "visibility", renderKey, layout.visibility),
     buildOverlayIcon(
       token,
@@ -255,6 +255,13 @@ function buildTokenOverlay(
       layout.fontSize,
     ),
   ];
+  const disabledAttachmentBehaviors = role === "GM"
+    ? GM_DISABLED_ATTACHMENT_BEHAVIORS
+    : BASE_DISABLED_ATTACHMENT_BEHAVIORS;
+  for (const item of items) {
+    item.disableAttachmentBehavior = [...disabledAttachmentBehaviors];
+  }
+  return items;
 }
 
 export function buildDesiredDisplays(

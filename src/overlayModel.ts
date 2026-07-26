@@ -155,9 +155,11 @@ export function shouldRenderOverlay(
   data: CreatureData,
   role: PlayerRole,
 ): boolean {
-  return token.visible
-    && hasOverlayData(data)
-    && (role === "GM" || data.visibleToPlayers !== false);
+  return hasOverlayData(data)
+    && (
+      role === "GM"
+      || (token.visible && data.visibleToPlayers !== false)
+    );
 }
 
 export function overlayItemId(tokenId: string, role: string): string {
@@ -174,7 +176,7 @@ export function overlaySourceSignature(
     layout: OVERLAY_LAYOUT_VERSION,
     role,
     sceneDpi,
-    visible: token.visible,
+    visibleForRole: role === "GM" || token.visible,
     image: {
       width: token.image.width,
       height: token.image.height,

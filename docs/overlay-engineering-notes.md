@@ -172,8 +172,10 @@ Render every overlay into `OBR.scene.local` on each client.
 
 - GM: always render the full-bright overlay; use the visibility glyph to show
   whether players can see it.
-- Player: render only when `visibleToPlayers !== false`.
-- All clients: respect the token's own `visible` state.
+- Player: render only when the token is visible and
+  `visibleToPlayers !== false`.
+- GM: ignore the token's `visible` state for overlay rendering. Overlay
+  attachments disable inherited `VISIBLE` behavior so they remain present.
 
 No new DWTools display items should be added to `OBR.scene.items`.
 
@@ -492,3 +494,14 @@ artifact shape. Do not use color emoji in overlay Text items.
 - the overlay converts them to native Owlbear Path commands on `TEXT`;
 - visible, hidden, and armor states therefore share one geometry source; and
 - icon state changes reconcile Path commands in place.
+
+### Version 0.2.4 — role-safe hidden-token overlays
+
+- GM clients render a full-bright overlay even when the token is hidden;
+- player clients render no overlay when the token is hidden, regardless of the
+  overlay's player-visibility metadata;
+- only GM overlay attachments disable inherited `VISIBLE` behavior; player
+  overlays inherit token visibility for immediate concealment and are then
+  removed by reconciliation; and
+- GM source signatures ignore token visibility because it does not alter the
+  GM's desired overlay, while player signatures still react to it.

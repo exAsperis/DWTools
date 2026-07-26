@@ -57,6 +57,9 @@ These choices are intentional:
   information harder to read.
 - A player-hidden overlay is absent on player clients, rather than present at
   reduced opacity.
+- The GM retains a full-bright overlay when the token itself is hidden.
+- A hidden token never leaves its overlay visible to players, even when the
+  overlay's player-visibility setting is enabled.
 - Player visibility uses an open eye when visible and an eye inside a
   prohibition circle when hidden. The overlay and context menu derive from the
   same native vector geometry.
@@ -124,6 +127,7 @@ Before treating an overlay change as complete, verify:
 - left alignment follows the rendered portrait, not a guessed token center;
 - the GM sees full-brightness overlays regardless of player visibility;
 - players do not see player-hidden overlays;
+- the GM retains overlays for hidden tokens while players do not;
 - dragging, refresh, and idle time produce no flash, duplicates, or ghosts;
 - scaling and rotation retain correct portrait-relative layout;
 - no new DWTools visual items are written to shared scene items; and
@@ -133,6 +137,20 @@ Some integration cases require more than one signed-in client. If those clients
 are unavailable, record the unverified cases rather than implying they passed.
 
 ## Decision history
+
+### 2026-07-25 — Hidden tokens retain GM-only overlays
+
+Token visibility affects player rendering but not GM rendering. A GM continues
+to see the full-bright overlay when a token is hidden. Player clients omit the
+overlay whenever the token is hidden, regardless of the overlay's own
+player-visibility setting.
+
+GM overlays disable inherited attachment visibility. Player overlays retain
+Owlbear's inherited visibility behavior so they hide immediately with the
+token, before local reconciliation removes them.
+
+Reason: hidden tokens still need glanceable combat bookkeeping for the GM, but
+their local overlays must not reveal them to players.
 
 ### 2026-07-25 — Native Path icons replace canvas emoji
 
