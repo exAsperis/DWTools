@@ -53,7 +53,7 @@ component.
 ## Repository and concurrency
 
 `CharacterRepository` owns record discovery, validation, schema migration,
-creation, patching, replacement, tombstoning, permanent deletion,
+creation, patching, replacement, direct deletion, legacy-tombstone cleanup,
 subscriptions, and metadata-size estimation.
 
 Record patches use bounded optimistic retries:
@@ -101,23 +101,22 @@ feedback loops and ambiguous authority.
 The existing background page subscribes to room metadata and scene readiness.
 Changed records synchronize current-scene tokens. Opening a scene performs a
 full linked-token synchronization. Missing records retain their links for
-orphan recovery; tombstones remove stale links while preserving token fields.
+orphan recovery. Legacy tombstones from version 1.1.1 still remove stale links
+while they exist, preserving backward compatibility.
 
 ## Deletion
 
 Deletion first unlinks current-scene tokens without changing their creature
-fields, then replaces the active record with a compact tombstone. New
-tombstones retain only their audit fields and a display name; older schema-1
-tombstones without a display name remain valid. Tombstones are hidden from
-normal lists and prevent a deleted record from being recreated when another
-scene later opens.
+fields, then removes the active record's independent room-metadata key. DWTools
+cannot inspect closed scenes, so tokens still linked there become
+missing-record orphans. Their creature editor provides explicit recovery
+actions to relink, create a replacement record from the current fields, or
+unlink while retaining those fields.
 
-The GM manager can opt into showing tombstones beneath the room-metadata usage
-bar. Permanent deletion removes only the tombstone's independent namespaced
-room-metadata key. It also removes any stale links in the current scene without
-changing creature fields. DWTools cannot inspect closed scenes, so tokens still
-linked there become missing-record orphans and retain their current creature
-data when that scene opens.
+Schema-1 tombstones created by version 1.1.1 remain valid migration input. The
+GM manager removes those legacy tombstone keys idempotently before listing
+records, freeing their room-metadata space. DWTools no longer creates new
+tombstones.
 
 ## Durable limitations
 

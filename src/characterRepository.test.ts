@@ -140,7 +140,7 @@ describe("CharacterRepository writes", () => {
     );
   });
 
-  it("lists active records and tombstones without exposing unrelated metadata", async () => {
+  it("lists only active records without exposing legacy tombstones or unrelated metadata", async () => {
     const record = activeRecord("raganah");
     const tombstone = {
       schemaVersion: 1 as const,
@@ -159,17 +159,26 @@ describe("CharacterRepository writes", () => {
     });
 
     await expect(repository(store).list()).resolves.toEqual([record]);
-    await expect(repository(store).listStored()).resolves.toEqual([
-      tombstone,
-      record,
-    ]);
   });
 
-  it("permanently deletes only the selected tombstone key", async () => {
+  it("directly deletes only the selected active record key", async () => {
+    const record = activeRecord("raganah");
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+      "com.other/data": { preserved: true },
+    });
+
+    await repository(store).delete(record.id);
+
+    expect(store.metadata).not.toHaveProperty(characterMetadataKey(record.id));
+    expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
+  });
+
+  it("removes legacy tombstones without changing active or unrelated metadata", async () => {
+    const record = activeRecord("raganah");
     const tombstone = {
       schemaVersion: 1 as const,
       id: "old-hero",
-      name: "Old Hero",
       revision: 2,
       writeId: "deleted-write",
       deleted: true as const,
@@ -177,29 +186,17 @@ describe("CharacterRepository writes", () => {
       deletedBy: "user-1",
     };
     const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
       [characterMetadataKey(tombstone.id)]: tombstone,
       "com.other/data": { preserved: true },
     });
 
-    await repository(store).deletePermanently(tombstone.id);
+    await expect(repository(store).cleanupLegacyTombstones()).resolves.toBe(1);
 
+    expect(store.metadata[characterMetadataKey(record.id)]).toEqual(record);
     expect(store.metadata).not.toHaveProperty(
       characterMetadataKey(tombstone.id),
     );
     expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
-  });
-
-  it("retains the character name in a compact tombstone", async () => {
-    const record = activeRecord("raganah");
-    const store = new FakeMetadataStore({
-      [characterMetadataKey(record.id)]: record,
-    });
-
-    const tombstone = await repository(store, ["deleted-write"]).tombstone(
-      record.id,
-    );
-
-    expect(tombstone.name).toBe("Raganah");
-    expect(tombstone).not.toHaveProperty("fields");
   });
 });

@@ -442,8 +442,8 @@ It writes only established creature metadata and character-link metadata on
 shared tokens; overlays remain derived client-local items.
 
 See [`character-records.md`](character-records.md) for authoritative-record
-semantics, optimistic retries, metadata-capacity protection, tombstones, and
-closed-scene limitations.
+semantics, optimistic retries, metadata-capacity protection, direct deletion,
+orphan recovery, and closed-scene limitations.
 
 ## Decision log
 

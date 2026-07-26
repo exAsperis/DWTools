@@ -57,14 +57,10 @@ there, the GM can:
 - delete a record.
 
 Deleting a record unlinks its tokens in the current scene without erasing
-their copied creature fields. Tokens encountered later in another scene are
-also safely unlinked when that scene opens.
-
-Select **Show tombstoned characters** beneath the metadata-usage bar to review
-deleted records. Tombstones appear as muted, labeled cards. A tombstone can be
-deleted permanently to reclaim its room-metadata space, but doing so cannot
-unlink tokens in closed scenes; those tokens retain their creature fields and
-show an orphaned link when their scene is opened.
+their copied creature fields, then removes the room record immediately. Linked
+copies in closed scenes retain their creature fields but become orphaned. When
+their scene is opened, use the creature editor to relink them, create a new
+record from their current fields, or unlink them while retaining those fields.
 
 Counts always apply only to the current scene because Owlbear extensions cannot
 inspect closed scenes.

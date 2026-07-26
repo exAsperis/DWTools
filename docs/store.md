@@ -76,14 +76,10 @@ GMs can open the main DWTools action and use **Character Records** to:
 - delete records.
 
 Deleting a record requires confirmation. Current-scene tokens are unlinked but
-retain their copied fields. Linked tokens found when another scene opens are
-also unlinked without losing their creature data.
-
-Use **Show tombstoned characters** beneath the room-metadata bar to review
-deleted records. Tombstones are visually labeled and can be deleted
-permanently to reclaim their storage. Permanent deletion cannot inspect closed
-scenes, so linked tokens there retain their creature data but become orphaned
-from the missing record.
+retain their copied fields, and the room record is removed immediately. Linked
+copies in closed scenes retain their creature data but become orphaned from the
+missing record. The creature editor can relink them, create a new record from
+their current fields, or unlink them while retaining those fields.
 
 Linked-token counts cover only the current scene; Owlbear extensions cannot
 inspect closed scenes. Character records share Owlbear's limited room-metadata

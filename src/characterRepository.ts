@@ -273,31 +273,14 @@ export class CharacterRepository {
   }
 
   async list(): Promise<CharacterRecord[]> {
-    return (await this.listStored()).flatMap((record) =>
-      record.deleted ? [] : [record],
-    );
-  }
-
-  async listStored(): Promise<StoredCharacterRecord[]> {
     const metadata = await this.readMetadata();
     this.cachedLookups = parseCharacterManifest(metadata);
     return [...this.cachedLookups.values()]
-      .flatMap((lookup) =>
-        lookup.status === "active" || lookup.status === "deleted"
-          ? [lookup.record]
-          : [],
-      )
+      .flatMap((lookup) => (lookup.status === "active" ? [lookup.record] : []))
       .sort((left, right) =>
-        (left.deleted
-          ? (left.name ?? left.id)
-          : left.fields.name
-        ).localeCompare(
-          right.deleted ? (right.name ?? right.id) : right.fields.name,
-          undefined,
-          {
-            sensitivity: "base",
-          },
-        ),
+        left.fields.name.localeCompare(right.fields.name, undefined, {
+          sensitivity: "base",
+        }),
       );
   }
 
@@ -408,53 +391,13 @@ export class CharacterRepository {
     );
   }
 
-  async tombstone(characterId: string): Promise<CharacterTombstone> {
-    const metadata = await this.readMetadata();
-    const current = this.requireActive(
-      lookupFromMetadata(metadata, characterId),
-      characterId,
-    );
-    const actorId = await this.getActorId();
-    const tombstone: CharacterTombstone = {
-      schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
-      id: characterId,
-      name: current.fields.name,
-      revision: current.revision + 1,
-      writeId: this.randomUUID(),
-      deleted: true,
-      deletedAt: this.now().toISOString(),
-      deletedBy: actorId,
-    };
-    if (!(await this.writeCandidate(tombstone, current.writeId))) {
-      throw new CharacterRepositoryError(
-        "CONFLICT",
-        "The character changed while it was being deleted. Reload and try again.",
-        { characterId },
-      );
-    }
-    const readBack = await this.inspect(characterId);
-    if (
-      readBack.status !== "deleted" ||
-      readBack.record.writeId !== tombstone.writeId
-    ) {
-      throw new CharacterRepositoryError(
-        "CONFLICT",
-        "The character changed while it was being deleted. Reload and try again.",
-        { characterId },
-      );
-    }
-    return readBack.record;
-  }
-
-  async deletePermanently(characterId: string): Promise<void> {
+  async delete(characterId: string): Promise<void> {
     const metadata = await this.readMetadata();
     const lookup = lookupFromMetadata(metadata, characterId);
-    if (lookup.status !== "deleted") {
+    if (lookup.status !== "active") {
       throw new CharacterRepositoryError(
-        lookup.status === "active" ? "VALIDATION" : "NOT_FOUND",
-        lookup.status === "active"
-          ? "Only tombstoned character records can be deleted permanently."
-          : "That tombstoned character record is no longer available.",
+        "NOT_FOUND",
+        "That character record is no longer available.",
         { characterId, status: lookup.status },
       );
     }
@@ -465,7 +408,7 @@ export class CharacterRepository {
     } catch (error) {
       throw repositoryError(
         error,
-        "Owlbear could not permanently delete the character record.",
+        "Owlbear could not delete the character record.",
       );
     }
 
@@ -473,11 +416,49 @@ export class CharacterRepository {
     if (readBack.status !== "missing") {
       throw new CharacterRepositoryError(
         "CONFLICT",
-        "The character record changed while it was being permanently deleted. Reload and try again.",
+        "The character record changed while it was being deleted. Reload and try again.",
         { characterId, status: readBack.status },
       );
     }
     this.cachedLookups.set(characterId, { status: "missing" });
+  }
+
+  async cleanupLegacyTombstones(): Promise<number> {
+    const metadata = await this.readMetadata();
+    const tombstoneIds = [...parseCharacterManifest(metadata).entries()]
+      .filter(([, lookup]) => lookup.status === "deleted")
+      .map(([characterId]) => characterId);
+    if (!tombstoneIds.length) return 0;
+
+    const update: RoomMetadata = {};
+    for (const characterId of tombstoneIds) {
+      update[characterMetadataKey(characterId)] = undefined;
+    }
+    try {
+      await this.store.setMetadata(update);
+    } catch (error) {
+      throw repositoryError(
+        error,
+        "Owlbear could not clean up legacy deleted character records.",
+      );
+    }
+
+    const readBack = await this.readMetadata();
+    const remaining = tombstoneIds.filter(
+      (characterId) =>
+        lookupFromMetadata(readBack, characterId).status !== "missing",
+    );
+    if (remaining.length) {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "Some legacy deleted character records changed during cleanup. Reload and try again.",
+        { characterIds: remaining },
+      );
+    }
+    for (const characterId of tombstoneIds) {
+      this.cachedLookups.set(characterId, { status: "missing" });
+    }
+    return tombstoneIds.length;
   }
 
   async estimateUsage(): Promise<CharacterStorageUsage> {

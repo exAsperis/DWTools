@@ -67,6 +67,22 @@ describe("CreatureService linking and mutation", () => {
     });
   });
 
+  it("directly removes an unused record when linking a newly created record fails", async () => {
+    const existing = token("one", "Goblin", { hpCurrent: 3 });
+    const { creatures, scene, store } = setup([existing]);
+    scene.updateItems = async () => {
+      throw new Error("link failed");
+    };
+
+    await expect(creatures.createAndLinkCharacter(existing.id)).rejects.toThrow(
+      "safely removed",
+    );
+
+    expect(store.metadata).not.toHaveProperty(
+      characterMetadataKey("character-new"),
+    );
+  });
+
   it("links to an existing record and overwrites every creature field", async () => {
     const record = activeRecord("raganah");
     const existing = token("one", "Goblin", {
@@ -249,12 +265,12 @@ describe("CharacterManagerService", () => {
       "Only the GM",
     );
     await expect(manager.delete(record.id)).rejects.toThrow("Only the GM");
-    await expect(manager.deletePermanently(record.id)).rejects.toThrow(
+    await expect(manager.cleanupLegacyTombstones()).rejects.toThrow(
       "Only the GM",
     );
   });
 
-  it("deletes to a compact tombstone and unlinks current-scene tokens", async () => {
+  it("directly deletes the record and unlinks current-scene tokens", async () => {
     const record = activeRecord("raganah");
     const linked = token("one", "Raganah", record.fields, {
       schemaVersion: 1,
@@ -268,28 +284,14 @@ describe("CharacterManagerService", () => {
 
     expect(getCharacterLink(linked)).toBeUndefined();
     expect(linked.metadata[CREATURE_KEY]).toEqual(record.fields);
-    expect(store.metadata[characterMetadataKey(record.id)]).toEqual(
-      expect.objectContaining({
-        schemaVersion: 1,
-        id: record.id,
-        deleted: true,
-        deletedBy: "user-1",
-      }),
-    );
-    expect(store.metadata[characterMetadataKey(record.id)]).not.toHaveProperty(
-      "fields",
-    );
+    expect(store.metadata).not.toHaveProperty(characterMetadataKey(record.id));
   });
 
-  it("permanently deletes a tombstone and unlinks stale current-scene tokens", async () => {
+  it("cleans up legacy tombstones with a GM authorization recheck", async () => {
     const record = activeRecord("raganah");
-    const linked = token("one", "Raganah", record.fields, {
-      schemaVersion: 1,
-      characterId: record.id,
-    });
     const tombstone = {
       schemaVersion: 1 as const,
-      id: record.id,
+      id: "legacy-deleted",
       name: record.fields.name,
       revision: 2,
       writeId: "deleted-write",
@@ -297,16 +299,18 @@ describe("CharacterManagerService", () => {
       deletedAt: "2026-07-26T16:00:00.000Z",
       deletedBy: "user-1",
     };
-    const { manager, store } = setup([linked], {
-      [characterMetadataKey(record.id)]: tombstone,
+    const { manager, store } = setup([], {
+      [characterMetadataKey(record.id)]: record,
+      [characterMetadataKey(tombstone.id)]: tombstone,
       "com.other/data": { preserved: true },
     });
 
-    await manager.deletePermanently(record.id);
+    await expect(manager.cleanupLegacyTombstones()).resolves.toBe(1);
 
-    expect(getCharacterLink(linked)).toBeUndefined();
-    expect(linked.metadata[CREATURE_KEY]).toEqual(record.fields);
-    expect(store.metadata).not.toHaveProperty(characterMetadataKey(record.id));
+    expect(store.metadata[characterMetadataKey(record.id)]).toEqual(record);
+    expect(store.metadata).not.toHaveProperty(
+      characterMetadataKey(tombstone.id),
+    );
     expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
   });
 });

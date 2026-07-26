@@ -151,6 +151,24 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-26 — Character deletion relies on orphan recovery
+
+Deleting a character unlinks current-scene tokens without changing their
+creature fields, then removes the authoritative room-metadata key immediately.
+Linked copies in closed scenes become missing-record orphans and must be
+resolved manually through the existing creature-editor recovery actions.
+
+DWTools no longer creates tombstones or exposes tombstone-management UI. When
+the GM manager encounters valid tombstones created by version 1.1.1, it removes
+those legacy keys idempotently so they stop consuming shared room metadata.
+
+This supersedes the two tombstone decisions below.
+
+Reason: returning to a closed scene containing a previously linked copy of a
+deleted character is rare, while orphan recovery already preserves the copied
+creature data and provides appropriate manual choices. Direct deletion is
+simpler and avoids a permanent metadata cost for an uncommon case.
+
 ### 2026-07-26 — Tombstones are visible on demand and can be purged
 
 The GM character manager places a **Show tombstoned characters** checkbox
@@ -169,6 +187,9 @@ Reason: tombstones provide safe cross-scene deletion semantics but consume
 scarce shared room metadata. An explicit, GM-only purge path makes that cost
 recoverable while preserving the safe default and clearly communicating the
 closed-scene consequence.
+
+This was superseded by direct deletion and orphan recovery after evaluating the
+expected frequency of returning to linked copies in closed scenes.
 
 ### 2026-07-26 — Room character records are authoritative for linked tokens
 
@@ -195,6 +216,10 @@ explicit orphan recovery.
 Reason: characters need durable identity and state across scenes without
 replacing the stable token-metadata overlay architecture or creating
 bidirectional synchronization loops.
+
+The tombstone portion of this decision was superseded by direct deletion and
+orphan recovery. The authoritative-record and synchronization architecture
+remains unchanged.
 
 ### 2026-07-26 — Live deployment is the integration-test environment
 

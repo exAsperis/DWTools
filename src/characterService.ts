@@ -275,7 +275,7 @@ export class CreatureService {
     } catch (error) {
       let rollbackFailed = false;
       try {
-        await this.repository.tombstone(record.id);
+        await this.repository.delete(record.id);
       } catch {
         rollbackFailed = true;
       }
@@ -385,7 +385,7 @@ export class CharacterManagerService {
       });
     }
     try {
-      await this.repository.tombstone(characterId);
+      await this.repository.delete(characterId);
     } catch (error) {
       if (linked.length) {
         try {
@@ -405,29 +405,9 @@ export class CharacterManagerService {
     }
   }
 
-  async deletePermanently(characterId: string): Promise<void> {
+  async cleanupLegacyTombstones(): Promise<number> {
     await this.requireGm();
-    const lookup = await this.repository.inspect(characterId);
-    if (lookup.status !== "deleted") {
-      throw new CharacterRepositoryError(
-        lookup.status === "active" ? "VALIDATION" : "NOT_FOUND",
-        lookup.status === "active"
-          ? "Delete this character record before deleting it permanently."
-          : "That tombstoned character record is no longer available.",
-        { characterId, status: lookup.status },
-      );
-    }
-
-    const items = await this.creatures.scene.getItems();
-    const linked = items.filter(
-      (item) => getCharacterLink(item)?.characterId === characterId,
-    );
-    if (linked.length) {
-      await this.creatures.scene.updateItems(linked, (drafts) => {
-        for (const draft of drafts) removeCharacterLink(draft);
-      });
-    }
-    await this.repository.deletePermanently(characterId);
+    return this.repository.cleanupLegacyTombstones();
   }
 
   private async requireGm(): Promise<void> {

@@ -5,7 +5,6 @@ import {
   type CharacterRecord,
   type CharacterRepository,
   type CharacterStorageUsage,
-  type CharacterTombstone,
 } from "./characterRepository";
 import {
   CharacterManagerService,
@@ -13,6 +12,7 @@ import {
   currentSceneLinkedTokenCounts,
 } from "./characterService";
 import {
+  buildCharacterDeleteConfirmation,
   buildCharacterManagerMarkup,
   buildCharacterSummary,
   buildCreatureFieldsMarkup,
@@ -117,21 +117,18 @@ let homeRepository: CharacterRepository | undefined;
 let homeCreatureService: CreatureService | undefined;
 let homeManagerService: CharacterManagerService | undefined;
 let managerRecords: CharacterRecord[] = [];
-let managerTombstones: CharacterTombstone[] = [];
 let managerCounts = new Map<string, number>();
 let managerUsage: CharacterStorageUsage | undefined;
 let managerLoading = false;
 let managerSaving = false;
 let managerError: string | undefined;
 let managerSearch = "";
-let managerShowTombstones = false;
+let managerLegacyCleanupComplete = false;
 let managerEditing: CharacterManagerViewState["editing"];
 
 function managerState(): CharacterManagerViewState {
   return {
     records: managerRecords,
-    tombstones: managerTombstones,
-    showTombstones: managerShowTombstones,
     counts: managerCounts,
     usage: managerUsage,
     loading: managerLoading,
@@ -173,12 +170,6 @@ function bindManagerControls(): void {
     renderHome();
   });
   document
-    .querySelector<HTMLInputElement>("#show-tombstones")
-    ?.addEventListener("change", (event) => {
-      managerShowTombstones = (event.currentTarget as HTMLInputElement).checked;
-      renderHome();
-    });
-  document
     .querySelector<HTMLInputElement>("#manager-search")
     ?.addEventListener("input", (event) => {
       managerSearch = (event.currentTarget as HTMLInputElement).value;
@@ -214,17 +205,6 @@ function bindManagerControls(): void {
       () => void deleteManagedCharacter(button.dataset.deleteCharacter),
     );
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>(
-    "[data-delete-permanently]",
-  )) {
-    button.addEventListener(
-      "click",
-      () =>
-        void deleteManagedCharacterPermanently(
-          button.dataset.deletePermanently,
-        ),
-    );
-  }
   const form = document.querySelector<HTMLFormElement>(
     "#character-manager-form",
   );
@@ -238,26 +218,33 @@ function bindManagerControls(): void {
 }
 
 async function refreshManager(render = true): Promise<void> {
-  if (homeRole !== "GM" || !homeRepository || !homeCreatureService) {
+  if (
+    homeRole !== "GM" ||
+    !homeRepository ||
+    !homeCreatureService ||
+    !homeManagerService
+  ) {
     return;
   }
   managerLoading = true;
   managerError = undefined;
   if (render && !managerEditing) renderHome();
   try {
-    const [storedRecords, counts, usage] = await Promise.all([
-      homeRepository.listStored(),
+    if (!managerLegacyCleanupComplete) {
+      const cleaned = await homeManagerService.cleanupLegacyTombstones();
+      managerLegacyCleanupComplete = true;
+      if (cleaned) {
+        notify(
+          `Cleaned up ${cleaned} legacy deleted character record${cleaned === 1 ? "" : "s"}.`,
+          "SUCCESS",
+        );
+      }
+    }
+    [managerRecords, managerCounts, managerUsage] = await Promise.all([
+      homeRepository.list(),
       currentSceneLinkedTokenCounts(homeCreatureService.scene),
       homeRepository.estimateUsage(),
     ]);
-    managerRecords = storedRecords.flatMap((record) =>
-      record.deleted ? [] : [record],
-    );
-    managerTombstones = storedRecords.flatMap((record) =>
-      record.deleted ? [record] : [],
-    );
-    managerCounts = counts;
-    managerUsage = usage;
   } catch (error) {
     managerError = messageFrom(
       error,
@@ -309,11 +296,7 @@ async function deleteManagedCharacter(
   if (!characterId || !homeManagerService || managerSaving) return;
   const record = managerRecords.find((entry) => entry.id === characterId);
   if (!record) return;
-  if (
-    !window.confirm(
-      `Delete the room character record "${record.fields.name}"? Current-scene tokens will be unlinked but keep their creature fields.`,
-    )
-  ) {
+  if (!window.confirm(buildCharacterDeleteConfirmation(record.fields.name))) {
     return;
   }
   managerSaving = true;
@@ -321,43 +304,13 @@ async function deleteManagedCharacter(
   renderHome();
   try {
     await homeManagerService.delete(characterId);
-    notify("Character record deleted.", "SUCCESS");
+    notify(
+      "Character record deleted. Other-scene copies are now orphaned.",
+      "SUCCESS",
+    );
     await refreshManager(false);
   } catch (error) {
     managerError = messageFrom(error, "DWTools could not delete the record.");
-  } finally {
-    managerSaving = false;
-    renderHome();
-  }
-}
-
-async function deleteManagedCharacterPermanently(
-  characterId: string | undefined,
-): Promise<void> {
-  if (!characterId || !homeManagerService || managerSaving) return;
-  const tombstone = managerTombstones.find((entry) => entry.id === characterId);
-  if (!tombstone) return;
-  const displayName =
-    tombstone.name ?? `deleted character ${tombstone.id.slice(0, 8)}`;
-  if (
-    !window.confirm(
-      `Permanently delete "${displayName}"? This cannot be undone and will orphan linked creature tokens in other scenes.`,
-    )
-  ) {
-    return;
-  }
-  managerSaving = true;
-  managerError = undefined;
-  renderHome();
-  try {
-    await homeManagerService.deletePermanently(characterId);
-    notify("Character record permanently deleted.", "SUCCESS");
-    await refreshManager(false);
-  } catch (error) {
-    managerError = messageFrom(
-      error,
-      "DWTools could not permanently delete the record.",
-    );
   } finally {
     managerSaving = false;
     renderHome();
@@ -409,7 +362,10 @@ async function startHome(): Promise<void> {
       homeMetadata = metadata;
       renderHome();
     }),
-    homeRepository.subscribe(() => {
+    homeRepository.subscribe((changes) => {
+      if (changes.some((change) => change.lookup.status === "deleted")) {
+        managerLegacyCleanupComplete = false;
+      }
       if (homeRole === "GM") void refreshManager(!managerEditing);
     }),
     OBR.player.onChange((player) => {
@@ -867,18 +823,6 @@ if (preview === "home") {
       updatedAt: "2026-07-26T15:00:00.000Z",
       updatedBy: "preview-gm",
       writeId: "preview-active-write",
-    },
-  ];
-  managerTombstones = [
-    {
-      schemaVersion: 1,
-      id: "preview-deleted",
-      name: "The Ashen Seer",
-      revision: 4,
-      writeId: "preview-deleted-write",
-      deleted: true,
-      deletedAt: "2026-07-26T16:30:00.000Z",
-      deletedBy: "preview-gm",
     },
   ];
   managerCounts = new Map([["preview-active", 2]]);
