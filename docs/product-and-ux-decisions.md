@@ -138,13 +138,28 @@ are unavailable, record the unverified cases rather than implying they passed.
 
 ## Planned changes
 
-The proposals in [`future-improvements.md`](future-improvements.md) are
-recorded future work, not current behavior. The proposed three-line layout is
-for the interactive context-menu panel, not the persistent token overlay. The
-current overlay information hierarchy and client-local, single-writer renderer
-architecture remain unchanged.
+Remaining proposals in [`future-improvements.md`](future-improvements.md) are
+recorded future work, not current behavior. The implemented three-line layout
+is for the interactive context-menu panel, not the persistent token overlay.
+The persistent overlay retains its compact two-line information hierarchy and
+client-local, single-writer renderer architecture.
 
 ## Decision history
+
+### 2026-07-26 — Overlay readability changes preserve HP geometry
+
+Armor and damage text use independent type scales approximately eight percent
+larger than before. HP type, bar geometry, overall width, insets, and stat-row
+height remain unchanged. Reducing the stat-to-HP gap from 2.5% to 0.8% of
+overlay width makes the two-line footprint slightly smaller.
+
+The damage die glyph is replaced by the shared upright sword rendered as a
+native Path with its own deterministic component ID. The damage expression
+remains a separate plain Text item. The layout version advances so existing
+components update in place and only the missing sword is added.
+
+Reason: armor and damage need better normal-zoom readability without enlarging
+or destabilizing the overlay that previously required extensive live tuning.
 
 ### 2026-07-26 — New-creature visibility default is room-scoped
 

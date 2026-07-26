@@ -205,6 +205,15 @@ function buildTokenOverlay(
     left: layout.armor.left + layout.armor.width * 0.38,
     width: layout.armor.width * 0.62,
   };
+  const damageIconBox = {
+    ...layout.damage,
+    width: layout.damage.width * 0.18,
+  };
+  const damageValueBox = {
+    ...layout.damage,
+    left: layout.damage.left + layout.damage.width * 0.18,
+    width: layout.damage.width * 0.82,
+  };
 
   const items: Item[] = [
     buildBackground(token, "visibility", renderKey, layout.visibility),
@@ -231,16 +240,24 @@ function buildTokenOverlay(
       renderKey,
       `${data.armor ?? "—"}`,
       armorValueBox,
-      layout.fontSize,
+      layout.armorFontSize,
     ),
     buildBackground(token, "damage", renderKey, layout.damage),
+    buildOverlayIcon(
+      token,
+      "damage",
+      renderKey,
+      "sword",
+      damageIconBox,
+      0.85,
+    ),
     buildOverlayText(
       token,
       "damage",
       renderKey,
-      `⚄${data.damage ?? "—"}`,
-      layout.damage,
-      layout.fontSize * 0.9,
+      data.damage ?? "—",
+      damageValueBox,
+      layout.damageFontSize,
     ),
     buildBackground(token, "hp", renderKey, hpBox, "#27272a", 0.88, 20),
     ...(fillBox.width > 0

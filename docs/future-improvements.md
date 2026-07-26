@@ -64,16 +64,19 @@ values, and manually verify both Owlbear themes.
 
 ## Token overlay
 
-### Slightly larger type — Simple in isolation
+### Slightly larger type — Implemented in 0.4.1
 
-Increase the overlay type scale slightly. This is a small layout-token change,
-but it requires geometry tests and visual checks at normal zoom, different
-token scales, and representative damage strings to prevent clipping.
+Armor and damage use independent type scales approximately eight percent larger
+than their previous sizes. HP type and geometry remain unchanged. The gap
+between the stat row and HP bar was reduced from 2.5% to 0.8% of overlay width,
+so the overall two-line footprint became slightly smaller rather than larger.
 
-### Damage icon — Moderate
+### Damage icon — Implemented in 0.4.1
 
-Replace the die glyph with a sword icon. Add sword geometry to the shared icon
-source and render it as a native Owlbear Path item.
+The die glyph was replaced with the shared upright sword geometry rendered as a
+native Owlbear Path. The damage expression remains a separate plain Text item,
+and the sword has its own deterministic component ID so existing overlays gain
+it through in-place reconciliation.
 
 Do not use a color emoji in overlay Text. Prior live testing showed Owlbear's
 canvas Text renderer corrupts color emoji. Native Path icons are the established
@@ -116,7 +119,7 @@ The separate HP-only editor retains its quick adjustment controls.
 2. Add and persist the GM's default visibility setting. **Completed in
    0.4.0.**
 3. Adjust the token overlay's type scale and replace its damage die with the
-   sword Path icon.
+   sword Path icon. **Completed in 0.4.1.**
 
 This sequence establishes the data before displaying it in the context menu and
 keeps the regression-sensitive token-overlay adjustments isolated.

@@ -1,4 +1,4 @@
-import { isPath, isText, type Image, type Item } from "@owlbear-rodeo/sdk";
+import { Command, isPath, isText, type Image, type Item } from "@owlbear-rodeo/sdk";
 import { describe, expect, it } from "vitest";
 import { CREATURE_KEY, DISPLAY_KEY, type CreatureData } from "./constants";
 import {
@@ -7,6 +7,7 @@ import {
   buildDesiredDisplays,
   planDisplayReconciliation,
 } from "./display";
+import { iconCommands } from "./icons";
 
 function creatureImage(
   position: { x: number; y: number },
@@ -49,7 +50,7 @@ describe("buildDesiredDisplays", () => {
       }),
     ], "GM", 100);
 
-    expect(desired).toHaveLength(10);
+    expect(desired).toHaveLength(11);
     expect(new Set(desired.map((item) => item.id)).size).toBe(desired.length);
     expect(desired.every((item) => item.metadata[DISPLAY_KEY] === true)).toBe(true);
 
@@ -59,6 +60,9 @@ describe("buildDesiredDisplays", () => {
     const visibilityIcon = desired.find((item) => item.id.endsWith("-visibility-icon"));
     const armorIcon = desired.find((item) => item.id.endsWith("-armor-icon"));
     const armorText = desired.find((item) => item.id.endsWith("-armor-text"));
+    const damageBackground = desired.find((item) => item.id.endsWith("-damage-bg"));
+    const damageIcon = desired.find((item) => item.id.endsWith("-damage-icon"));
+    const damageText = desired.find((item) => item.id.endsWith("-damage-text"));
 
     expect(hpText?.type).toBe("TEXT");
     expect(hpText?.layer).toBe("TEXT");
@@ -70,10 +74,31 @@ describe("buildDesiredDisplays", () => {
     expect(visibilityIcon?.layer).toBe("TEXT");
     expect(armorIcon?.type).toBe("PATH");
     expect(armorIcon?.layer).toBe("TEXT");
+    expect(damageBackground?.layer).toBe("ATTACHMENT");
+    expect(damageIcon?.type).toBe("PATH");
+    expect(damageIcon?.layer).toBe("TEXT");
+    expect(damageText?.type).toBe("TEXT");
+    expect(damageText?.layer).toBe("TEXT");
     expect(visibilityIcon && isPath(visibilityIcon)).toBe(true);
     expect(armorIcon && isPath(armorIcon)).toBe(true);
+    expect(damageIcon && isPath(damageIcon)).toBe(true);
     expect(armorText && isText(armorText)).toBe(true);
+    expect(damageText && isText(damageText)).toBe(true);
     if (armorText && isText(armorText)) expect(armorText.text.plainText).toBe("1");
+    if (damageText && isText(damageText)) expect(damageText.text.plainText).toBe("d6");
+    if (damageIcon && isPath(damageIcon)) {
+      const expectedCommands = iconCommands("sword").map(([kind, ...coordinates]) => [
+        kind === "M"
+          ? Command.MOVE
+          : kind === "L"
+            ? Command.LINE
+            : kind === "C"
+              ? Command.CUBIC
+              : Command.CLOSE,
+        ...coordinates,
+      ]);
+      expect(damageIcon.commands).toEqual(expectedCommands);
+    }
   });
 
   it("keeps hidden-token displays local and visible for the GM", () => {
@@ -169,6 +194,30 @@ describe("planDisplayReconciliation", () => {
     expect(plan.update.every(({ current: item, desired }) =>
       item.metadata[DISPLAY_RENDER_KEY] !== desired.metadata[DISPLAY_RENDER_KEY],
     )).toBe(true);
+  });
+
+  it("adds the new sword while updating existing layout components in place", () => {
+    const desired = buildDesiredDisplays([
+      creatureImage({ x: 300, y: 400 }, data),
+    ], "GM", 100);
+    const current = desired
+      .filter((item) => !item.id.endsWith("-damage-icon"))
+      .map((item) => ({
+        ...item,
+        metadata: {
+          ...item.metadata,
+          [DISPLAY_RENDER_KEY]: "layout-13",
+        },
+      }) as Item);
+    const plan = planDisplayReconciliation(current, desired);
+
+    expect(plan.add.map((item) => item.id))
+      .toEqual(["creature-1-dwtools-damage-icon"]);
+    expect(plan.update).toHaveLength(current.length);
+    expect(plan.update.every(({ current: item, desired: replacement }) =>
+      item.id === replacement.id,
+    )).toBe(true);
+    expect(plan.deleteIds).toEqual([]);
   });
 
   it("updates the visibility path in place when its state changes", () => {

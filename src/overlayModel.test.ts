@@ -84,17 +84,35 @@ describe("getImageGeometry", () => {
 });
 
 describe("getOverlayLayout", () => {
-  it("left-aligns the HP bar to the portrait inset and gives its text the same box", () => {
+  it("preserves the HP geometry while compacting the stat-row gap", () => {
     const layout = getOverlayLayout(getImageGeometry(creatureImage(), 100));
 
     expect(layout.hpLeft).toBe(26);
     expect(layout.hpWidth).toBe(168);
+    expect(layout.hpTop).toBeCloseTo(85.896);
+    expect(layout.hpHeight).toBeCloseTo(22.344);
     expect(layout.hpText).toEqual({
       left: layout.hpLeft,
       top: layout.hpTop,
       width: layout.hpWidth,
       height: layout.hpHeight,
     });
+    expect(layout.rowHeight).toBeCloseTo(24.738);
+    expect(layout.rowGap).toBeCloseTo(layout.width * 0.008);
+    expect(layout.hpTop - (layout.rowTop + layout.rowHeight))
+      .toBeCloseTo(layout.width * 0.008);
+    expect(layout.rowHeight + layout.rowGap + layout.hpHeight)
+      .toBeLessThan(layout.rowHeight + layout.width * 0.025 + layout.hpHeight);
+  });
+
+  it("increases armor and damage type by about eight percent without changing HP type", () => {
+    const layout = getOverlayLayout(getImageGeometry(creatureImage(), 100));
+    const previousArmorFontSize = layout.width * 0.095;
+    const previousDamageFontSize = layout.width * 0.095 * 0.9;
+
+    expect(layout.fontSize).toBeCloseTo(layout.width * 0.095);
+    expect(layout.armorFontSize / previousArmorFontSize).toBeCloseTo(1.079, 2);
+    expect(layout.damageFontSize / previousDamageFontSize).toBeCloseTo(1.082, 2);
   });
 });
 

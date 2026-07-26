@@ -34,7 +34,7 @@ function setupContextMenus() {
       filter: characterFilter,
     }],
     embed: {
-      url: assetUrl("context-menu.html?v=0.4.0"),
+      url: assetUrl("context-menu.html?v=0.4.1"),
       height: 360,
     },
   });
