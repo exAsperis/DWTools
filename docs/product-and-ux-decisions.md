@@ -150,6 +150,8 @@ client-local, single-writer renderer architecture.
 
 The supplied crossed wrench-and-sword DWTools logo is the extension icon in
 Owlbear Rodeo, the main panel brand, the browser icon, and the store listing.
+The editable source remains at the repository root as `extension-logo.svg`;
+the release build consumes its published copy at `public/icon.svg`.
 The release version is 1.0.0, with synchronized manifest, embedded URL, context
 menu, and generated-asset cache-busters.
 

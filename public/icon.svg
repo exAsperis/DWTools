@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- DWTools extension logo -->
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 
 <svg
    width="800px"
@@ -26,8 +26,8 @@
      inkscape:deskcolor="#d1d1d1"
      showgrid="false"
      inkscape:zoom="0.729375"
-     inkscape:cx="1142.7592"
-     inkscape:cy="409.2545"
+     inkscape:cx="1020.7369"
+     inkscape:cy="348.92888"
      inkscape:window-width="2560"
      inkscape:window-height="1369"
      inkscape:window-x="1072"
@@ -36,56 +36,41 @@
      inkscape:current-layer="layer3" />
   <path
      fill="#444444"
-     d="M 15.5,13.4 7.7,5.6 C 7.9,5.1 8,4.6 8,4 8,1.8 6.2,0 4,0 3.4,0 2.9,0.1 2.4,0.3 L 5.3,3.2 3.2,5.3 0.3,2.4 C 0.1,2.9 0,3.4 0,4 0,6.2 1.8,8 4,8 4.6,8 5.1,7.9 5.6,7.7 l 7.8,7.8 c 0.6,0.6 1.5,0.6 2.1,0 0.6,-0.6 0.6,-1.5 0,-2.1 z M 14.2,15 c -0.4,0 -0.8,-0.3 -0.8,-0.8 0,-0.4 0.3,-0.8 0.8,-0.8 0.5,0 0.8,0.3 0.8,0.8 0,0.5 -0.3,0.8 -0.8,0.8 z"
+     d="M 15.426102,13.358197 7.7453129,5.6774083 C 7.9422562,5.18505 8.0407279,4.6926918 8.0407279,4.1018619 c 0,-2.1663762 -1.7724897,-3.93886583 -3.938866,-3.93886583 -0.5908298,0 -1.083188,0.0984717 -1.5755463,0.29541494 L 5.3819933,3.3140888 3.3140888,5.3819933 0.45841101,2.5263156 C 0.26146772,3.0186739 0.16299607,3.5110321 0.16299607,4.1018619 c 0,2.1663763 1.77248963,3.938866 3.93886583,3.938866 0.5908299,0 1.0831881,-0.098472 1.5755464,-0.295415 l 7.6807887,7.6807891 c 0.590829,0.590829 1.477074,0.590829 2.067905,0 0.590829,-0.590831 0.590829,-1.477076 0,-2.067905 z m -1.280132,1.575546 c -0.393887,0 -0.787773,-0.295415 -0.787773,-0.787773 0,-0.393887 0.295415,-0.787773 0.787773,-0.787773 0.492358,0 0.787773,0.295415 0.787773,0.787773 0,0.492358 -0.295415,0.787773 -0.787773,0.787773 z"
      id="path1"
      inkscape:label="wrench"
-     sodipodi:nodetypes="scssccccsscssssssss" />
-  <g
-     inkscape:groupmode="layer"
-     id="layer2"
-     inkscape:label="sword">
-    <g
-       inkscape:groupmode="layer"
-       id="layer1"
-       inkscape:label="Vector"
-       transform="matrix(0.14438751,0,0,0.14438751,-3.2985674,-3.3458817)">
-      <path
-         style="fill:#000000"
-         d="M 133.25313,23.412511 109.9246,27.980806"
-         id="path1-8" />
-      <path
-         style="fill:#454545;fill-opacity:1"
-         d="M 133.30352,23.378921 109.9078,27.980806 53.946188,83.992804 60.311569,90.37498 93.448502,63.28432 66.341047,96.421253 72.756814,102.82022 128.85279,46.875408 Z"
-         id="path2" />
-      <path
-         style="fill:#454545;fill-opacity:1"
-         d="m 42.514795,81.670833 32.747883,32.526907 -12.06501,4.77298 -8.131728,-7.86657 -11.667261,11.62307 v 4.15425 l -6.850097,6.71752 -13.479223,-13.43503 6.894291,-6.8059 3.933281,-0.0442 11.711456,-11.62307 -7.822368,-7.954947 z"
-         id="path3" />
-    </g>
-  </g>
+     sodipodi:nodetypes="scssccccsscssssssss"
+     style="display:inline;stroke:#000000;stroke-width:0.14268;stroke-dasharray:none;fill:none" />
+  <path
+     id="path2"
+     style="display:inline;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.988232"
+     d="M 132.36145 24.322181 L 109.24089 28.869677 L 49.708984 88.451094 L 42.872997 81.661369 L 38.19456 93.597834 L 45.933608 101.46836 L 34.346679 112.96764 L 30.455241 113.0112 L 23.634404 119.74465 L 36.970099 133.03679 L 43.74738 126.39072 L 43.74738 122.28068 L 55.290481 110.78141 L 63.335509 118.56429 L 75.272245 113.84202 L 68.370517 106.98683 L 127.96303 47.542031 L 132.36145 24.322181 z "
+     inkscape:label="sword"
+     transform="matrix(0.14438751,0,0,0.14438751,-3.2985674,-3.3458816)" />
   <g
      inkscape:groupmode="layer"
      id="layer3"
-     inkscape:label="D">
+     inkscape:label="DW"
+     style="display:inline">
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke:#000000;stroke-width:0.131939"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';writing-mode:lr-tb;direction:ltr;fill:#0b934c;stroke:#000000;stroke-width:0.131939;fill-opacity:1"
        x="1.8019882"
        y="10.409349"
        id="text1"><tspan
          id="tspan1"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';stroke-width:0.131939"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';stroke-width:0.131939;fill:#0b934c;fill-opacity:1"
          x="1.8019882"
          y="10.409349"
          sodipodi:role="line">D</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke:#000000;stroke-width:0.117256"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';writing-mode:lr-tb;direction:ltr;fill:#b05d00;stroke:#000000;stroke-width:0.117256;fill-opacity:1"
        x="4.5831537"
        y="14.369035"
        id="text1-5"><tspan
          id="tspan1-1"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';stroke-width:0.117256"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';stroke-width:0.117256;fill:#b05d00;fill-opacity:1"
          x="4.5831537"
          y="14.369035"
          sodipodi:role="line">W</tspan></text>
