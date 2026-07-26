@@ -24,8 +24,10 @@ describe("DWTools icons", () => {
   it("draws a sword for damage in shared panel geometry", () => {
     const commands = iconCommands("sword");
 
-    expect(commands[0]).toEqual(["M", 14.5, 3]);
-    expect(commands).toContainEqual(["L", 9.2, 21.3]);
+    expect(commands[0]).toEqual(["M", 12, 2]);
+    expect(commands).toContainEqual(["L", 18, 13.8]);
+    expect(commands).toContainEqual(["L", 13.5, 19.3]);
+    expect(commands).toContainEqual(["L", 12, 22]);
     expect(iconMarkup("sword")).toContain('viewBox="0 0 24 24"');
   });
 });

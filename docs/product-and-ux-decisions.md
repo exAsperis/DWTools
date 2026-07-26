@@ -146,6 +146,15 @@ architecture remain unchanged.
 
 ## Decision history
 
+### 2026-07-26 — Sword icon uses a complete upright silhouette
+
+The damage sword uses a centered upright design with a pointed double-edged
+blade, crossguard, outlined grip, and diamond pommel.
+
+Reason: the first diagonal sword geometry read as an abstract arrow at the
+context panel's small icon size. A complete symmetric silhouette remains
+recognizable without relying on color emoji.
+
 ### 2026-07-26 — Rich creature details remain in interactive UI
 
 Creature tags, damage descriptions, and damage tags are optional token metadata
