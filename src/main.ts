@@ -1,4 +1,4 @@
-import OBR, { type Item } from "@owlbear-rodeo/sdk";
+import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./style.css";
 import {
   type CharacterLookup,
@@ -44,6 +44,7 @@ import {
   BASIC_MOVES,
   buildHomeMarkup,
   DEFAULT_HOME_SECTIONS,
+  SPECIAL_MOVES,
   type HomeRole,
   type HomeSection,
   type HomeSectionState,
@@ -59,6 +60,17 @@ const params = new URLSearchParams(window.location.search);
 const itemId = params.get("itemId");
 const view = params.get("view") ?? "edit";
 const preview = params.get("preview");
+
+function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  root.dataset.obrTheme = theme.mode.toLowerCase();
+  root.style.setProperty("--dw-background", theme.background.paper);
+  root.style.setProperty("--dw-surface", theme.background.default);
+  root.style.setProperty("--dw-text", theme.text.primary);
+  root.style.setProperty("--dw-text-secondary", theme.text.secondary);
+  root.style.setProperty("--dw-text-disabled", theme.text.disabled);
+  root.style.setProperty("--dw-primary", theme.primary.main);
+}
 
 function messageFrom(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -145,6 +157,14 @@ function loadHomeSections(): HomeSectionState {
         typeof stored.moves === "boolean"
           ? stored.moves
           : DEFAULT_HOME_SECTIONS.moves,
+      basicMoves:
+        typeof stored.basicMoves === "boolean"
+          ? stored.basicMoves
+          : DEFAULT_HOME_SECTIONS.basicMoves,
+      specialMoves:
+        typeof stored.specialMoves === "boolean"
+          ? stored.specialMoves
+          : DEFAULT_HOME_SECTIONS.specialMoves,
       settings:
         typeof stored.settings === "boolean"
           ? stored.settings
@@ -206,7 +226,7 @@ function renderHome(): void {
     "[data-move]",
   )) {
     button.addEventListener("click", () => {
-      const move = BASIC_MOVES.find(
+      const move = [...BASIC_MOVES, ...SPECIAL_MOVES].find(
         (entry) => entry.id === button.dataset.move,
       );
       const dialog = document.querySelector<HTMLDialogElement>("#move-dialog");
@@ -415,6 +435,7 @@ async function startHome(): Promise<void> {
   [homeRole, homeMetadata] = await Promise.all([
     OBR.player.getRole(),
     OBR.room.getMetadata(),
+    OBR.theme.getTheme().then(applyTheme),
   ]);
   if (homeRole === "GM") await refreshManager(false);
   renderHome();
@@ -439,6 +460,7 @@ async function startHome(): Promise<void> {
     OBR.scene.items.onChange(() => {
       if (homeRole === "GM" && !managerEditing) void refreshManager();
     }),
+    OBR.theme.onChange(applyTheme),
   ];
   window.addEventListener(
     "unload",
@@ -805,6 +827,7 @@ async function startEditor(): Promise<void> {
       console.warn("DWTools could not load room visibility settings", error);
       return {};
     }),
+    OBR.theme.getTheme().then(applyTheme),
   ]);
   if (!token) {
     app.innerHTML =
@@ -850,6 +873,7 @@ async function startEditor(): Promise<void> {
       const updated = items.find((item) => item.id === itemId);
       if (updated && !editorBusy) void reloadEditor();
     }),
+    OBR.theme.onChange(applyTheme),
   ];
   window.addEventListener(
     "unload",

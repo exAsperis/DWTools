@@ -1,11 +1,19 @@
 import { iconMarkup } from "./icons";
 
 export type HomeRole = "GM" | "PLAYER";
-export type HomeSection = "agenda" | "moves" | "settings" | "characters";
+export type HomeSection =
+  | "agenda"
+  | "moves"
+  | "basicMoves"
+  | "specialMoves"
+  | "settings"
+  | "characters";
 
 export interface HomeSectionState {
   agenda: boolean;
   moves: boolean;
+  basicMoves: boolean;
+  specialMoves: boolean;
   settings: boolean;
   characters: boolean;
 }
@@ -19,6 +27,8 @@ export interface MoveDefinition {
 export const DEFAULT_HOME_SECTIONS: HomeSectionState = {
   agenda: true,
   moves: true,
+  basicMoves: true,
+  specialMoves: false,
   settings: false,
   characters: false,
 };
@@ -66,6 +76,74 @@ export const BASIC_MOVES: MoveDefinition[] = [
   },
 ];
 
+export const SPECIAL_MOVES: MoveDefinition[] = [
+  {
+    id: "last-breath",
+    name: "Last Breath",
+    text: "When you’re dying you catch a glimpse of what lies beyond the Black Gates of Death’s Kingdom (the GM will describe it). Then roll (just roll, +nothing—yeah, Death doesn’t care how tough or cool you are). On a 10+ you’ve cheated death—you’re in a bad spot but you’re still alive. On a 7–9 Death will offer you a bargain. Take it and stabilize or refuse and pass beyond the Black Gates into whatever fate awaits you. On a miss, your fate is sealed. You’re marked as Death’s own and you’ll cross the threshold soon. The GM will tell you when.",
+  },
+  {
+    id: "encumbrance",
+    name: "Encumbrance",
+    text: "When you make a move while carrying weight up to or equal to load, you’re fine. When you make a move while carrying weight equal to load+1 or load+2, you take -1. When you make a move while carrying weight greater than load+2, you have a choice: drop at least 1 weight and roll at -1, or automatically fail.",
+  },
+  {
+    id: "make-camp",
+    name: "Make Camp",
+    text: "When you settle in to rest consume a ration. If you’re somewhere dangerous decide the watch order as well. If you have enough XP you may Level Up. When you wake from at least a few uninterrupted hours of sleep heal damage equal to half your max HP.",
+  },
+  {
+    id: "take-watch",
+    name: "Take Watch",
+    text: "When you’re on watch and something approaches the camp roll+Wis. On a 10+ you’re able to wake the camp and prepare a response, the camp takes +1 forward. On a 7–9 you react just a moment too late; the camp is awake but hasn’t had time to prepare. You have weapons and armor but little else. On a miss whatever lurks outside the campfire’s light has the drop on you.",
+  },
+  {
+    id: "undertake-a-perilous-journey",
+    name: "Undertake a Perilous Journey",
+    text: "When you travel through hostile territory, choose one member of the party to act as trailblazer, one to scout ahead, and one to be quartermaster (the same character cannot have two jobs). If you don’t have enough party members or choose not to assign a job, treat that job as if it had rolled a 6. Each character with a job to do rolls+Wis. On a 10+ the quartermaster reduces the number of rations required by one.\n\nOn a 10+ the trailblazer reduces the amount of time it takes to reach your destination (the GM will say by how much). On a 10+ the scout will spot any trouble quick enough to let you get the drop on it. On a 7–9 each role performs their job as expected: the normal number of rations are consumed, the journey takes about as long as expected, no one gets the drop on you but you don’t get the drop on them either.",
+  },
+  {
+    id: "level-up",
+    name: "Level Up",
+    text: "When you have downtime (hours or days) and XP equal to (or greater than) your current level + 7, subtract your current level + 7 from your XP, increase your level by 1, and choose a new advanced move from your class. If you are the wizard, you also get to add a new spell to your spellbook.\n\nChoose one of your stats and increase it by 1 (this may change your modifier). Changing your Constitution increases your maximum and current HP. Ability scores can’t go higher than 18.",
+  },
+  {
+    id: "end-of-session",
+    name: "End of Session",
+    text: "When you reach the end of a session, choose one of your bonds that you feel is resolved (completely explored, no longer relevant, or otherwise). Ask the player of the character you have the bond with if they agree. If they do, mark XP and write a new bond with whomever you wish.\n\nOnce bonds have been updated look at your alignment. If you fulfilled that alignment at least once this session, mark XP. Then answer these three questions as a group:\n\n• Did we learn something new and important about the world?\n• Did we overcome a notable monster or enemy?\n• Did we loot a memorable treasure?\n\nFor each “yes” answer everyone marks XP.",
+  },
+  {
+    id: "carouse",
+    name: "Carouse",
+    text: "When you return triumphant and throw a big party, spend 100 coin and roll + extra 100s of coin spent. On a 10+ choose 3. On a 7–9 choose 1. On a miss, you still choose one, but things get really out of hand.\n\n• You befriend a useful NPC.\n• You hear rumors of an opportunity.\n• You gain useful information.\n• You are not entangled, ensorcelled, or tricked.",
+  },
+  {
+    id: "supply",
+    name: "Supply",
+    text: "When you go to buy something with gold on hand, if it’s something readily available in the settlement you’re in, you can buy it at market price. If it’s something special, beyond what’s usually available here, or non-mundane, roll+Cha. On a 10+ you find what you’re looking for at a fair price. On a 7–9 you’ll have to pay more or settle for something similar.",
+  },
+  {
+    id: "recover",
+    name: "Recover",
+    text: "When you do nothing but rest in comfort and safety after a day of rest you recover all your HP. After three days of rest you remove one debility of your choice. If you’re under the care of a healer (magical or otherwise) you heal a debility for every two days of rest instead.",
+  },
+  {
+    id: "recruit",
+    name: "Recruit",
+    text: "When you put out word that you’re looking to hire help, roll. If you make it known…\n\n• …that your pay is generous, take +1.\n• …what you’re setting out to do, take +1.\n• …that they’ll get a share of whatever you find, take +1.\n\nIf you have a useful reputation around these parts take an additional +1. On a 10+ you’ve got your pick of a number of skilled applicants, your choice who you hire, no penalty for not taking them along. On a 7–9 you’ll have to settle for someone close or turn them away. On a miss someone influential and ill-suited declares they’d like to come along (a foolhardy youth, a loose cannon, or a veiled enemy, for example); bring them and take the consequences or turn them away.\n\nIf you turn away applicants you take -1 forward to Recruit.",
+  },
+  {
+    id: "outstanding-warrants",
+    name: "Outstanding Warrants",
+    text: "When you return to a civilized place in which you’ve caused trouble before, roll+Cha. On a hit, word has spread of your deeds and everyone recognizes you. On a 7–9, that, and the GM chooses a complication:\n\n• The local constabulary has a warrant out for your arrest.\n• Someone has put a price on your head.\n• Someone important to you has been put in a bad spot as a result of your actions.",
+  },
+  {
+    id: "bolster",
+    name: "Bolster",
+    text: "When you spend your leisure time in study, meditation, or hard practice, you gain preparation. If you prepare for a week or two, 1 preparation. If you prepare for a month or longer, 3 preparation. When your preparation pays off spend 1 preparation for +1 to any roll. You can only spend one preparation per roll.",
+  },
+];
+
 function sectionHeading(
   title: string,
   section: HomeSection,
@@ -78,6 +156,33 @@ function sectionHeading(
         (${expanded ? "collapse" : "expand"})
       </button>
     </div>`;
+}
+
+function moveSubsection(
+  title: string,
+  section: "basicMoves" | "specialMoves",
+  expanded: boolean,
+  moves: MoveDefinition[],
+): string {
+  return `
+    <section class="move-subsection">
+      <div class="move-subheading">
+        <h3>${title}</h3>
+        <button class="section-toggle" type="button" data-toggle-section="${section}" aria-expanded="${expanded}">
+          (${expanded ? "collapse" : "expand"})
+        </button>
+      </div>
+      ${
+        expanded
+          ? `<div class="move-list">${moves
+              .map(
+                (move) =>
+                  `<button type="button" class="move-link" data-move="${move.id}">${move.name}</button>`,
+              )
+              .join("")}</div>`
+          : ""
+      }
+    </section>`;
 }
 
 export function buildHomeMarkup(
@@ -116,10 +221,8 @@ export function buildHomeMarkup(
         ${sectionHeading("Moves", "moves", sections.moves)}
         ${
           sections.moves
-            ? `<div class="move-list">${BASIC_MOVES.map(
-                (move) =>
-                  `<button type="button" class="move-link" data-move="${move.id}">${move.name}</button>`,
-              ).join("")}</div>`
+            ? `${moveSubsection("Basic Moves", "basicMoves", sections.basicMoves, BASIC_MOVES)}
+        ${moveSubsection("Special Moves", "specialMoves", sections.specialMoves, SPECIAL_MOVES)}`
             : ""
         }
       </section>

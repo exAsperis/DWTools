@@ -151,6 +151,23 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-27 — Main panel follows Owlbear theme and groups moves
+
+The main panel takes its background, surface, text, secondary text, disabled
+text, and primary accent colors from `OBR.theme`, and updates immediately when
+the Owlbear theme changes. Operating-system color-scheme media queries are not
+used to determine the extension panel theme.
+
+The Moves section contains independently collapsible Basic Moves and Special
+Moves subsections. Basic Moves is expanded by default and Special Moves is
+collapsed by default; both states use the existing per-browser section-state
+persistence. All thirteen Dungeon World Special Moves are available as the
+same dialog links used for Basic Moves.
+
+Reason: extension surfaces should remain visually consistent with Owlbear
+across desktop and mobile, and grouping the complete shared move set keeps a
+larger reference list quick to scan.
+
 ### 2026-07-26 — Main panel prioritizes table references
 
 The main panel uses a compact single-line DWTools brand header followed by

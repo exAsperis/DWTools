@@ -14,7 +14,10 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain("Agenda");
     expect(markup).toContain("Portray a fantastic world");
     expect(markup).toContain("Moves");
+    expect(markup).toContain("Basic Moves");
     expect(markup).toContain("Hack and Slash");
+    expect(markup).toContain("Special Moves");
+    expect(markup).not.toContain("Last Breath");
     expect(markup).toContain("Settings");
     expect(markup).not.toContain('id="default-visibility"');
     expect(markup).not.toContain("Right-click a character");
@@ -62,7 +65,25 @@ describe("buildHomeMarkup", () => {
       'data-toggle-section="moves" aria-expanded="true"',
     );
     expect(markup).toContain(
+      'data-toggle-section="basicMoves" aria-expanded="true"',
+    );
+    expect(markup).toContain(
+      'data-toggle-section="specialMoves" aria-expanded="false"',
+    );
+    expect(markup).toContain(
       'data-toggle-section="settings" aria-expanded="false"',
     );
+  });
+
+  it("renders all Special Moves when their subsection is expanded", () => {
+    const markup = buildHomeMarkup("PLAYER", true, false, {
+      ...DEFAULT_HOME_SECTIONS,
+      specialMoves: true,
+    });
+
+    expect(markup).toContain("Last Breath");
+    expect(markup).toContain("Undertake a Perilous Journey");
+    expect(markup).toContain("Outstanding Warrants");
+    expect(markup).toContain("Bolster");
   });
 });
