@@ -151,6 +151,27 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-27 — Inventory rows prioritize rapid entry in the narrow panel
+
+Inventory items use a compact two-line layout inside the existing 390-pixel
+panel. The first line contains the item name and Remove/Transfer actions. The
+second line contains `wt/ea`, count controls, and calculated row Load. Inline
+name, weight, and count fields have no persistent border or background; their
+control styling appears only while focused.
+
+Adding or saving an item keeps the bottom of that Inventory subsection,
+especially **Add Item**, in the viewport and does not show a routine success
+notification. This makes repeated item entry a continuous workflow instead of
+requiring the user to scroll back after every row.
+
+This supersedes the five-column table presentation recorded below. The Basic
+Moves and Special Moves subsections also no longer have a horizontal divider
+between them; their headings provide sufficient separation.
+
+Reason: the column layout required a 540-pixel content width and horizontal
+scrolling inside the fixed-width panel, while repeated item entry should be
+fast and spatially stable.
+
 ### 2026-07-27 — Character inventory and Load use controlled-token access
 
 Every persistent Character can carry an optional `maxLoad` and a compact

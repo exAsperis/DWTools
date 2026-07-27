@@ -347,11 +347,13 @@ function selectionFor(
 async function runInventoryMutation(
   mutation: () => Promise<unknown>,
   successMessage?: string,
+  anchorCharacterId?: string,
 ): Promise<void> {
   if (managerSaving) return;
   managerSaving = true;
   managerError = undefined;
-  renderHome();
+  if (anchorCharacterId) renderHomeAtInventoryBottom(anchorCharacterId);
+  else renderHome();
   try {
     await mutation();
     managerDraftCharacterId = undefined;
@@ -370,8 +372,31 @@ async function runInventoryMutation(
     managerError = errorMessage;
   } finally {
     managerSaving = false;
-    renderHome();
+    if (anchorCharacterId) renderHomeAtInventoryBottom(anchorCharacterId);
+    else renderHome();
   }
+}
+
+function renderHomeAtInventoryBottom(
+  characterId: string,
+  focusDraft = false,
+): void {
+  renderHome();
+  window.requestAnimationFrame(() => {
+    const card = [
+      ...document.querySelectorAll<HTMLElement>("[data-character-details]"),
+    ].find((element) => element.dataset.characterDetails === characterId);
+    const target =
+      card?.querySelector<HTMLElement>("[data-inventory-draft]") ??
+      card?.querySelector<HTMLElement>("[data-inventory-add]") ??
+      card?.querySelector<HTMLElement>("[data-inventory-details]");
+    target?.scrollIntoView({ block: "nearest" });
+    if (focusDraft) {
+      card
+        ?.querySelector<HTMLInputElement>("[data-inventory-draft] [name=name]")
+        ?.focus();
+    }
+  });
 }
 
 function bindInlineCommit(
@@ -521,17 +546,16 @@ function bindInventoryControls(): void {
       managerDraftCharacterId = record.id;
       managerExpandedCharacters.add(record.id);
       managerExpandedInventories.add(record.id);
-      renderHome();
-      document
-        .querySelector<HTMLInputElement>("[data-inventory-draft] [name=name]")
-        ?.focus();
+      renderHomeAtInventoryBottom(record.id, true);
     });
   }
   document
     .querySelector("[data-inventory-draft-cancel]")
     ?.addEventListener("click", () => {
+      const characterId = managerDraftCharacterId;
       managerDraftCharacterId = undefined;
-      renderHome();
+      if (characterId) renderHomeAtInventoryBottom(characterId);
+      else renderHome();
     });
   const draftForm = document.querySelector<HTMLFormElement>(
     "[data-inventory-draft]",
@@ -549,7 +573,8 @@ function bindInventoryControls(): void {
       ];
       void runInventoryMutation(
         () => homeManagerService!.addInventoryItem(record.id, item),
-        "Item added.",
+        undefined,
+        record.id,
       );
     });
   }

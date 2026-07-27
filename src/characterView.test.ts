@@ -87,7 +87,7 @@ describe("character manager view", () => {
     expect(confirmation).toContain("need to be manually resolved");
   });
 
-  it("renders the requested inline inventory columns and controls", () => {
+  it("renders compact two-line inventory rows and controls", () => {
     const record = activeRecord("raganah", {
       inventory: [
         ["Coin", 0.01, 137],
@@ -108,14 +108,17 @@ describe("character manager view", () => {
       true,
     );
 
-    expect(markup).toContain("Item");
-    expect(markup).toContain("Weight Ea.");
-    expect(markup).toContain("Qty | Uses");
-    expect(markup).toContain("Load");
+    expect(markup).toContain("Bag of Books");
+    expect(markup).toContain("wt/ea:");
+    expect(markup).toContain("ct:");
+    expect(markup).toContain("load:");
+    expect(markup).not.toContain("inventory-header");
     expect(markup).toContain('data-inventory-adjust="0"');
     expect(markup).toContain(">−</button>");
     expect(markup).toContain(">+</button>");
     expect(markup).toContain('value="137"');
+    expect(markup).toContain("inventory-inline-input inventory-name");
+    expect(markup).toContain("inventory-inline-input inventory-weight");
     expect(markup).toContain("Load: 3.37 / 11.00");
     expect(markup).toContain("Add Item");
     expect(markup).toContain("Transfer");

@@ -113,17 +113,25 @@ function inventoryRowMarkup(
     state.transfer.sourceIndex === sourceIndex;
   return `
     <div class="inventory-row" data-inventory-row="${sourceIndex}">
-      <input class="inventory-name" data-inventory-name="${sourceIndex}" type="text" maxlength="120" value="${escapeHtml(item[0])}" aria-label="Item name">
-      <input class="inventory-number" data-inventory-weight="${sourceIndex}" type="number" min="0" step="any" value="${numberValue(item[1])}" aria-label="Weight each">
-      <div class="inventory-count">
-        <button type="button" data-inventory-adjust="${sourceIndex}" data-change="-1" aria-label="Decrease ${escapeHtml(item[0])} count">−</button>
-        <input data-inventory-count="${sourceIndex}" type="number" min="0" step="1" value="${item[2]}" aria-label="${escapeHtml(item[0])} quantity or uses">
-        <button type="button" data-inventory-adjust="${sourceIndex}" data-change="1" aria-label="Increase ${escapeHtml(item[0])} count">+</button>
+      <div class="inventory-primary">
+        <input class="inventory-inline-input inventory-name" data-inventory-name="${sourceIndex}" type="text" maxlength="120" value="${escapeHtml(item[0])}" aria-label="Item name">
+        <div class="inventory-actions">
+          <button type="button" class="danger compact" data-inventory-remove="${sourceIndex}" aria-label="Remove ${escapeHtml(item[0])}">Remove</button>
+          ${state.role === "GM" ? `<button type="button" class="secondary compact" data-inventory-transfer="${sourceIndex}">Transfer</button>` : ""}
+        </div>
       </div>
-      <span class="inventory-load">${formatLoadValue(rowLoad(item))}</span>
-      <div class="inventory-actions">
-        <button type="button" class="danger compact" data-inventory-remove="${sourceIndex}" aria-label="Remove ${escapeHtml(item[0])}">Remove</button>
-        ${state.role === "GM" ? `<button type="button" class="secondary compact" data-inventory-transfer="${sourceIndex}">Transfer</button>` : ""}
+      <div class="inventory-metrics">
+        <label class="inventory-metric">wt/ea:
+          <input class="inventory-inline-input inventory-weight" data-inventory-weight="${sourceIndex}" type="number" min="0" step="any" value="${numberValue(item[1])}" aria-label="Weight each">
+        </label>
+        <span class="inventory-metric inventory-count-label">ct:
+          <span class="inventory-count">
+            <button type="button" data-inventory-adjust="${sourceIndex}" data-change="-1" aria-label="Decrease ${escapeHtml(item[0])} count">−</button>
+            <input class="inventory-inline-input" data-inventory-count="${sourceIndex}" type="number" min="0" step="1" value="${item[2]}" aria-label="${escapeHtml(item[0])} quantity or uses">
+            <button type="button" data-inventory-adjust="${sourceIndex}" data-change="1" aria-label="Increase ${escapeHtml(item[0])} count">+</button>
+          </span>
+        </span>
+        <span class="inventory-metric inventory-load">load: <strong>${formatLoadValue(rowLoad(item))}</strong></span>
       </div>
     </div>
     ${
@@ -174,21 +182,26 @@ function inventoryMarkup(
         <label class="max-load">Maximum Load
           <input data-max-load type="number" min="0" step="any" value="${numberValue(record.maxLoad)}" placeholder="No maximum">
         </label>
-        <div class="inventory-table" role="table" aria-label="${escapeHtml(record.fields.name)} inventory">
-          <div class="inventory-header" role="row">
-            <span>Item</span><span>Weight Ea.</span><span>Qty | Uses</span><span>Load</span><span>Actions</span>
-          </div>
+        <div class="inventory-list" aria-label="${escapeHtml(record.fields.name)} inventory">
           ${inventory.length ? inventory.map((item, index) => inventoryRowMarkup(record, item, index, state)).join("") : '<p class="manager-status inventory-empty">No items.</p>'}
           ${
             state.draftCharacterId === record.id
               ? `<form class="inventory-row inventory-draft" data-inventory-draft>
-                <input name="name" type="text" maxlength="120" placeholder="Item name" aria-label="New item name" required>
-                <input class="inventory-number" name="weight" type="number" min="0" step="any" value="0" aria-label="New item weight each" required>
-                <input class="inventory-number" name="count" type="number" min="1" step="1" value="1" aria-label="New item quantity or uses" required>
-                <span class="inventory-load">—</span>
-                <div class="inventory-actions">
-                  <button type="button" class="secondary compact" data-inventory-draft-cancel>Cancel</button>
-                  <button type="submit" class="primary compact">Save</button>
+                <div class="inventory-primary">
+                  <input class="inventory-inline-input inventory-name" name="name" type="text" maxlength="120" placeholder="Item name" aria-label="New item name" required>
+                  <div class="inventory-actions">
+                    <button type="button" class="secondary compact" data-inventory-draft-cancel>Cancel</button>
+                    <button type="submit" class="primary compact">Save</button>
+                  </div>
+                </div>
+                <div class="inventory-metrics">
+                  <label class="inventory-metric">wt/ea:
+                    <input class="inventory-inline-input inventory-weight" name="weight" type="number" min="0" step="any" value="0" aria-label="New item weight each" required>
+                  </label>
+                  <label class="inventory-metric">ct:
+                    <input class="inventory-inline-input inventory-draft-count" name="count" type="number" min="1" step="1" value="1" aria-label="New item quantity or uses" required>
+                  </label>
+                  <span class="inventory-metric inventory-load">load: <strong>—</strong></span>
                 </div>
               </form>`
               : ""
