@@ -22,7 +22,7 @@ import {
 const characterFilter = {
   min: 1,
   max: 1,
-  roles: ["GM" as const],
+  roles: ["GM" as const, "PLAYER" as const],
   permissions: ["UPDATE" as const],
   every: [{ key: "layer" as const, value: "CHARACTER" }],
 };
@@ -41,7 +41,7 @@ function setupContextMenus() {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.1.4"),
+      url: assetUrl("context-menu.html?v=1.2.0"),
       height: 360,
     },
   });

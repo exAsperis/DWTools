@@ -3,6 +3,14 @@ import type {
   CharacterStorageUsage,
 } from "./characterRepository";
 import type { CreatureFields } from "./constants";
+import {
+  formatLoad,
+  formatLoadValue,
+  isOverloaded,
+  rowLoad,
+  totalLoad,
+  type InventoryItem,
+} from "./inventory";
 
 export function escapeHtml(value: string): string {
   return value.replace(
@@ -64,11 +72,20 @@ export function buildCharacterDeleteConfirmation(name: string): string {
 export interface CharacterManagerViewState {
   records: CharacterRecord[];
   counts: Map<string, number>;
+  role: "GM" | "PLAYER";
   usage?: CharacterStorageUsage;
   loading: boolean;
   saving: boolean;
   error?: string;
   editing?: { kind: "create" | "edit"; fields: CreatureFields; id?: string };
+  expandedCharacters?: Set<string>;
+  expandedInventories?: Set<string>;
+  draftCharacterId?: string;
+  transfer?: {
+    sourceCharacterId: string;
+    sourceIndex: number;
+    expected: InventoryItem;
+  };
 }
 
 function usageMarkup(usage: CharacterStorageUsage | undefined): string {
@@ -82,6 +99,128 @@ function usageMarkup(usage: CharacterStorageUsage | undefined): string {
       <progress max="${usage.limitBytes}" value="${usage.bytes}"></progress>
       ${usage.nearLimit ? "<strong>Room metadata is approaching Owlbear's limit.</strong>" : ""}
     </div>`;
+}
+
+function inventoryRowMarkup(
+  record: CharacterRecord,
+  item: InventoryItem,
+  sourceIndex: number,
+  state: CharacterManagerViewState,
+): string {
+  const transferOpen =
+    state.role === "GM" &&
+    state.transfer?.sourceCharacterId === record.id &&
+    state.transfer.sourceIndex === sourceIndex;
+  return `
+    <div class="inventory-row" data-inventory-row="${sourceIndex}">
+      <input class="inventory-name" data-inventory-name="${sourceIndex}" type="text" maxlength="120" value="${escapeHtml(item[0])}" aria-label="Item name">
+      <input class="inventory-number" data-inventory-weight="${sourceIndex}" type="number" min="0" step="any" value="${numberValue(item[1])}" aria-label="Weight each">
+      <div class="inventory-count">
+        <button type="button" data-inventory-adjust="${sourceIndex}" data-change="-1" aria-label="Decrease ${escapeHtml(item[0])} count">−</button>
+        <input data-inventory-count="${sourceIndex}" type="number" min="0" step="1" value="${item[2]}" aria-label="${escapeHtml(item[0])} quantity or uses">
+        <button type="button" data-inventory-adjust="${sourceIndex}" data-change="1" aria-label="Increase ${escapeHtml(item[0])} count">+</button>
+      </div>
+      <span class="inventory-load">${formatLoadValue(rowLoad(item))}</span>
+      <div class="inventory-actions">
+        <button type="button" class="danger compact" data-inventory-remove="${sourceIndex}" aria-label="Remove ${escapeHtml(item[0])}">Remove</button>
+        ${state.role === "GM" ? `<button type="button" class="secondary compact" data-inventory-transfer="${sourceIndex}">Transfer</button>` : ""}
+      </div>
+    </div>
+    ${
+      transferOpen
+        ? `<form class="transfer-form" data-transfer-form="${sourceIndex}">
+          <label>Destination
+            <select name="destination" required>
+              <option value="">Choose a Character</option>
+              ${state.records
+                .filter((candidate) => candidate.id !== record.id)
+                .map(
+                  (candidate) =>
+                    `<option value="${escapeHtml(candidate.id)}">${escapeHtml(candidate.fields.name)}</option>`,
+                )
+                .join("")}
+            </select>
+          </label>
+          <label>Count
+            <input name="count" type="number" min="1" max="${item[2]}" step="1" value="1" required>
+          </label>
+          <div class="manager-actions">
+            <button type="button" class="secondary compact" data-transfer-cancel>Cancel</button>
+            <button type="submit" class="primary compact">Transfer</button>
+          </div>
+        </form>`
+        : ""
+    }`;
+}
+
+function inventoryMarkup(
+  record: CharacterRecord,
+  state: CharacterManagerViewState,
+): string {
+  const inventory = record.inventory ?? [];
+  const overloaded = isOverloaded(totalLoad(inventory), record.maxLoad);
+  const expanded = state.expandedInventories?.has(record.id) ?? false;
+  const summary =
+    !inventory.length && record.maxLoad === undefined
+      ? "Empty"
+      : formatLoad(inventory, record.maxLoad);
+  return `
+    <details class="inventory-section ${overloaded ? "overloaded" : ""}" data-inventory-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
+      <summary>
+        <strong>Inventory</strong>
+        <span class="inventory-summary ${overloaded ? "load-warning" : ""}">${summary}</span>
+      </summary>
+      <div class="inventory-editor">
+        <label class="max-load">Maximum Load
+          <input data-max-load type="number" min="0" step="any" value="${numberValue(record.maxLoad)}" placeholder="No maximum">
+        </label>
+        <div class="inventory-table" role="table" aria-label="${escapeHtml(record.fields.name)} inventory">
+          <div class="inventory-header" role="row">
+            <span>Item</span><span>Weight Ea.</span><span>Qty | Uses</span><span>Load</span><span>Actions</span>
+          </div>
+          ${inventory.length ? inventory.map((item, index) => inventoryRowMarkup(record, item, index, state)).join("") : '<p class="manager-status inventory-empty">No items.</p>'}
+          ${
+            state.draftCharacterId === record.id
+              ? `<form class="inventory-row inventory-draft" data-inventory-draft>
+                <input name="name" type="text" maxlength="120" placeholder="Item name" aria-label="New item name" required>
+                <input class="inventory-number" name="weight" type="number" min="0" step="any" value="0" aria-label="New item weight each" required>
+                <input class="inventory-number" name="count" type="number" min="1" step="1" value="1" aria-label="New item quantity or uses" required>
+                <span class="inventory-load">—</span>
+                <div class="inventory-actions">
+                  <button type="button" class="secondary compact" data-inventory-draft-cancel>Cancel</button>
+                  <button type="submit" class="primary compact">Save</button>
+                </div>
+              </form>`
+              : ""
+          }
+        </div>
+        ${state.draftCharacterId === record.id ? "" : '<button type="button" class="secondary compact add-item" data-inventory-add>Add Item</button>'}
+      </div>
+    </details>`;
+}
+
+function characterCardMarkup(
+  record: CharacterRecord,
+  state: CharacterManagerViewState,
+): string {
+  const expanded = state.expandedCharacters?.has(record.id) ?? false;
+  const count = state.counts.get(record.id) ?? 0;
+  return `
+    <details class="character-card" data-character-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
+      <summary class="character-card-summary">
+        <strong>${escapeHtml(record.fields.name)}</strong>
+        <span>${formatLoad(record.inventory, record.maxLoad)}</span>
+      </summary>
+      <div class="character-card-body">
+        <span>HP ${numberValue(record.fields.hpCurrent) || "—"}/${numberValue(record.fields.hpMax) || "—"} · ARM ${numberValue(record.fields.armor) || "—"} · DMG ${escapeHtml(record.fields.damage ?? "—")}</span>
+        <span>${count} linked token${count === 1 ? "" : "s"} in current scene · Updated ${escapeHtml(new Date(record.updatedAt).toLocaleString())}</span>
+        <div class="card-actions">
+          <button type="button" class="secondary compact" data-edit-character="${escapeHtml(record.id)}">Edit Character</button>
+          ${state.role === "GM" ? `<button type="button" class="danger compact" data-delete-character="${escapeHtml(record.id)}">Delete</button>` : ""}
+        </div>
+        ${inventoryMarkup(record, state)}
+      </div>
+    </details>`;
 }
 
 export function buildCharacterManagerMarkup(
@@ -106,37 +245,22 @@ export function buildCharacterManagerMarkup(
   return `
     <section class="character-manager">
       <div class="section-heading">
-        <h2>Character Records</h2>
+        <h2>Characters</h2>
         <button class="section-toggle" type="button" data-toggle-section="characters" aria-expanded="${expanded}">
           (${expanded ? "collapse" : "expand"})
         </button>
       </div>
       ${
         expanded
-          ? `${usageMarkup(state.usage)}
-      <button type="button" class="primary compact manager-create" id="manager-create">New</button>
+          ? `${state.role === "GM" ? usageMarkup(state.usage) : ""}
+      ${state.role === "GM" ? '<button type="button" class="primary compact manager-create" id="manager-create">New</button>' : ""}
       ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
       ${
         state.loading
-          ? '<p class="manager-status">Loading character records…</p>'
+          ? '<p class="manager-status">Loading Characters…</p>'
           : state.records.length
-            ? `<div class="character-list">${state.records
-                .map(
-                  (record) => `
-              <article class="character-card" data-character-search="${escapeHtml(`${record.fields.name} ${record.fields.tags ?? ""}`.toLocaleLowerCase())}">
-                <div>
-                  <strong>${escapeHtml(record.fields.name)}</strong>
-                  <span>HP ${numberValue(record.fields.hpCurrent) || "—"}/${numberValue(record.fields.hpMax) || "—"} · ARM ${numberValue(record.fields.armor) || "—"} · DMG ${escapeHtml(record.fields.damage ?? "—")}</span>
-                  <span>${state.counts.get(record.id) ?? 0} linked token${state.counts.get(record.id) === 1 ? "" : "s"} in current scene · Updated ${escapeHtml(new Date(record.updatedAt).toLocaleString())}</span>
-                </div>
-                <div class="card-actions">
-                  <button type="button" class="secondary compact" data-edit-character="${escapeHtml(record.id)}">Edit</button>
-                  <button type="button" class="danger compact" data-delete-character="${escapeHtml(record.id)}">Delete</button>
-                </div>
-              </article>`,
-                )
-                .join("")}</div>`
-            : '<p class="manager-status">No character records found.</p>'
+            ? `<div class="character-list">${state.records.map((record) => characterCardMarkup(record, state)).join("")}</div>`
+            : `<p class="manager-status">${state.role === "GM" ? "No Character records found." : "You do not currently control any linked Character tokens in this scene."}</p>`
       }`
           : ""
       }

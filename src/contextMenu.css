@@ -23,6 +23,8 @@ button { font: inherit; }
 .tags-row { display: grid; grid-template-columns: 22px 1fr; align-items: start; gap: 9px; }
 .combat-row { display: grid; grid-template-columns: minmax(38px, auto) 34px 1fr 34px; align-items: center; gap: 8px; }
 .damage-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 3px 6px; }
+.load-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800; }
+.load-warning { color: #fca5a5; }
 .stat-group { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
 .descriptors { color: var(--dw-text-secondary); font-style: italic; }
 .damage-description { white-space: normal; }

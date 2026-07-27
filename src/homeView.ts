@@ -240,10 +240,10 @@ export function buildHomeMarkup(
         </div>`
             : ""
         }
-      </section>
-      ${characterManagerMarkup}`
+      </section>`
           : ""
       }
+      ${characterManagerMarkup}
       <dialog id="move-dialog" class="move-dialog">
         <div class="move-dialog-heading">
           <h2 id="move-dialog-title"></h2>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildContextSummary } from "./contextMenuView";
+import { activeRecord } from "./characterTestHelpers";
 
 describe("buildContextSummary", () => {
   it("renders the three-line summary with optional damage details", () => {
@@ -45,5 +46,17 @@ describe("buildContextSummary", () => {
     );
     expect(markup).toContain("(&lt;Claws&gt;)");
     expect(markup).toContain("Close &amp; Messy");
+  });
+
+  it("shows linked Character Load and an overloaded warning", () => {
+    const record = activeRecord("hero", {
+      inventory: [["Bag of Books", 0.4, 5]],
+      maxLoad: 1,
+    });
+    const markup = buildContextSummary({}, record);
+
+    expect(markup).toContain("Load: 2.00 / 1.00");
+    expect(markup).toContain("Overloaded");
+    expect(markup).toContain("load-warning");
   });
 });

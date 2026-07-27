@@ -1,5 +1,7 @@
 import type { CreatureData } from "./constants";
 import { iconMarkup } from "./icons";
+import type { CharacterRecord } from "./characterRepository";
+import { formatLoad, isOverloaded, totalLoad } from "./inventory";
 
 export function escapeHtml(value: string): string {
   return value.replace(
@@ -19,7 +21,10 @@ export function displayValue(value: string | number | undefined): string {
   return value === undefined || value === "" ? "—" : escapeHtml(String(value));
 }
 
-export function buildContextSummary(data: CreatureData): string {
+export function buildContextSummary(
+  data: CreatureData,
+  record?: CharacterRecord,
+): string {
   const description = data.damageDescription?.trim();
   const damageTags = data.damageTags?.trim();
   return `
@@ -40,5 +45,13 @@ export function buildContextSummary(data: CreatureData): string {
       <button class="damage" type="button" id="damage" title="Roll damage">${displayValue(data.damage)}</button>
       ${description ? `<span class="damage-description">(${escapeHtml(description)})</span>` : ""}
       ${damageTags ? `<span class="descriptors">${escapeHtml(damageTags)}</span>` : ""}
-    </div>`;
+    </div>
+    ${
+      record
+        ? `<div class="summary-row load-row ${isOverloaded(totalLoad(record.inventory), record.maxLoad) ? "load-warning" : ""}">
+          ${formatLoad(record.inventory, record.maxLoad)}
+          ${isOverloaded(totalLoad(record.inventory), record.maxLoad) ? "<strong>Overloaded</strong>" : ""}
+        </div>`
+        : ""
+    }`;
 }

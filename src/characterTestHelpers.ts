@@ -89,7 +89,7 @@ export function activeRecord(
   overrides: Partial<CharacterRecord> = {},
 ): CharacterRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     fields: {
       name: "Raganah",

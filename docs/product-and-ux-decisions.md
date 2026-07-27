@@ -151,6 +151,36 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-27 — Character inventory and Load use controlled-token access
+
+Every persistent Character can carry an optional `maxLoad` and a compact
+inventory tuple array. Missing inventory is the canonical empty state, and an
+inventory that becomes empty is omitted from serialized room metadata. Load is
+calculated from full numeric values and rounded only for display. Inventory
+stays on the authoritative room Character record; Creature token metadata
+continues to contain only the established character link and synchronized
+creature fields.
+
+The main-panel Characters section is available to GMs and players. GMs see all
+records and retain creation, deletion, and transfer controls. Players see and
+edit only records linked to Character-layer tokens they currently control
+under Owlbear's `CHARACTER_UPDATE`, `CHARACTER_OWNER_ONLY`, assigned owner, and
+lock rules. Access is recalculated before every mutation; no separate
+player-to-character assignment is stored.
+
+Each Character card is expandable and contains an always-present, independently
+collapsible Inventory subsection. Inventory rows use inline name and unit-weight
+editing, one count displayed between decrement/increment controls, row and total
+Load, inline item creation, and GM-only transfers. The token context menu shows
+the linked Character's Load for quick reference but leaves inventory management
+in the main panel.
+
+This supersedes the prior GM-only Character Records presentation while
+preserving GM-only room-wide management and the existing controlled-token
+permission model. Reason: persistent Characters also represent player
+characters and shared containers, while Owlbear token control already provides
+the intended scene-scoped assignment mechanism.
+
 ### 2026-07-27 — Main panel follows Owlbear theme and groups moves
 
 The main panel takes its background, surface, text, secondary text, disabled

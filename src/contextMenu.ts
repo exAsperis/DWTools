@@ -15,6 +15,12 @@ import {
   escapeHtml,
 } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
+import { createObrCharacterRepository } from "./obrCharacterServices";
+import type {
+  CharacterRecord,
+  CharacterRepository,
+} from "./characterRepository";
+import { getCharacterLink } from "./creatureFields";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
@@ -23,6 +29,8 @@ const preview = params.get("preview");
 let token: Item | undefined;
 let updatingHp = false;
 let creatureService: CreatureService | undefined;
+let characterRepository: CharacterRepository | undefined;
+let characterRecord: CharacterRecord | undefined;
 
 function getData(item: Item): CreatureData {
   const raw = item.metadata[CREATURE_KEY];
@@ -50,7 +58,7 @@ function render() {
     .filter(Boolean);
   app.innerHTML = `
     <section class="panel">
-      <div class="summary" aria-label="Creature summary">${buildContextSummary(data)}</div>
+      <div class="summary" aria-label="Creature summary">${buildContextSummary(data, characterRecord)}</div>
       <div class="details">
         <div class="line"><span class="label">Instinct:</span> ${displayValue(data.instinct)}</div>
         <div class="line">
@@ -169,6 +177,12 @@ async function loadSelectedToken() {
     selection?.length === 1
       ? (await OBR.scene.items.getItems([selection[0]]))[0]
       : undefined;
+  characterRecord = undefined;
+  const link = token && getCharacterLink(token);
+  if (link && characterRepository) {
+    const lookup = await characterRepository.inspect(link.characterId);
+    characterRecord = lookup.status === "active" ? lookup.record : undefined;
+  }
   render();
 }
 
@@ -192,6 +206,22 @@ if (preview === "context") {
       } satisfies CreatureData,
     },
   } as unknown as Item;
+  characterRecord = {
+    schemaVersion: 2,
+    id: "preview-character",
+    fields: { name: "Frogman" },
+    inventory: [
+      ["Coin", 0.01, 137],
+      ["Bag of Books", 0.4, 3],
+    ],
+    maxLoad: 11,
+    revision: 1,
+    createdAt: "2026-07-27T12:00:00.000Z",
+    createdBy: "preview",
+    updatedAt: "2026-07-27T12:00:00.000Z",
+    updatedBy: "preview",
+    writeId: "preview-write",
+  };
   const previewIsLight = params.get("theme") === "light";
   document.documentElement.dataset.obrTheme = previewIsLight ? "light" : "dark";
   document.documentElement.style.setProperty(
@@ -208,7 +238,8 @@ if (preview === "context") {
   app.innerHTML = '<p class="error">Open this menu inside Owlbear Rodeo.</p>';
 } else {
   OBR.onReady(async () => {
-    creatureService = createObrCreatureService();
+    characterRepository = createObrCharacterRepository();
+    creatureService = createObrCreatureService(characterRepository);
     applyTheme(await OBR.theme.getTheme());
     OBR.theme.onChange(applyTheme);
     await loadSelectedToken();
@@ -218,7 +249,16 @@ if (preview === "context") {
       const updated = items.find((item) => item.id === token!.id);
       if (updated) {
         token = updated;
-        render();
+        void loadSelectedToken();
+      }
+    });
+    characterRepository.subscribe((changes) => {
+      const link = token && getCharacterLink(token);
+      if (
+        link &&
+        changes.some((change) => change.characterId === link.characterId)
+      ) {
+        void loadSelectedToken();
       }
     });
   });

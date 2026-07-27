@@ -12,6 +12,7 @@ describe("character manager view", () => {
       {
         records: [record],
         counts: new Map([[record.id, 2]]),
+        role: "GM",
         usage: {
           bytes: 4_096,
           limitBytes: 16_384,
@@ -26,7 +27,7 @@ describe("character manager view", () => {
       true,
     );
 
-    expect(markup).toContain("Character Records");
+    expect(markup).toContain("Characters");
     expect(markup).toContain("Raganah");
     expect(markup).toContain("HP 8/10");
     expect(markup).toContain("2 linked tokens in current scene");
@@ -44,6 +45,7 @@ describe("character manager view", () => {
       {
         records: [],
         counts: new Map(),
+        role: "GM",
         usage: {
           bytes: 14_000,
           limitBytes: 16_384,
@@ -65,6 +67,7 @@ describe("character manager view", () => {
     const markup = buildCharacterManagerMarkup({
       records: [activeRecord("raganah")],
       counts: new Map(),
+      role: "GM",
       loading: false,
       saving: false,
     });
@@ -82,5 +85,79 @@ describe("character manager view", () => {
       "Linked copies in other scenes will become orphaned",
     );
     expect(confirmation).toContain("need to be manually resolved");
+  });
+
+  it("renders the requested inline inventory columns and controls", () => {
+    const record = activeRecord("raganah", {
+      inventory: [
+        ["Coin", 0.01, 137],
+        ["Bag of Books", 0.4, 5],
+      ],
+      maxLoad: 11,
+    });
+    const markup = buildCharacterManagerMarkup(
+      {
+        records: [record],
+        counts: new Map(),
+        role: "GM",
+        loading: false,
+        saving: false,
+        expandedCharacters: new Set([record.id]),
+        expandedInventories: new Set([record.id]),
+      },
+      true,
+    );
+
+    expect(markup).toContain("Item");
+    expect(markup).toContain("Weight Ea.");
+    expect(markup).toContain("Qty | Uses");
+    expect(markup).toContain("Load");
+    expect(markup).toContain('data-inventory-adjust="0"');
+    expect(markup).toContain(">−</button>");
+    expect(markup).toContain(">+</button>");
+    expect(markup).toContain('value="137"');
+    expect(markup).toContain("Load: 3.37 / 11.00");
+    expect(markup).toContain("Add Item");
+    expect(markup).toContain("Transfer");
+  });
+
+  it("always shows collapsed Inventory and highlights overload", () => {
+    const record = activeRecord("raganah", {
+      inventory: [["Sword", 2, 2]],
+      maxLoad: 3,
+    });
+    const markup = buildCharacterManagerMarkup(
+      {
+        records: [record],
+        counts: new Map(),
+        role: "PLAYER",
+        loading: false,
+        saving: false,
+        expandedCharacters: new Set([record.id]),
+      },
+      true,
+    );
+
+    expect(markup).toContain('class="inventory-section overloaded"');
+    expect(markup).toContain("Load: 4.00 / 3.00");
+    expect(markup).not.toContain('data-inventory-details="raganah" open');
+    expect(markup).not.toContain("Transfer");
+    expect(markup).not.toContain('id="manager-create"');
+    expect(markup).not.toContain("data-delete-character");
+  });
+
+  it("gives players a controlled-token empty state", () => {
+    const markup = buildCharacterManagerMarkup(
+      {
+        records: [],
+        counts: new Map(),
+        role: "PLAYER",
+        loading: false,
+        saving: false,
+      },
+      true,
+    );
+
+    expect(markup).toContain("do not currently control");
   });
 });

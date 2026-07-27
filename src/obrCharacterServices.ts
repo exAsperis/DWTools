@@ -9,6 +9,7 @@ import {
   type SceneItemStore,
 } from "./characterService";
 import type { RoomMetadata } from "./defaultVisibility";
+import type { CharacterAccessProvider } from "./characterAccess";
 
 export const obrRoomMetadataStore: CharacterMetadataStore = {
   getMetadata: () => OBR.room.getMetadata(),
@@ -25,6 +26,12 @@ export const obrSceneItemStore: SceneItemStore = {
     }),
 };
 
+export const obrCharacterAccessProvider: CharacterAccessProvider = {
+  getRole: () => OBR.player.getRole(),
+  getPlayerId: () => OBR.player.getId(),
+  hasPermission: (permission) => OBR.player.hasPermission(permission),
+};
+
 export function createObrCharacterRepository(): CharacterRepository {
   return new CharacterRepository(obrRoomMetadataStore, {
     getActorId: () => OBR.player.getId(),
@@ -34,14 +41,20 @@ export function createObrCharacterRepository(): CharacterRepository {
 export function createObrCreatureService(
   repository = createObrCharacterRepository(),
 ): CreatureService {
-  return new CreatureService(repository, obrSceneItemStore);
+  return new CreatureService(
+    repository,
+    obrSceneItemStore,
+    obrCharacterAccessProvider,
+  );
 }
 
 export function createObrCharacterManagerService(
   repository = createObrCharacterRepository(),
   creatures = new CreatureService(repository, obrSceneItemStore),
 ): CharacterManagerService {
-  return new CharacterManagerService(repository, creatures, {
-    getRole: () => OBR.player.getRole(),
-  });
+  return new CharacterManagerService(
+    repository,
+    creatures,
+    obrCharacterAccessProvider,
+  );
 }

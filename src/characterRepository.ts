@@ -8,8 +8,16 @@ import {
   normalizeCreatureFields,
 } from "./creatureFields";
 import type { RoomMetadata } from "./defaultVisibility";
+import {
+  findSelectedInventoryIndex,
+  normalizeInventory,
+  normalizeInventoryItem,
+  normalizeMaxLoad,
+  type InventoryItem,
+  type InventorySelection,
+} from "./inventory";
 
-export const CHARACTER_RECORD_SCHEMA_VERSION = 1;
+export const CHARACTER_RECORD_SCHEMA_VERSION = 2;
 export const OWLBEAR_ROOM_METADATA_LIMIT_BYTES = 16 * 1024;
 export const CHARACTER_METADATA_SAFE_MAX_BYTES = 15 * 1024;
 export const CHARACTER_METADATA_WARNING_BYTES = Math.floor(
@@ -25,6 +33,8 @@ interface CharacterAuditFields {
 
 export interface CharacterRecord extends CharacterAuditFields {
   fields: CreatureFields;
+  maxLoad?: number;
+  inventory?: InventoryItem[];
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -104,7 +114,6 @@ function isAuditFields(
   expectedId: string,
 ): boolean {
   return (
-    value.schemaVersion === CHARACTER_RECORD_SCHEMA_VERSION &&
     value.id === expectedId &&
     Number.isInteger(value.revision) &&
     Number(value.revision) >= 1 &&
@@ -123,9 +132,10 @@ export function characterIdFromMetadataKey(key: string): string | undefined {
   return id || undefined;
 }
 
-function parseVersionOneCharacterRecord(
+function parseCharacterRecordVersion(
   value: unknown,
   expectedId: string,
+  sourceVersion: 1 | typeof CHARACTER_RECORD_SCHEMA_VERSION,
 ): StoredCharacterRecord | undefined {
   if (!isObject(value) || !isAuditFields(value, expectedId)) return undefined;
 
@@ -160,10 +170,20 @@ function parseVersionOneCharacterRecord(
   }
 
   try {
+    const inventory =
+      sourceVersion === CHARACTER_RECORD_SCHEMA_VERSION
+        ? normalizeInventory(value.inventory)
+        : [];
+    const maxLoad =
+      sourceVersion === CHARACTER_RECORD_SCHEMA_VERSION
+        ? normalizeMaxLoad(value.maxLoad)
+        : undefined;
     return {
       schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
       id: expectedId,
       fields: normalizeCreatureFields(value.fields),
+      ...(maxLoad === undefined ? {} : { maxLoad }),
+      ...(inventory.length ? { inventory } : {}),
       revision: Number(value.revision),
       createdAt: value.createdAt,
       createdBy: value.createdBy,
@@ -182,8 +202,14 @@ export function migrateCharacterRecord(
 ): StoredCharacterRecord | undefined {
   if (!isObject(value)) return undefined;
   switch (value.schemaVersion) {
+    case 1:
+      return parseCharacterRecordVersion(value, expectedId, 1);
     case CHARACTER_RECORD_SCHEMA_VERSION:
-      return parseVersionOneCharacterRecord(value, expectedId);
+      return parseCharacterRecordVersion(
+        value,
+        expectedId,
+        CHARACTER_RECORD_SCHEMA_VERSION,
+      );
     default:
       return undefined;
   }
@@ -391,6 +417,207 @@ export class CharacterRepository {
     );
   }
 
+  async setMaxLoad(
+    characterId: string,
+    maxLoad: number | undefined,
+  ): Promise<CharacterRecord> {
+    const normalized = normalizeMaxLoad(maxLoad);
+    return this.mutateRecord(characterId, (current) => {
+      const withoutMaxLoad = { ...current };
+      delete withoutMaxLoad.maxLoad;
+      return normalized === undefined
+        ? withoutMaxLoad
+        : { ...withoutMaxLoad, maxLoad: normalized };
+    });
+  }
+
+  async addInventoryItem(
+    characterId: string,
+    item: InventoryItem,
+  ): Promise<CharacterRecord> {
+    const normalized = normalizeInventoryItem(item);
+    return this.mutateRecord(characterId, (current) =>
+      this.withInventory(current, [...(current.inventory ?? []), normalized]),
+    );
+  }
+
+  async updateInventoryItem(
+    characterId: string,
+    selection: InventorySelection,
+    replacement: InventoryItem,
+  ): Promise<CharacterRecord> {
+    const normalized = normalizeInventoryItem(replacement);
+    return this.mutateSelectedInventoryItem(
+      characterId,
+      selection,
+      (_item, inventory, index) => {
+        inventory[index] = normalized;
+      },
+    );
+  }
+
+  async changeInventoryItemCount(
+    characterId: string,
+    selection: InventorySelection,
+    change: number,
+  ): Promise<CharacterRecord> {
+    if (!Number.isInteger(change) || change === 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Inventory count changes must be a non-zero integer.",
+      );
+    }
+    return this.mutateSelectedInventoryItem(
+      characterId,
+      selection,
+      (item, inventory, index) => {
+        const nextCount = item[2] + change;
+        if (nextCount < 0) {
+          throw new CharacterRepositoryError(
+            "VALIDATION",
+            "Inventory item count cannot be negative.",
+          );
+        }
+        if (nextCount === 0) inventory.splice(index, 1);
+        else inventory[index] = [item[0], item[1], nextCount];
+      },
+    );
+  }
+
+  async removeInventoryItem(
+    characterId: string,
+    selection: InventorySelection,
+  ): Promise<CharacterRecord> {
+    return this.mutateSelectedInventoryItem(
+      characterId,
+      selection,
+      (_item, inventory, index) => {
+        inventory.splice(index, 1);
+      },
+    );
+  }
+
+  async transferInventoryItem(
+    sourceCharacterId: string,
+    destinationCharacterId: string,
+    selection: InventorySelection,
+    count: number,
+  ): Promise<{ source: CharacterRecord; destination: CharacterRecord }> {
+    if (sourceCharacterId === destinationCharacterId) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Choose a different destination character.",
+      );
+    }
+    if (!Number.isInteger(count) || count <= 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Transfer count must be a positive integer.",
+      );
+    }
+
+    const metadata = await this.readMetadata();
+    const source = this.requireActive(
+      lookupFromMetadata(metadata, sourceCharacterId),
+      sourceCharacterId,
+    );
+    const destination = this.requireActive(
+      lookupFromMetadata(metadata, destinationCharacterId),
+      destinationCharacterId,
+    );
+    const sourceInventory = [...(source.inventory ?? [])];
+    const sourceIndex = findSelectedInventoryIndex(sourceInventory, selection);
+    if (sourceIndex < 0) throw this.inventoryChangedError(sourceCharacterId);
+    const item = sourceInventory[sourceIndex];
+    if (count > item[2]) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Transfer count cannot exceed the source item count.",
+      );
+    }
+    if (count === item[2]) sourceInventory.splice(sourceIndex, 1);
+    else sourceInventory[sourceIndex] = [item[0], item[1], item[2] - count];
+    const destinationInventory = [
+      ...(destination.inventory ?? []),
+      [item[0], item[1], count] satisfies InventoryItem,
+    ];
+
+    const actorId = await this.getActorId();
+    const timestamp = this.now().toISOString();
+    const sourceCandidate = this.finalizeMutation(
+      this.withInventory(source, sourceInventory),
+      actorId,
+      timestamp,
+    );
+    const destinationCandidate = this.finalizeMutation(
+      this.withInventory(destination, destinationInventory),
+      actorId,
+      timestamp,
+    );
+
+    const latest = await this.readMetadata();
+    const latestSource = lookupFromMetadata(latest, sourceCharacterId);
+    const latestDestination = lookupFromMetadata(
+      latest,
+      destinationCharacterId,
+    );
+    if (
+      latestSource.status !== "active" ||
+      latestSource.record.writeId !== source.writeId ||
+      latestDestination.status !== "active" ||
+      latestDestination.record.writeId !== destination.writeId
+    ) {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "Inventory changed before the transfer could be saved. Refresh and try again.",
+      );
+    }
+
+    const proposedMetadata = {
+      ...latest,
+      [characterMetadataKey(sourceCharacterId)]: sourceCandidate,
+      [characterMetadataKey(destinationCharacterId)]: destinationCandidate,
+    };
+    const usage = storageUsage(proposedMetadata);
+    if (usage.bytes > CHARACTER_METADATA_SAFE_MAX_BYTES) {
+      throw new CharacterRepositoryError(
+        "CAPACITY",
+        "The room is too close to Owlbear's metadata limit to transfer this item.",
+        { proposedBytes: usage.bytes },
+      );
+    }
+    try {
+      await this.store.setMetadata({
+        [characterMetadataKey(sourceCharacterId)]: sourceCandidate,
+        [characterMetadataKey(destinationCharacterId)]: destinationCandidate,
+      });
+    } catch (error) {
+      throw repositoryError(error, "Owlbear could not transfer this item.");
+    }
+
+    const readBack = await this.readMetadata();
+    const savedSource = lookupFromMetadata(readBack, sourceCharacterId);
+    const savedDestination = lookupFromMetadata(
+      readBack,
+      destinationCharacterId,
+    );
+    if (
+      savedSource.status !== "active" ||
+      savedSource.record.writeId !== sourceCandidate.writeId ||
+      savedDestination.status !== "active" ||
+      savedDestination.record.writeId !== destinationCandidate.writeId
+    ) {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "The transfer was submitted atomically, but another client changed one of the characters immediately afterward. Refresh both characters.",
+      );
+    }
+    return {
+      source: savedSource.record,
+      destination: savedDestination.record,
+    };
+  }
+
   async delete(characterId: string): Promise<void> {
     const metadata = await this.readMetadata();
     const lookup = lookupFromMetadata(metadata, characterId);
@@ -542,6 +769,90 @@ export class CharacterRepository {
     throw new CharacterRepositoryError(
       "NOT_FOUND",
       "This character record no longer exists.",
+      { characterId },
+    );
+  }
+
+  private async mutateRecord(
+    characterId: string,
+    transform: (current: CharacterRecord) => CharacterRecord,
+  ): Promise<CharacterRecord> {
+    for (let attempt = 1; attempt <= this.patchRetries; attempt += 1) {
+      const metadata = await this.readMetadata();
+      const current = this.requireActive(
+        lookupFromMetadata(metadata, characterId),
+        characterId,
+      );
+      const actorId = await this.getActorId();
+      const candidate = this.finalizeMutation(
+        transform(current),
+        actorId,
+        this.now().toISOString(),
+      );
+      if (!(await this.writeCandidate(candidate, current.writeId))) continue;
+      const readBack = await this.inspect(characterId);
+      if (
+        readBack.status === "active" &&
+        readBack.record.writeId === candidate.writeId
+      ) {
+        return readBack.record;
+      }
+    }
+    throw new CharacterRepositoryError(
+      "CONFLICT",
+      "Another client kept changing this character. Reload it and try again.",
+      { characterId, attempts: this.patchRetries },
+    );
+  }
+
+  private async mutateSelectedInventoryItem(
+    characterId: string,
+    selection: InventorySelection,
+    mutation: (
+      item: InventoryItem,
+      inventory: InventoryItem[],
+      index: number,
+    ) => void,
+  ): Promise<CharacterRecord> {
+    return this.mutateRecord(characterId, (current) => {
+      const inventory = [...(current.inventory ?? [])];
+      const index = findSelectedInventoryIndex(inventory, selection);
+      if (index < 0) throw this.inventoryChangedError(characterId);
+      mutation(inventory[index], inventory, index);
+      return this.withInventory(current, inventory);
+    });
+  }
+
+  private withInventory(
+    record: CharacterRecord,
+    inventory: InventoryItem[],
+  ): CharacterRecord {
+    const withoutInventory = { ...record };
+    delete withoutInventory.inventory;
+    return inventory.length
+      ? { ...withoutInventory, inventory }
+      : withoutInventory;
+  }
+
+  private finalizeMutation(
+    record: CharacterRecord,
+    actorId: string,
+    timestamp: string,
+  ): CharacterRecord {
+    return {
+      ...record,
+      schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
+      revision: record.revision + 1,
+      updatedAt: timestamp,
+      updatedBy: actorId,
+      writeId: this.randomUUID(),
+    };
+  }
+
+  private inventoryChangedError(characterId: string): CharacterRepositoryError {
+    return new CharacterRepositoryError(
+      "CONFLICT",
+      "Inventory changed on another client. Refresh and try again.",
       { characterId },
     );
   }

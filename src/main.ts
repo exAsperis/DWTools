@@ -54,6 +54,7 @@ import {
   createObrCharacterRepository,
   createObrCreatureService,
 } from "./obrCharacterServices";
+import type { InventoryItem, InventorySelection } from "./inventory";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const params = new URLSearchParams(window.location.search);
@@ -143,6 +144,10 @@ let managerSaving = false;
 let managerError: string | undefined;
 let managerLegacyCleanupComplete = false;
 let managerEditing: CharacterManagerViewState["editing"];
+let managerDraftCharacterId: string | undefined;
+let managerTransfer: CharacterManagerViewState["transfer"];
+const managerExpandedCharacters = new Set<string>();
+const managerExpandedInventories = new Set<string>();
 const HOME_SECTIONS_KEY = "dwtools/home-sections";
 
 function loadHomeSections(): HomeSectionState {
@@ -185,23 +190,25 @@ function managerState(): CharacterManagerViewState {
   return {
     records: managerRecords,
     counts: managerCounts,
+    role: homeRole,
     usage: managerUsage,
     loading: managerLoading,
     saving: managerSaving,
     error: managerError,
     editing: managerEditing,
+    expandedCharacters: managerExpandedCharacters,
+    expandedInventories: managerExpandedInventories,
+    draftCharacterId: managerDraftCharacterId,
+    transfer: managerTransfer,
   };
 }
 
 function renderHome(): void {
   const defaultVisibleToPlayers = getDefaultOverlayVisibility(homeMetadata);
-  const managerMarkup =
-    homeRole === "GM"
-      ? buildCharacterManagerMarkup(
-          managerState(),
-          homeSections.characters || Boolean(managerEditing),
-        )
-      : "";
+  const managerMarkup = buildCharacterManagerMarkup(
+    managerState(),
+    homeSections.characters || Boolean(managerEditing),
+  );
   app.innerHTML = buildHomeMarkup(
     homeRole,
     defaultVisibleToPlayers,
@@ -297,22 +304,315 @@ function bindManagerControls(): void {
       void saveManagedCharacter(form);
     });
   }
+
+  for (const details of document.querySelectorAll<HTMLDetailsElement>(
+    "[data-character-details]",
+  )) {
+    details.addEventListener("toggle", () => {
+      const id = details.dataset.characterDetails;
+      if (!id) return;
+      if (details.open) managerExpandedCharacters.add(id);
+      else managerExpandedCharacters.delete(id);
+    });
+  }
+  for (const details of document.querySelectorAll<HTMLDetailsElement>(
+    "[data-inventory-details]",
+  )) {
+    details.addEventListener("toggle", () => {
+      const id = details.dataset.inventoryDetails;
+      if (!id) return;
+      if (details.open) managerExpandedInventories.add(id);
+      else managerExpandedInventories.delete(id);
+    });
+  }
+  bindInventoryControls();
+}
+
+function recordForControl(element: Element): CharacterRecord | undefined {
+  const characterId = element.closest<HTMLElement>("[data-character-details]")
+    ?.dataset.characterDetails;
+  return managerRecords.find((record) => record.id === characterId);
+}
+
+function selectionFor(
+  record: CharacterRecord,
+  sourceIndex: number,
+): InventorySelection | undefined {
+  const item = record.inventory?.[sourceIndex];
+  return item
+    ? { sourceIndex, expected: [...item] as InventoryItem }
+    : undefined;
+}
+
+async function runInventoryMutation(
+  mutation: () => Promise<unknown>,
+  successMessage?: string,
+): Promise<void> {
+  if (managerSaving) return;
+  managerSaving = true;
+  managerError = undefined;
+  renderHome();
+  try {
+    await mutation();
+    managerDraftCharacterId = undefined;
+    managerTransfer = undefined;
+    await refreshManager(false);
+    if (successMessage) notify(successMessage, "SUCCESS");
+    if (managerUsage?.nearLimit) {
+      notify("Room metadata is approaching Owlbear's size limit.", "WARNING");
+    }
+  } catch (error) {
+    const errorMessage = messageFrom(
+      error,
+      "DWTools could not update this inventory.",
+    );
+    await refreshManager(false);
+    managerError = errorMessage;
+  } finally {
+    managerSaving = false;
+    renderHome();
+  }
+}
+
+function bindInlineCommit(
+  input: HTMLInputElement,
+  originalValue: string,
+  commit: () => void,
+): void {
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      input.value = originalValue;
+      input.blur();
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      input.blur();
+    }
+  });
+  input.addEventListener("blur", commit);
+}
+
+function bindInventoryControls(): void {
+  if (!homeManagerService) return;
+  for (const input of document.querySelectorAll<HTMLInputElement>(
+    "[data-max-load]",
+  )) {
+    const record = recordForControl(input);
+    if (!record) continue;
+    const original = numberValue(record.maxLoad);
+    bindInlineCommit(input, original, () => {
+      if (input.value === original) return;
+      const next = input.value.trim() === "" ? undefined : Number(input.value);
+      void runInventoryMutation(
+        () => homeManagerService!.setMaxLoad(record.id, next),
+        "Maximum Load saved.",
+      );
+    });
+  }
+
+  for (const input of document.querySelectorAll<HTMLInputElement>(
+    "[data-inventory-name]",
+  )) {
+    const record = recordForControl(input);
+    const index = Number(input.dataset.inventoryName);
+    const selection = record && selectionFor(record, index);
+    if (!record || !selection) continue;
+    bindInlineCommit(input, selection.expected[0], () => {
+      if (input.value === selection.expected[0]) return;
+      const replacement: InventoryItem = [
+        input.value,
+        selection.expected[1],
+        selection.expected[2],
+      ];
+      void runInventoryMutation(() =>
+        homeManagerService!.updateInventoryItem(
+          record.id,
+          selection,
+          replacement,
+        ),
+      );
+    });
+  }
+
+  for (const input of document.querySelectorAll<HTMLInputElement>(
+    "[data-inventory-weight]",
+  )) {
+    const record = recordForControl(input);
+    const index = Number(input.dataset.inventoryWeight);
+    const selection = record && selectionFor(record, index);
+    if (!record || !selection) continue;
+    const original = String(selection.expected[1]);
+    bindInlineCommit(input, original, () => {
+      if (input.value === original) return;
+      const replacement: InventoryItem = [
+        selection.expected[0],
+        input.value.trim() === "" ? Number.NaN : Number(input.value),
+        selection.expected[2],
+      ];
+      void runInventoryMutation(() =>
+        homeManagerService!.updateInventoryItem(
+          record.id,
+          selection,
+          replacement,
+        ),
+      );
+    });
+  }
+
+  for (const input of document.querySelectorAll<HTMLInputElement>(
+    "[data-inventory-count]",
+  )) {
+    const record = recordForControl(input);
+    const index = Number(input.dataset.inventoryCount);
+    const selection = record && selectionFor(record, index);
+    if (!record || !selection) continue;
+    const original = String(selection.expected[2]);
+    bindInlineCommit(input, original, () => {
+      if (input.value === original) return;
+      const next = input.value.trim() === "" ? Number.NaN : Number(input.value);
+      void runInventoryMutation(() =>
+        homeManagerService!.changeInventoryItemCount(
+          record.id,
+          selection,
+          next - selection.expected[2],
+        ),
+      );
+    });
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-inventory-adjust]",
+  )) {
+    button.addEventListener("click", () => {
+      const record = recordForControl(button);
+      const index = Number(button.dataset.inventoryAdjust);
+      const selection = record && selectionFor(record, index);
+      const change = Number(button.dataset.change);
+      if (!record || !selection) return;
+      void runInventoryMutation(() =>
+        homeManagerService!.changeInventoryItemCount(
+          record.id,
+          selection,
+          change,
+        ),
+      );
+    });
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-inventory-remove]",
+  )) {
+    button.addEventListener("click", () => {
+      const record = recordForControl(button);
+      const index = Number(button.dataset.inventoryRemove);
+      const selection = record && selectionFor(record, index);
+      if (!record || !selection) return;
+      void runInventoryMutation(() =>
+        homeManagerService!.removeInventoryItem(record.id, selection),
+      );
+    });
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-inventory-add]",
+  )) {
+    button.addEventListener("click", () => {
+      const record = recordForControl(button);
+      if (!record) return;
+      managerDraftCharacterId = record.id;
+      managerExpandedCharacters.add(record.id);
+      managerExpandedInventories.add(record.id);
+      renderHome();
+      document
+        .querySelector<HTMLInputElement>("[data-inventory-draft] [name=name]")
+        ?.focus();
+    });
+  }
+  document
+    .querySelector("[data-inventory-draft-cancel]")
+    ?.addEventListener("click", () => {
+      managerDraftCharacterId = undefined;
+      renderHome();
+    });
+  const draftForm = document.querySelector<HTMLFormElement>(
+    "[data-inventory-draft]",
+  );
+  if (draftForm) {
+    draftForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const record = recordForControl(draftForm);
+      if (!record || !draftForm.reportValidity()) return;
+      const data = new FormData(draftForm);
+      const item: InventoryItem = [
+        String(data.get("name") ?? ""),
+        Number(data.get("weight")),
+        Number(data.get("count")),
+      ];
+      void runInventoryMutation(
+        () => homeManagerService!.addInventoryItem(record.id, item),
+        "Item added.",
+      );
+    });
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-inventory-transfer]",
+  )) {
+    button.addEventListener("click", () => {
+      const record = recordForControl(button);
+      const sourceIndex = Number(button.dataset.inventoryTransfer);
+      const selection = record && selectionFor(record, sourceIndex);
+      if (!record || !selection) return;
+      managerTransfer = {
+        sourceCharacterId: record.id,
+        sourceIndex,
+        expected: selection.expected,
+      };
+      renderHome();
+    });
+  }
+  document
+    .querySelector("[data-transfer-cancel]")
+    ?.addEventListener("click", () => {
+      managerTransfer = undefined;
+      renderHome();
+    });
+  const transferForm = document.querySelector<HTMLFormElement>(
+    "[data-transfer-form]",
+  );
+  if (transferForm && managerTransfer) {
+    transferForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!managerTransfer || !transferForm.reportValidity()) return;
+      const data = new FormData(transferForm);
+      const destination = String(data.get("destination") ?? "");
+      const count = Number(data.get("count"));
+      const source = managerTransfer;
+      void runInventoryMutation(
+        () =>
+          homeManagerService!.transferInventoryItem(
+            source.sourceCharacterId,
+            destination,
+            {
+              sourceIndex: source.sourceIndex,
+              expected: source.expected,
+            },
+            count,
+          ),
+        "Item transferred.",
+      );
+    });
+  }
 }
 
 async function refreshManager(render = true): Promise<void> {
-  if (
-    homeRole !== "GM" ||
-    !homeRepository ||
-    !homeCreatureService ||
-    !homeManagerService
-  ) {
+  if (!homeRepository || !homeCreatureService || !homeManagerService) {
     return;
   }
   managerLoading = true;
   managerError = undefined;
   if (render && !managerEditing) renderHome();
   try {
-    if (!managerLegacyCleanupComplete) {
+    if (homeRole === "GM" && !managerLegacyCleanupComplete) {
       const cleaned = await homeManagerService.cleanupLegacyTombstones();
       managerLegacyCleanupComplete = true;
       if (cleaned) {
@@ -323,10 +623,21 @@ async function refreshManager(render = true): Promise<void> {
       }
     }
     [managerRecords, managerCounts, managerUsage] = await Promise.all([
-      homeRepository.list(),
+      homeManagerService.listAccessible(),
       currentSceneLinkedTokenCounts(homeCreatureService.scene),
-      homeRepository.estimateUsage(),
+      homeRole === "GM"
+        ? homeRepository.estimateUsage()
+        : Promise.resolve(undefined),
     ]);
+    if (
+      homeRole === "PLAYER" &&
+      managerEditing?.kind === "edit" &&
+      !managerRecords.some((record) => record.id === managerEditing?.id)
+    ) {
+      managerEditing = undefined;
+      managerError =
+        "You no longer control a token linked to the Character being edited.";
+    }
   } catch (error) {
     managerError = messageFrom(
       error,
@@ -437,7 +748,7 @@ async function startHome(): Promise<void> {
     OBR.room.getMetadata(),
     OBR.theme.getTheme().then(applyTheme),
   ]);
-  if (homeRole === "GM") await refreshManager(false);
+  await refreshManager(false);
   renderHome();
 
   const unsubscribers = [
@@ -449,17 +760,21 @@ async function startHome(): Promise<void> {
       if (changes.some((change) => change.lookup.status === "deleted")) {
         managerLegacyCleanupComplete = false;
       }
-      if (homeRole === "GM") void refreshManager(!managerEditing);
+      void refreshManager(homeRole === "PLAYER" || !managerEditing);
     }),
     OBR.player.onChange((player) => {
       homeRole = player.role;
       managerEditing = undefined;
-      if (homeRole === "GM") void refreshManager();
-      else renderHome();
+      managerDraftCharacterId = undefined;
+      managerTransfer = undefined;
+      void refreshManager();
     }),
     OBR.scene.items.onChange(() => {
-      if (homeRole === "GM" && !managerEditing) void refreshManager();
+      void refreshManager(homeRole === "PLAYER" || !managerEditing);
     }),
+    OBR.room.onPermissionsChange(
+      () => void refreshManager(homeRole === "PLAYER" || !managerEditing),
+    ),
     OBR.theme.onChange(applyTheme),
   ];
   window.addEventListener(
@@ -893,7 +1208,7 @@ if (preview === "home") {
   };
   managerRecords = [
     {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "preview-active",
       fields: {
         name: "Raganah",

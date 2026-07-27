@@ -18,6 +18,12 @@ import {
   removeCharacterLink,
   setCharacterLink,
 } from "./creatureFields";
+import {
+  canAccessCharacter,
+  filterAccessibleCharacters,
+  type CharacterAccessProvider,
+} from "./characterAccess";
+import type { InventoryItem, InventorySelection } from "./inventory";
 
 export interface SceneItemStore {
   getItems(ids?: string[]): Promise<Item[]>;
@@ -155,6 +161,7 @@ export class CreatureService {
   constructor(
     readonly repository: CharacterRepository,
     readonly scene: SceneItemStore,
+    private readonly accessProvider?: CharacterAccessProvider,
   ) {}
 
   async updateCreatureFields(
@@ -191,6 +198,7 @@ export class CreatureService {
       );
     }
 
+    await this.requireLinkedCharacterAccess(link.characterId);
     const record = await this.repository.patch(link.characterId, patch);
     try {
       await syncCharacterToCurrentScene(
@@ -218,6 +226,7 @@ export class CreatureService {
     if (!link) {
       return this.updateCreatureFields(itemId, fields);
     }
+    await this.requireLinkedCharacterAccess(link.characterId);
     const record = await this.repository.replace(link.characterId, fields);
     try {
       await syncCharacterToCurrentScene(
@@ -333,18 +342,37 @@ export class CreatureService {
     }
     return item;
   }
-}
 
-export interface RoleProvider {
-  getRole(): Promise<"GM" | "PLAYER">;
+  private async requireLinkedCharacterAccess(
+    characterId: string,
+  ): Promise<void> {
+    if (
+      this.accessProvider &&
+      !(await canAccessCharacter(characterId, this.scene, this.accessProvider))
+    ) {
+      throw new CreatureUpdateError(
+        "API",
+        "You no longer control a token linked to this character.",
+        { characterId },
+      );
+    }
+  }
 }
 
 export class CharacterManagerService {
   constructor(
     private readonly repository: CharacterRepository,
     private readonly creatures: CreatureService,
-    private readonly roleProvider: RoleProvider,
+    private readonly accessProvider: CharacterAccessProvider,
   ) {}
+
+  async listAccessible(): Promise<CharacterRecord[]> {
+    return filterAccessibleCharacters(
+      await this.repository.list(),
+      this.creatures.scene,
+      this.accessProvider,
+    );
+  }
 
   async create(fields: CreatureFields): Promise<CharacterRecord> {
     await this.requireGm();
@@ -355,7 +383,7 @@ export class CharacterManagerService {
     characterId: string,
     fields: CreatureFields,
   ): Promise<CharacterRecord> {
-    await this.requireGm();
+    await this.requireCharacterAccess(characterId);
     const record = await this.repository.replace(characterId, fields);
     await syncCharacterToCurrentScene(
       this.repository,
@@ -363,6 +391,71 @@ export class CharacterManagerService {
       characterId,
     );
     return record;
+  }
+
+  async setMaxLoad(
+    characterId: string,
+    maxLoad: number | undefined,
+  ): Promise<CharacterRecord> {
+    await this.requireCharacterAccess(characterId);
+    return this.repository.setMaxLoad(characterId, maxLoad);
+  }
+
+  async addInventoryItem(
+    characterId: string,
+    item: InventoryItem,
+  ): Promise<CharacterRecord> {
+    await this.requireCharacterAccess(characterId);
+    return this.repository.addInventoryItem(characterId, item);
+  }
+
+  async updateInventoryItem(
+    characterId: string,
+    selection: InventorySelection,
+    replacement: InventoryItem,
+  ): Promise<CharacterRecord> {
+    await this.requireCharacterAccess(characterId);
+    return this.repository.updateInventoryItem(
+      characterId,
+      selection,
+      replacement,
+    );
+  }
+
+  async changeInventoryItemCount(
+    characterId: string,
+    selection: InventorySelection,
+    change: number,
+  ): Promise<CharacterRecord> {
+    await this.requireCharacterAccess(characterId);
+    return this.repository.changeInventoryItemCount(
+      characterId,
+      selection,
+      change,
+    );
+  }
+
+  async removeInventoryItem(
+    characterId: string,
+    selection: InventorySelection,
+  ): Promise<CharacterRecord> {
+    await this.requireCharacterAccess(characterId);
+    return this.repository.removeInventoryItem(characterId, selection);
+  }
+
+  async transferInventoryItem(
+    sourceCharacterId: string,
+    destinationCharacterId: string,
+    selection: InventorySelection,
+    count: number,
+  ): Promise<{ source: CharacterRecord; destination: CharacterRecord }> {
+    await this.requireGm();
+    return this.repository.transferInventoryItem(
+      sourceCharacterId,
+      destinationCharacterId,
+      selection,
+      count,
+    );
   }
 
   async delete(characterId: string): Promise<void> {
@@ -411,10 +504,26 @@ export class CharacterManagerService {
   }
 
   private async requireGm(): Promise<void> {
-    if ((await this.roleProvider.getRole()) !== "GM") {
+    if ((await this.accessProvider.getRole()) !== "GM") {
       throw new CharacterRepositoryError(
         "API",
         "Only the GM can manage room character records.",
+      );
+    }
+  }
+
+  private async requireCharacterAccess(characterId: string): Promise<void> {
+    if (
+      !(await canAccessCharacter(
+        characterId,
+        this.creatures.scene,
+        this.accessProvider,
+      ))
+    ) {
+      throw new CharacterRepositoryError(
+        "API",
+        "You no longer control a token linked to this character.",
+        { characterId },
       );
     }
   }

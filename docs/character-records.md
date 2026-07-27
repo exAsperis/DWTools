@@ -1,6 +1,6 @@
 # DWTools character-record engineering notes
 
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 
 This document records the architecture and operational limits of persistent
 room-level character records.
@@ -31,6 +31,10 @@ The room record is authoritative. A linked token retains a synchronized
 scene-local copy of the complete persistent creature fields so existing
 overlays and UI continue to read the established creature metadata.
 
+Inventory and Load are never copied to Creature token metadata. Multiple tokens
+linked to one Character therefore share the same canonical inventory without
+creating redundant scene metadata.
+
 ## Persistent fields
 
 `CreatureFields` derives from the existing `CreatureData` schema and adds the
@@ -45,6 +49,14 @@ token's native name. It includes:
 - moves;
 - treasure; and
 - player-overlay visibility.
+
+Schema 2 adds two optional top-level Character fields:
+
+- `maxLoad`, a finite nonnegative number; and
+- `inventory`, a compact array of `[name, unitWeight, count]` tuples.
+
+Schema-1 records are defaulted non-destructively to no maximum Load and an empty
+inventory. Empty inventory arrays are omitted when written.
 
 The pure helpers in `creatureFields.ts` are the canonical mapping between an
 Owlbear item and a character record. Do not add another field mapping in a UI
@@ -68,6 +80,26 @@ Record patches use bounded optimistic retries:
 
 Same-field conflicts are eventual last-write-wins. The retry merge preserves
 different-field changes when the competing write can be observed.
+
+Inventory mutations retain the selected source-array index and original tuple.
+Each command reads the latest record, checks that index for the exact tuple, and
+falls back to one exact tuple match if the array shifted. A missing match fails
+without changing another row. GM transfers re-read and validate both records,
+then submit both independent metadata keys in one `setMetadata` update and
+confirm both write IDs.
+
+## Character access
+
+GMs can list and edit every Character. Players can list and edit only Characters
+linked to Character-layer tokens they currently control in the active scene.
+Control follows Owlbear's Character update permission, optional Owner Only
+permission and `createdUserId`, plus token lock state. Duplicate links are
+deduplicated by Character ID.
+
+Authorization is re-read from Owlbear immediately before every Character or
+inventory mutation. Losing token control invalidates an open player editor.
+This is an interface permission boundary over synchronized room metadata, not
+strong per-user data secrecy.
 
 ## Metadata capacity
 

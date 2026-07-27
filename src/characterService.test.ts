@@ -34,6 +34,8 @@ function setup(
   const creatures = new CreatureService(repository, scene);
   const manager = new CharacterManagerService(repository, creatures, {
     getRole: async () => role,
+    getPlayerId: async () => "user-1",
+    hasPermission: async (permission) => permission === "CHARACTER_UPDATE",
   });
   return { store, repository, scene, creatures, manager };
 }
@@ -250,7 +252,7 @@ describe("CharacterManagerService", () => {
     expect((linked.metadata[CREATURE_KEY] as { armor: number }).armor).toBe(4);
   });
 
-  it("rechecks GM authorization inside manager mutations", async () => {
+  it("rechecks GM authorization for GM-only manager mutations", async () => {
     const record = activeRecord("raganah");
     const { manager } = setup(
       [],
@@ -262,7 +264,7 @@ describe("CharacterManagerService", () => {
       "Only the GM",
     );
     await expect(manager.save(record.id, record.fields)).rejects.toThrow(
-      "Only the GM",
+      "no longer control",
     );
     await expect(manager.delete(record.id)).rejects.toThrow("Only the GM");
     await expect(manager.cleanupLegacyTombstones()).rejects.toThrow(
@@ -312,5 +314,90 @@ describe("CharacterManagerService", () => {
       characterMetadataKey(tombstone.id),
     );
     expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
+  });
+
+  it("shows a player only deduplicated Characters linked to controlled tokens", async () => {
+    const hero = activeRecord("hero", { fields: { name: "Hero" } });
+    const wagon = activeRecord("wagon", {
+      fields: { name: "Wagon" },
+      writeId: "wagon-write",
+    });
+    const heroLink = { schemaVersion: 1 as const, characterId: hero.id };
+    const items = [
+      token("hero-one", "Hero", hero.fields, heroLink),
+      token("hero-two", "Hero", hero.fields, heroLink),
+    ];
+    const { manager } = setup(
+      items,
+      {
+        [characterMetadataKey(hero.id)]: hero,
+        [characterMetadataKey(wagon.id)]: wagon,
+      },
+      "PLAYER",
+    );
+
+    await expect(manager.listAccessible()).resolves.toEqual([hero]);
+  });
+
+  it("allows a player edit while control exists and blocks it after control is lost", async () => {
+    const hero = activeRecord("hero", {
+      fields: { name: "Hero" },
+      inventory: [["Coin", 0.01, 137]],
+    });
+    const linked = token("hero-token", "Hero", hero.fields, {
+      schemaVersion: 1,
+      characterId: hero.id,
+    });
+    const { manager, scene } = setup(
+      [linked],
+      { [characterMetadataKey(hero.id)]: hero },
+      "PLAYER",
+    );
+
+    await expect(
+      manager.changeInventoryItemCount(
+        hero.id,
+        { sourceIndex: 0, expected: ["Coin", 0.01, 137] },
+        1,
+      ),
+    ).resolves.toMatchObject({
+      inventory: [["Coin", 0.01, 138]],
+    });
+
+    scene.items.length = 0;
+    await expect(
+      manager.addInventoryItem(hero.id, ["Rope", 1, 1]),
+    ).rejects.toThrow("no longer control");
+  });
+
+  it("keeps transfers GM-only", async () => {
+    const source = activeRecord("source", {
+      inventory: [["Rations", 1, 3]],
+    });
+    const destination = activeRecord("destination", {
+      fields: { name: "Pack Mule" },
+      writeId: "destination-write",
+    });
+    const linked = token("source-token", "Hero", source.fields, {
+      schemaVersion: 1,
+      characterId: source.id,
+    });
+    const { manager } = setup(
+      [linked],
+      {
+        [characterMetadataKey(source.id)]: source,
+        [characterMetadataKey(destination.id)]: destination,
+      },
+      "PLAYER",
+    );
+
+    await expect(
+      manager.transferInventoryItem(
+        source.id,
+        destination.id,
+        { sourceIndex: 0, expected: ["Rations", 1, 3] },
+        1,
+      ),
+    ).rejects.toThrow("Only the GM");
   });
 });

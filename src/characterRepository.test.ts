@@ -3,6 +3,8 @@ import {
   CHARACTER_METADATA_SAFE_MAX_BYTES,
   CharacterRepository,
   CharacterRepositoryError,
+  type CharacterRecord,
+  CHARACTER_RECORD_SCHEMA_VERSION,
   characterMetadataKey,
   parseCharacterManifest,
   serializedMetadataBytes,
@@ -43,6 +45,23 @@ describe("character manifest parsing", () => {
 
     expect(manifest.get("broken")?.status).toBe("malformed");
   });
+
+  it("migrates schema-1 records without serializing empty inventory fields", () => {
+    const legacy = {
+      ...activeRecord("legacy"),
+      schemaVersion: 1,
+    };
+    const manifest = parseCharacterManifest({
+      [characterMetadataKey("legacy")]: legacy,
+    });
+    const lookup = manifest.get("legacy");
+
+    expect(lookup?.status).toBe("active");
+    if (lookup?.status !== "active") throw new Error("Expected active record");
+    expect(lookup.record.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
+    expect(lookup.record.inventory).toBeUndefined();
+    expect(lookup.record.maxLoad).toBeUndefined();
+  });
 });
 
 describe("CharacterRepository writes", () => {
@@ -57,7 +76,7 @@ describe("CharacterRepository writes", () => {
     });
 
     expect(result).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "character-1",
       revision: 1,
       fields: { name: "Raganah", hpCurrent: 6, hpMax: 8 },
@@ -198,5 +217,162 @@ describe("CharacterRepository writes", () => {
       characterMetadataKey(tombstone.id),
     );
     expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
+  });
+
+  it("removes exactly the selected Bag of Books row and omits empty inventory", async () => {
+    const record = activeRecord("raganah", {
+      inventory: [
+        ["Bag of Books", 0.4, 1],
+        ["Bag of Books", 0.4, 3],
+      ],
+    });
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+    });
+    const repo = repository(store, ["remove-write", "last-write"]);
+
+    const first = await repo.removeInventoryItem(record.id, {
+      sourceIndex: 1,
+      expected: ["Bag of Books", 0.4, 3],
+    });
+    expect(first.inventory).toEqual([["Bag of Books", 0.4, 1]]);
+
+    const empty = await repo.changeInventoryItemCount(
+      record.id,
+      {
+        sourceIndex: 0,
+        expected: ["Bag of Books", 0.4, 1],
+      },
+      -1,
+    );
+    expect(empty.inventory).toBeUndefined();
+    expect(
+      JSON.stringify(store.metadata[characterMetadataKey(record.id)]),
+    ).not.toContain('"inventory"');
+  });
+
+  it("increments counts and safely rejects a stale selected tuple", async () => {
+    const record = activeRecord("raganah", {
+      inventory: [["Coin", 0.01, 137]],
+    });
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+    });
+    const repo = repository(store, ["increment-write"]);
+
+    const incremented = await repo.changeInventoryItemCount(
+      record.id,
+      { sourceIndex: 0, expected: ["Coin", 0.01, 137] },
+      1,
+    );
+    expect(incremented.inventory).toEqual([["Coin", 0.01, 138]]);
+    await expect(
+      repo.removeInventoryItem(record.id, {
+        sourceIndex: 0,
+        expected: ["Coin", 0.01, 137],
+      }),
+    ).rejects.toThrow("Inventory changed");
+  });
+
+  it("stores and removes Maximum Load without adding an empty inventory", async () => {
+    const record = activeRecord("raganah");
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+    });
+    const repo = repository(store, ["max-write", "remove-max-write"]);
+
+    const withMaximum = await repo.setMaxLoad(record.id, 11);
+    expect(withMaximum.maxLoad).toBe(11);
+    expect(withMaximum.inventory).toBeUndefined();
+
+    const withoutMaximum = await repo.setMaxLoad(record.id, undefined);
+    expect(withoutMaximum.maxLoad).toBeUndefined();
+    expect(
+      JSON.stringify(store.metadata[characterMetadataKey(record.id)]),
+    ).not.toContain('"maxLoad"');
+  });
+
+  it("fails safely when a concurrent client changes the selected row", async () => {
+    const record = activeRecord("raganah", {
+      inventory: [["Healing Potion", 1, 1]],
+    });
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(record.id)]: record,
+    });
+    let intercepted = false;
+    store.afterSet = (update, target) => {
+      if (intercepted || !(characterMetadataKey(record.id) in update)) return;
+      intercepted = true;
+      target.metadata[characterMetadataKey(record.id)] = {
+        ...record,
+        inventory: [["Healing Potion", 1, 2]],
+        revision: 2,
+        writeId: "competing-inventory-write",
+      };
+    };
+
+    await expect(
+      repository(store, ["our-write", "our-retry"]).removeInventoryItem(
+        record.id,
+        {
+          sourceIndex: 0,
+          expected: ["Healing Potion", 1, 1],
+        },
+      ),
+    ).rejects.toThrow("Inventory changed");
+    expect(
+      (store.metadata[characterMetadataKey(record.id)] as CharacterRecord)
+        .inventory,
+    ).toEqual([["Healing Potion", 1, 2]]);
+  });
+
+  it("transfers partial and entire counts without merging destination duplicates", async () => {
+    const source = activeRecord("source", {
+      fields: { name: "Hero" },
+      inventory: [
+        ["Healing Potion", 1, 2],
+        ["Bundle of Arrows", 0.33, 2],
+      ],
+    });
+    const destination = activeRecord("destination", {
+      fields: { name: "Wagon" },
+      inventory: [["Healing Potion", 1, 1]],
+      writeId: "destination-write",
+    });
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(source.id)]: source,
+      [characterMetadataKey(destination.id)]: destination,
+    });
+    const repo = repository(store, [
+      "source-transfer-1",
+      "destination-transfer-1",
+      "source-transfer-2",
+      "destination-transfer-2",
+    ]);
+
+    const partial = await repo.transferInventoryItem(
+      source.id,
+      destination.id,
+      { sourceIndex: 0, expected: ["Healing Potion", 1, 2] },
+      1,
+    );
+    expect(partial.source.inventory?.[0]).toEqual(["Healing Potion", 1, 1]);
+    expect(partial.destination.inventory).toEqual([
+      ["Healing Potion", 1, 1],
+      ["Healing Potion", 1, 1],
+    ]);
+
+    const entire = await repo.transferInventoryItem(
+      source.id,
+      destination.id,
+      { sourceIndex: 1, expected: ["Bundle of Arrows", 0.33, 2] },
+      2,
+    );
+    expect(entire.source.inventory).toEqual([["Healing Potion", 1, 1]]);
+    expect(entire.destination.inventory?.at(-1)).toEqual([
+      "Bundle of Arrows",
+      0.33,
+      2,
+    ]);
   });
 });

@@ -49,10 +49,41 @@ button:disabled { cursor: wait; opacity: .55; }
 .metadata-usage.near-limit { color: #fbbf24; }
 .manager-status { margin: 0; color: var(--dw-text-disabled); font-size: 12px; text-align: center; }
 .character-list { display: grid; gap: 9px; }
-.character-card { display: grid; gap: 9px; padding: 11px; border: 1px solid var(--dw-border); border-radius: 8px; background: var(--dw-surface); }
-.character-card > div:first-child { display: grid; gap: 3px; }
+.character-card { padding: 11px; border: 1px solid var(--dw-border); border-radius: 8px; background: var(--dw-surface); }
+.character-card-summary, .inventory-section > summary { cursor: pointer; }
+.character-card-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.character-card-summary::marker { color: var(--dw-primary); }
+.character-card-body { display: grid; gap: 9px; padding-top: 10px; }
 .character-card strong { overflow-wrap: anywhere; }
 .character-card span { color: var(--dw-text-disabled); font-size: 11px; overflow-wrap: anywhere; }
+.inventory-section { border-top: 1px solid var(--dw-border); padding-top: 9px; }
+.inventory-section > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; list-style-position: inside; }
+.inventory-section > summary::marker { color: var(--dw-primary); }
+.inventory-summary { margin-left: auto; text-align: right; }
+.inventory-section.overloaded { border-color: #ef4444; }
+.inventory-section .load-warning { color: #fca5a5; font-weight: 800; }
+.inventory-editor { display: grid; gap: 9px; padding-top: 10px; }
+.max-load { grid-template-columns: 1fr minmax(110px, 42%); align-items: center; }
+.max-load input { text-align: right; }
+.inventory-table { display: grid; gap: 5px; overflow-x: auto; }
+.inventory-header, .inventory-row { display: grid; grid-template-columns: minmax(130px, 1.6fr) 82px 116px 62px minmax(108px, 1fr); align-items: center; gap: 6px; min-width: 540px; }
+.inventory-header { color: var(--dw-text-disabled); font-size: 10px; font-weight: 800; }
+.inventory-header span:nth-child(2), .inventory-header span:nth-child(3), .inventory-header span:nth-child(4) { text-align: right; }
+.inventory-row input { min-width: 0; padding: 6px 7px; font-size: 11px; }
+.inventory-name { border-color: transparent; background: transparent; }
+.inventory-number, .inventory-count input, .inventory-load { text-align: right; }
+.inventory-count { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: 3px; }
+.inventory-count button { width: 28px; height: 28px; border: 1px solid var(--dw-border); border-radius: 999px; padding: 0; color: var(--dw-text); background: var(--dw-control); cursor: pointer; }
+.inventory-count input { padding-inline: 3px; }
+.inventory-load { font-variant-numeric: tabular-nums; }
+.inventory-actions { display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
+.inventory-actions .compact { padding-inline: 5px; }
+.inventory-empty { min-width: 540px; padding: 6px 0; }
+.inventory-draft { margin-top: 3px; }
+.transfer-form { display: grid; grid-template-columns: 1fr 90px; gap: 8px; min-width: 360px; margin: 2px 0 7px; padding: 9px; border: 1px solid var(--dw-border); border-radius: 7px; background: var(--dw-background); }
+.transfer-form select { width: 100%; border: 1px solid var(--dw-border); border-radius: 7px; padding: 8px; color: var(--dw-text); background: var(--dw-control); }
+.transfer-form .manager-actions { grid-column: 1 / -1; }
+.add-item { justify-self: start; }
 .card-actions, .manager-actions, .link-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .manager-actions { justify-content: flex-end; }
 .manager-form { display: grid; gap: 12px; }
@@ -69,7 +100,7 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .eyebrow { margin: 0 0 4px; color: #a78bfa; font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .icon-button { border: 0; color: var(--dw-text-disabled); background: transparent; font-size: 28px; line-height: 1; cursor: pointer; }
 label { display: grid; gap: 6px; color: var(--dw-text-secondary); font-size: 12px; font-weight: 700; }
-input, textarea { width: 100%; border: 1px solid var(--dw-border); border-radius: 7px; padding: 9px 10px; color: var(--dw-text); background: var(--dw-control); outline: none; }
+input, textarea, select { width: 100%; border: 1px solid var(--dw-border); border-radius: 7px; padding: 9px 10px; color: var(--dw-text); background: var(--dw-control); outline: none; }
 input:focus, textarea:focus { border-color: var(--dw-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dw-primary) 25%, transparent); }
 input.field-invalid, input.field-invalid:focus { border-color: #ef4444; box-shadow: 0 0 0 2px #ef444433; }
 textarea { resize: vertical; line-height: 1.4; }

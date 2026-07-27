@@ -51,7 +51,7 @@ describe("buildHomeMarkup", () => {
     expect(markup).not.toContain("Default character overlay:");
     expect(markup).not.toContain('id="default-visibility"');
     expect(markup).not.toContain("Agenda");
-    expect(markup).not.toContain("Character Records");
+    expect(markup).toContain("Character Records");
     expect(markup).toContain("Moves");
   });
 
