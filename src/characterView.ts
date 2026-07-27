@@ -68,7 +68,6 @@ export interface CharacterManagerViewState {
   loading: boolean;
   saving: boolean;
   error?: string;
-  search: string;
   editing?: { kind: "create" | "edit"; fields: CreatureFields; id?: string };
 }
 
@@ -87,13 +86,12 @@ function usageMarkup(usage: CharacterStorageUsage | undefined): string {
 
 export function buildCharacterManagerMarkup(
   state: CharacterManagerViewState,
+  expanded = false,
 ): string {
   if (state.editing) {
     return `
       <section class="character-manager">
-        <div class="manager-heading">
-          <div><p class="eyebrow">Room persistence</p><h2>${state.editing.kind === "create" ? "New character record" : `Edit ${escapeHtml(state.editing.fields.name)}`}</h2></div>
-        </div>
+        <div class="manager-heading"><h2>${state.editing.kind === "create" ? "New character record" : `Edit ${escapeHtml(state.editing.fields.name)}`}</h2></div>
         ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
         <form id="character-manager-form" class="manager-form">
           ${buildCreatureFieldsMarkup(state.editing.fields, "manager-")}
@@ -105,28 +103,24 @@ export function buildCharacterManagerMarkup(
       </section>`;
   }
 
-  const query = state.search.trim().toLocaleLowerCase();
-  const records = query
-    ? state.records.filter(
-        (record) =>
-          record.fields.name.toLocaleLowerCase().includes(query) ||
-          record.fields.tags?.toLocaleLowerCase().includes(query),
-      )
-    : state.records;
   return `
     <section class="character-manager">
-      <div class="manager-heading">
-        <div><p class="eyebrow">Room persistence</p><h2>Character Records</h2></div>
-        <button type="button" class="primary compact" id="manager-create">New</button>
+      <div class="section-heading">
+        <h2>Character Records</h2>
+        <button class="section-toggle" type="button" data-toggle-section="characters" aria-expanded="${expanded}">
+          (${expanded ? "collapse" : "expand"})
+        </button>
       </div>
-      ${usageMarkup(state.usage)}
-      <label class="manager-search">Search<input id="manager-search" type="search" value="${escapeHtml(state.search)}" placeholder="Name or tags"></label>
+      ${
+        expanded
+          ? `${usageMarkup(state.usage)}
+      <button type="button" class="primary compact manager-create" id="manager-create">New</button>
       ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
       ${
         state.loading
           ? '<p class="manager-status">Loading character records…</p>'
-          : records.length
-            ? `<div class="character-list">${records
+          : state.records.length
+            ? `<div class="character-list">${state.records
                 .map(
                   (record) => `
               <article class="character-card" data-character-search="${escapeHtml(`${record.fields.name} ${record.fields.tags ?? ""}`.toLocaleLowerCase())}">
@@ -143,6 +137,8 @@ export function buildCharacterManagerMarkup(
                 )
                 .join("")}</div>`
             : '<p class="manager-status">No character records found.</p>'
+      }`
+          : ""
       }
     </section>`;
 }

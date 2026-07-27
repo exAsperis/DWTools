@@ -41,7 +41,7 @@ function setupContextMenus() {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.1.2"),
+      url: assetUrl("context-menu.html?v=1.1.3"),
       height: 360,
     },
   });

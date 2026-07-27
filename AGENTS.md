@@ -48,6 +48,17 @@ record in the same change.
 ## Workspace quirks
 
 - This is a Windows/PowerShell workspace under OneDrive.
+- Do not assume `node` is available on `PATH`. In Codex desktop sessions it is
+  routinely absent, so running the ordinary `pnpm` command first is a known
+  dead end. Before formatting, testing, linting, type-checking, or building,
+  call `codex_app.load_workspace_dependencies`, prepend the returned Node.js
+  `bin` directory to `PATH` for that command, and invoke the returned bundled
+  `pnpm.cmd` explicitly.
+- Do not start a local web server or attempt to open DWTools through Codex's
+  browser preview. The isolated browser environment cannot reach the local
+  Windows server, and this workflow is known not to work. For visual and
+  integration testing, complete internal checks first and then use the
+  documented live hosted-site workflow.
 - `node_modules` has intermittently lost generated type-package contents. If
   TypeScript suddenly cannot find `chai`, `deep-eql`, or `estree`, verify the
   exact `node_modules` path, remove only that generated directory, and run

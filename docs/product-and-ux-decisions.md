@@ -151,6 +151,24 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-26 — Main panel prioritizes table references
+
+The main panel uses a compact single-line DWTools brand header followed by
+collapsible reference and management sections. The GM-only Agenda is expanded
+by default; Moves is available to everyone and expanded by default; GM-only
+Settings and Character Records are collapsed by default. Section expansion is
+stored as a per-browser preference so it persists without consuming room
+metadata.
+
+The default new-character overlay setting is inside Settings. Character
+Records omits search, places **New** beneath the room-metadata usage bar, and
+does not load its visual list into the open panel until expanded. Each basic
+move opens its complete rules text in a dialog.
+
+Reason: the panel should function first as an at-the-table Dungeon World
+reference, while infrequent room configuration and record management remain
+quickly available without dominating the limited panel space.
+
 ### 2026-07-26 — Character deletion relies on orphan recovery
 
 Deleting a character unlinks current-scene tokens without changing their

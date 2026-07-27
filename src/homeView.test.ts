@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildHomeMarkup } from "./homeView";
+import {
+  buildHomeMarkup,
+  DEFAULT_HOME_SECTIONS,
+  type HomeSectionState,
+} from "./homeView";
 
 describe("buildHomeMarkup", () => {
   it("shows the visible default toggle to GMs", () => {
@@ -7,16 +11,25 @@ describe("buildHomeMarkup", () => {
 
     expect(markup).toContain('src="./icon.svg"');
     expect(markup).toContain('alt="DWTools logo"');
-    expect(markup).toContain("Default character overlay visibility:");
-    expect(markup).toContain('aria-label="Default: visible to players"');
-    expect(markup).toContain('id="default-visibility"');
-    expect(markup).not.toContain("disabled");
+    expect(markup).toContain("Agenda");
+    expect(markup).toContain("Portray a fantastic world");
+    expect(markup).toContain("Moves");
+    expect(markup).toContain("Hack and Slash");
+    expect(markup).toContain("Settings");
+    expect(markup).not.toContain('id="default-visibility"');
+    expect(markup).not.toContain("Right-click a character");
+    expect(markup).not.toContain("quick HP controls");
+    expect(markup).not.toContain("Room persistence");
     expect(markup).not.toContain("HP 7/10");
     expect(markup).not.toContain('class="sample"');
   });
 
   it("shows the hidden icon state and saving state", () => {
-    const markup = buildHomeMarkup("GM", false, true);
+    const sections: HomeSectionState = {
+      ...DEFAULT_HOME_SECTIONS,
+      settings: true,
+    };
+    const markup = buildHomeMarkup("GM", false, true, sections);
 
     expect(markup).toContain('aria-label="Default: hidden from players"');
     expect(markup).toContain("disabled");
@@ -28,11 +41,28 @@ describe("buildHomeMarkup", () => {
       "PLAYER",
       false,
       false,
+      DEFAULT_HOME_SECTIONS,
       '<section id="character-manager">Character Records</section>',
     );
 
-    expect(markup).not.toContain("Default character overlay visibility:");
+    expect(markup).not.toContain("Default character overlay:");
     expect(markup).not.toContain('id="default-visibility"');
+    expect(markup).not.toContain("Agenda");
     expect(markup).not.toContain("Character Records");
+    expect(markup).toContain("Moves");
+  });
+
+  it("renders persistent section controls with the requested defaults", () => {
+    const markup = buildHomeMarkup("GM", true, false);
+
+    expect(markup).toContain(
+      'data-toggle-section="agenda" aria-expanded="true"',
+    );
+    expect(markup).toContain(
+      'data-toggle-section="moves" aria-expanded="true"',
+    );
+    expect(markup).toContain(
+      'data-toggle-section="settings" aria-expanded="false"',
+    );
   });
 });

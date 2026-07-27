@@ -1,4 +1,4 @@
-import{j as u,O as s,k as h,C as g,i as w,p as T,l as E,r as S,m as C}from"./obrCharacterServices-1.1.2.js";function P(e,t){return Math.max(0,e+t)}function l(e){return e.replace(/[&<>'"]/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[t])}function i(e){return e===void 0||e===""?"—":l(String(e))}function R(e){const t=e.damageDescription?.trim(),a=e.damageTags?.trim();return`
+import{j as u,O as s,k as h,C as g,i as w,p as T,l as E,r as S,m as C}from"./obrCharacterServices-1.1.3.js";function P(e,t){return Math.max(0,e+t)}function l(e){return e.replace(/[&<>'"]/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[t])}function i(e){return e===void 0||e===""?"—":l(String(e))}function R(e){const t=e.damageDescription?.trim(),a=e.damageTags?.trim();return`
     <div class="summary-row tags-row">
       <button class="visibility-button" type="button" id="visibility" aria-label="${e.visibleToPlayers===!1?"Hidden from players":"Visible to players"}" title="${e.visibleToPlayers===!1?"Hidden from players":"Visible to players"}">
         ${u(e.visibleToPlayers===!1?"eye-off":"eye")}

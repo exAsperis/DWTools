@@ -40,7 +40,14 @@ import {
   persistDefaultOverlayVisibility,
   type RoomMetadata,
 } from "./defaultVisibility";
-import { buildHomeMarkup, type HomeRole } from "./homeView";
+import {
+  BASIC_MOVES,
+  buildHomeMarkup,
+  DEFAULT_HOME_SECTIONS,
+  type HomeRole,
+  type HomeSection,
+  type HomeSectionState,
+} from "./homeView";
 import {
   createObrCharacterManagerService,
   createObrCharacterRepository,
@@ -122,9 +129,37 @@ let managerUsage: CharacterStorageUsage | undefined;
 let managerLoading = false;
 let managerSaving = false;
 let managerError: string | undefined;
-let managerSearch = "";
 let managerLegacyCleanupComplete = false;
 let managerEditing: CharacterManagerViewState["editing"];
+const HOME_SECTIONS_KEY = "dwtools/home-sections";
+
+function loadHomeSections(): HomeSectionState {
+  try {
+    const stored = JSON.parse(localStorage.getItem(HOME_SECTIONS_KEY) ?? "{}");
+    return {
+      agenda:
+        typeof stored.agenda === "boolean"
+          ? stored.agenda
+          : DEFAULT_HOME_SECTIONS.agenda,
+      moves:
+        typeof stored.moves === "boolean"
+          ? stored.moves
+          : DEFAULT_HOME_SECTIONS.moves,
+      settings:
+        typeof stored.settings === "boolean"
+          ? stored.settings
+          : DEFAULT_HOME_SECTIONS.settings,
+      characters:
+        typeof stored.characters === "boolean"
+          ? stored.characters
+          : DEFAULT_HOME_SECTIONS.characters,
+    };
+  } catch {
+    return { ...DEFAULT_HOME_SECTIONS };
+  }
+}
+
+let homeSections = loadHomeSections();
 
 function managerState(): CharacterManagerViewState {
   return {
@@ -134,7 +169,6 @@ function managerState(): CharacterManagerViewState {
     loading: managerLoading,
     saving: managerSaving,
     error: managerError,
-    search: managerSearch,
     editing: managerEditing,
   };
 }
@@ -142,16 +176,53 @@ function managerState(): CharacterManagerViewState {
 function renderHome(): void {
   const defaultVisibleToPlayers = getDefaultOverlayVisibility(homeMetadata);
   const managerMarkup =
-    homeRole === "GM" ? buildCharacterManagerMarkup(managerState()) : "";
+    homeRole === "GM"
+      ? buildCharacterManagerMarkup(
+          managerState(),
+          homeSections.characters || Boolean(managerEditing),
+        )
+      : "";
   app.innerHTML = buildHomeMarkup(
     homeRole,
     defaultVisibleToPlayers,
     savingDefaultVisibility,
+    homeSections,
     managerMarkup,
   );
   document
     .querySelector("#default-visibility")
     ?.addEventListener("click", () => void toggleDefaultVisibility());
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-toggle-section]",
+  )) {
+    button.addEventListener("click", () => {
+      const section = button.dataset.toggleSection as HomeSection;
+      homeSections = { ...homeSections, [section]: !homeSections[section] };
+      localStorage.setItem(HOME_SECTIONS_KEY, JSON.stringify(homeSections));
+      renderHome();
+    });
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-move]",
+  )) {
+    button.addEventListener("click", () => {
+      const move = BASIC_MOVES.find(
+        (entry) => entry.id === button.dataset.move,
+      );
+      const dialog = document.querySelector<HTMLDialogElement>("#move-dialog");
+      const title = document.querySelector<HTMLElement>("#move-dialog-title");
+      const text = document.querySelector<HTMLElement>("#move-dialog-text");
+      if (!move || !dialog || !title || !text) return;
+      title.textContent = move.name;
+      text.textContent = move.text;
+      dialog.showModal();
+    });
+  }
+  document
+    .querySelector("#move-dialog-close")
+    ?.addEventListener("click", () =>
+      document.querySelector<HTMLDialogElement>("#move-dialog")?.close(),
+    );
   bindManagerControls();
 }
 
@@ -162,6 +233,8 @@ function bindManagerControls(): void {
       kind: "create",
       fields: { name: "Untitled character", visibleToPlayers: true },
     };
+    homeSections.characters = true;
+    localStorage.setItem(HOME_SECTIONS_KEY, JSON.stringify(homeSections));
     renderHome();
   });
   document.querySelector("#manager-cancel")?.addEventListener("click", () => {
@@ -169,17 +242,6 @@ function bindManagerControls(): void {
     managerError = undefined;
     renderHome();
   });
-  document
-    .querySelector<HTMLInputElement>("#manager-search")
-    ?.addEventListener("input", (event) => {
-      managerSearch = (event.currentTarget as HTMLInputElement).value;
-      const query = managerSearch.trim().toLocaleLowerCase();
-      for (const card of document.querySelectorAll<HTMLElement>(
-        "[data-character-search]",
-      )) {
-        card.hidden = !String(card.dataset.characterSearch).includes(query);
-      }
-    });
   for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-edit-character]",
   )) {
