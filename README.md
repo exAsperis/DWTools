@@ -12,6 +12,7 @@ A minimal Owlbear Rodeo extension for keeping Dungeon World creature information
 - Quick HP adjustments from the token context menu
 - Damage rolls for `d6`, `2d6+1`, `b[2d6]+1`, and `w[2d8]-1` style expressions
 - Persistent room-level character records that synchronize linked tokens across scenes
+- Shared character inventories with item weights, counts, transfers, and Load tracking
 
 ## Using DWTools
 
@@ -44,17 +45,28 @@ token updates the record and every token linked to that character in the
 current scene. Linked tokens in another scene receive the latest record when
 that scene is opened.
 
-### Manage room characters
+### Manage characters and inventory
 
-The main DWTools action contains a GM-only **Character Records** section. From
-there, the GM can:
+The main DWTools action contains a **Characters** section. GMs can see every
+room character. Players can see and edit only characters linked to unlocked
+Character-layer tokens they currently control in the active scene.
 
-- search all active room characters;
-- create a blank character record;
-- edit every persistent creature field;
-- see how many tokens are linked in the current scene;
-- review approximate room-metadata usage; and
-- delete a record.
+Expand a character to edit its persistent creature fields and optional maximum
+Load. Its **Inventory** subsection supports:
+
+- adding and removing items;
+- editing item names and unit weights;
+- changing counts with the minus and plus controls;
+- viewing each item's Load and the character's total Load; and
+- transferring item quantities between characters as the GM.
+
+Item rows use a compact two-line layout for the standard Owlbear panel. Adding
+an item keeps **Add Item** in view so several items can be entered without
+repeated scrolling. Changes are saved directly to the authoritative room
+character record, so every linked token shares the same inventory.
+
+GMs can also search and create room characters, see current-scene linked-token
+counts, review approximate room-metadata usage, and delete records.
 
 Deleting a record unlinks its tokens in the current scene without erasing
 their copied creature fields, then removes the room record immediately. Linked
@@ -97,4 +109,7 @@ The production extension is hosted at
 `https://exasperis.github.io/DWTools/manifest.json`. Store submission content
 is maintained in [`docs/store.md`](docs/store.md).
 
-Creature data is stored in scene-item metadata. It is hidden from players by this extension's UI, but metadata synchronized through Owlbear Rodeo should not be treated as secure secret storage.
+Creature data is stored in scene-item metadata, while character records and
+inventories use room metadata. The extension limits what its UI shows players,
+but metadata synchronized through Owlbear Rodeo should not be treated as secure
+secret storage.

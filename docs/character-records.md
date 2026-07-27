@@ -101,6 +101,21 @@ inventory mutation. Losing token control invalidates an open player editor.
 This is an interface permission boundary over synchronized room metadata, not
 strong per-user data secrecy.
 
+## Inventory interaction
+
+Inventory is edited only in the main-panel **Characters** section. Each item
+uses two compact lines: its name and actions on the first line, then unit
+weight, decrement/count/increment controls, and calculated row Load on the
+second. Editable values remain visually borderless until focused.
+
+Adding or saving an item scrolls only as needed to keep the inventory draft or
+**Add Item** control visible. Routine additions do not produce success
+notifications. This preserves a stable viewport for entering several items in
+sequence.
+
+The token context menu shows the linked Character's current and maximum Load
+for quick reference, but all inventory mutations remain in the main panel.
+
 ## Metadata capacity
 
 Owlbear limits total room metadata, shared by all extensions, to 16 KiB.
@@ -152,6 +167,10 @@ tombstones.
 
 The direct-delete and missing-record recovery workflow was confirmed by the
 project owner in the live Owlbear environment on 2026-07-26.
+
+The compact inventory-entry workflow, stable viewport, Load calculations, and
+removal of the redundant Basic Moves/Special Moves divider were confirmed by
+the project owner in the live Owlbear environment on 2026-07-27.
 
 ## Durable limitations
 

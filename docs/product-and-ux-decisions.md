@@ -172,6 +172,9 @@ Reason: the column layout required a 540-pixel content width and horizontal
 scrolling inside the fixed-width panel, while repeated item entry should be
 fast and spatially stable.
 
+The project owner confirmed this compact entry workflow and viewport behavior
+in the live Owlbear environment on 2026-07-27.
+
 ### 2026-07-27 — Character inventory and Load use controlled-token access
 
 Every persistent Character can carry an optional `maxLoad` and a compact

@@ -1,6 +1,6 @@
 ---
 title: DWTools
-description: Persistent Dungeon World characters, creature stats, HP tracking, and damage rolls for Owlbear Rodeo.
+description: Persistent Dungeon World characters, inventories, Load tracking, creature stats, and damage rolls for Owlbear Rodeo.
 author: Bryan
 image: https://raw.githubusercontent.com/exAsperis/DWTools/main/public/icon.svg
 icon: https://exasperis.github.io/DWTools/icon.svg
@@ -26,9 +26,10 @@ map.
 - Creature tags, damage details, instinct, moves, and treasure
 - Per-creature and room-default controls for sharing overlays with players
 - Persistent room-level character records shared by linked tokens
+- Shared inventories with item weights, counts, transfers, and Load tracking
 - Automatic synchronization when a linked character changes or its scene opens
-- A searchable GM character manager with room-metadata usage reporting
-- GM-only editing with player-safe, client-local overlays
+- A searchable character manager with controlled-token access for players
+- GM-only token editing with player-safe, client-local overlays
 - Light and dark theme support
 
 ## Using DWTools
@@ -65,15 +66,21 @@ Use **Change link** to associate the token with another character. Use
 **Unlink** to stop synchronization while retaining all current creature
 fields on the token.
 
-### Manage characters
+### Manage characters and inventory
 
-GMs can open the main DWTools action and use **Character Records** to:
+Open the main DWTools action and use **Characters** to manage persistent
+records. GMs can see every room character. Players can see and edit only
+characters linked to unlocked Character-layer tokens they currently control in
+the active scene.
 
-- search, create, and edit room characters;
-- view compact HP, armor, and damage summaries;
-- see linked-token counts for the current scene;
-- monitor approximate room-metadata usage; and
-- delete records.
+Each expanded character includes an optional maximum Load and an **Inventory**
+subsection. Add items, edit names and unit weights, adjust counts, and see both
+per-item and total Load. The compact two-line item layout keeps the controls
+usable in Owlbear's standard panel, and **Add Item** remains in view during
+repeated entry. GMs can also transfer item quantities between characters.
+
+GMs retain room-wide search, creation, deletion, current-scene linked-token
+counts, and room-metadata usage reporting.
 
 Deleting a record requires confirmation. Current-scene tokens are unlinked but
 retain their copied fields, and the room record is removed immediately. Linked
