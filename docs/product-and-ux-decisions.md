@@ -151,6 +151,24 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-28 — DWTools uses the ex Asperis metadata namespace
+
+All active DWTools metadata and UI identifiers use
+`com.ex-asperis.dwtools`. Version 1.2.2 automatically migrates room settings,
+character records, and current-scene creature/link metadata from the former
+`com.bryan.dungeon-world-creatures` namespace before normal initialization.
+New-namespaced values win conflicts and migrated legacy keys are removed in
+the same write.
+
+Room migration completes once the old room keys are absent. Scene metadata
+migrates when each scene becomes ready because Owlbear cannot inspect closed
+scenes. Legacy overlay markers remain recognizable only for deterministic
+reconciliation and cleanup.
+
+Reason: the pre-production extension needs its durable metadata namespace to
+match the ex Asperis publisher identity while preserving the project owner's
+existing test-room data through a one-time, idempotent migration.
+
 ### 2026-07-27 — Inventory rows prioritize rapid entry in the narrow panel
 
 Inventory items use a compact two-line layout inside the existing 390-pixel

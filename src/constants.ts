@@ -1,10 +1,20 @@
-export const EXTENSION_ID = "com.bryan.dungeon-world-creatures";
+export const EXTENSION_ID = "com.ex-asperis.dwtools";
+export const LEGACY_EXTENSION_ID = "com.bryan.dungeon-world-creatures";
+
 export const CREATURE_KEY = `${EXTENSION_ID}/creature`;
 export const DISPLAY_KEY = `${EXTENSION_ID}/display`;
 export const EDIT_POPOVER_ID = `${EXTENSION_ID}/edit-popover`;
 export const DEFAULT_OVERLAY_VISIBILITY_KEY = `${EXTENSION_ID}/default-overlay-visible`;
 export const CHARACTER_KEY_PREFIX = `${EXTENSION_ID}/character/`;
 export const CHARACTER_LINK_KEY = `${EXTENSION_ID}/character-link`;
+export const CONTEXT_MENU_ID = `${EXTENSION_ID}/menu`;
+
+export const LEGACY_CREATURE_KEY = `${LEGACY_EXTENSION_ID}/creature`;
+export const LEGACY_DISPLAY_KEY = `${LEGACY_EXTENSION_ID}/display`;
+export const LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY = `${LEGACY_EXTENSION_ID}/default-overlay-visible`;
+export const LEGACY_CHARACTER_KEY_PREFIX = `${LEGACY_EXTENSION_ID}/character/`;
+export const LEGACY_CHARACTER_LINK_KEY = `${LEGACY_EXTENSION_ID}/character-link`;
+export const LEGACY_CONTEXT_MENU_ID = `${LEGACY_EXTENSION_ID}/menu`;
 
 export interface CreatureData {
   tags?: string;

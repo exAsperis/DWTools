@@ -16,6 +16,7 @@ import {
 } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
 import { createObrCharacterRepository } from "./obrCharacterServices";
+import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import type {
   CharacterRecord,
   CharacterRepository,
@@ -238,6 +239,18 @@ if (preview === "context") {
   app.innerHTML = '<p class="error">Open this menu inside Owlbear Rodeo.</p>';
 } else {
   OBR.onReady(async () => {
+    try {
+      await ensureMetadataNamespaceMigrated();
+    } catch (error) {
+      console.error("DWTools metadata namespace migration failed", error);
+      app.innerHTML =
+        '<p class="error">DWTools could not migrate its saved data. Reload Owlbear and try again.</p>';
+      await OBR.notification.show(
+        "DWTools could not migrate its saved data.",
+        "ERROR",
+      );
+      return;
+    }
     characterRepository = createObrCharacterRepository();
     creatureService = createObrCreatureService(characterRepository);
     applyTheme(await OBR.theme.getTheme());

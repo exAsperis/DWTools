@@ -7,10 +7,16 @@ import {
   type Item,
 } from "@owlbear-rodeo/sdk";
 import { describe, expect, it } from "vitest";
-import { CREATURE_KEY, DISPLAY_KEY, type CreatureData } from "./constants";
+import {
+  CREATURE_KEY,
+  DISPLAY_KEY,
+  LEGACY_DISPLAY_KEY,
+  type CreatureData,
+} from "./constants";
 import {
   DISPLAY_RENDER_KEY,
   buildDesiredDisplays,
+  isDisplay,
   planDisplayReconciliation,
 } from "./display";
 import { iconCommands } from "./icons";
@@ -46,6 +52,31 @@ function creatureImage(
 }
 
 describe("buildDesiredDisplays", () => {
+  it("recognizes legacy displays and reconciles their metadata in place", () => {
+    const desired = buildDesiredDisplays(
+      [creatureImage({ x: 300, y: 400 }, { hpCurrent: 4, hpMax: 6 })],
+      "GM",
+      100,
+    );
+    const legacy = desired.map(
+      (display) =>
+        ({
+          ...display,
+          metadata: {
+            [LEGACY_DISPLAY_KEY]: true,
+            [`${LEGACY_DISPLAY_KEY}/render`]:
+              display.metadata[DISPLAY_RENDER_KEY],
+          },
+        }) as Item,
+    );
+
+    expect(legacy.every(isDisplay)).toBe(true);
+    const plan = planDisplayReconciliation(legacy, desired);
+    expect(plan.add).toEqual([]);
+    expect(plan.deleteIds).toEqual([]);
+    expect(plan.update).toHaveLength(legacy.length);
+  });
+
   it("builds opaque text in front of attachment-layer HP shapes", () => {
     const desired = buildDesiredDisplays(
       [

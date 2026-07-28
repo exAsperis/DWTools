@@ -93,4 +93,33 @@ describe("CharacterSyncCoordinator", () => {
     expect(state.scene.updateCalls).toBe(callsAfterReady + 1);
     state.coordinator.stop();
   });
+
+  it("runs namespace preparation before synchronization and stops on failure", async () => {
+    const state = syncSetup(true);
+    const order: string[] = [];
+    const errors: unknown[] = [];
+    const coordinator = new CharacterSyncCoordinator(
+      new CharacterRepository(state.store, {
+        getActorId: async () => "gm-1",
+      }),
+      state.scene,
+      {
+        isReady: async () => true,
+        onReadyChange: () => () => undefined,
+      },
+      (error) => errors.push(error),
+      async () => {
+        order.push("migration");
+        throw new Error("migration failed");
+      },
+    );
+
+    coordinator.start();
+    await coordinator.whenIdle();
+
+    expect(order).toEqual(["migration"]);
+    expect(state.scene.updateCalls).toBe(0);
+    expect(errors).toHaveLength(1);
+    coordinator.stop();
+  });
 });

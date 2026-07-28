@@ -1,6 +1,6 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import { CharacterSyncCoordinator } from "./characterSync";
-import { EXTENSION_ID } from "./constants";
+import { CONTEXT_MENU_ID, LEGACY_CONTEXT_MENU_ID } from "./constants";
 import {
   applyLocalDisplayPlan,
   clearLocalDisplays,
@@ -13,6 +13,7 @@ import {
   createObrCharacterRepository,
   obrSceneItemStore,
 } from "./obrCharacterServices";
+import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import {
   getOverlaySourceSignatures,
   signatureMapsEqual,
@@ -30,9 +31,14 @@ const characterFilter = {
 const extensionUrl = new URL("./", window.location.href);
 const assetUrl = (path: string) => new URL(path, extensionUrl).toString();
 
-function setupContextMenus() {
-  OBR.contextMenu.create({
-    id: `${EXTENSION_ID}/menu`,
+async function setupContextMenus(): Promise<void> {
+  try {
+    await OBR.contextMenu.remove(LEGACY_CONTEXT_MENU_ID);
+  } catch (error) {
+    console.warn("DWTools could not remove its legacy context menu", error);
+  }
+  await OBR.contextMenu.create({
+    id: CONTEXT_MENU_ID,
     icons: [
       {
         icon: assetUrl("icon.svg"),
@@ -41,7 +47,7 @@ function setupContextMenus() {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.2.1"),
+      url: assetUrl("context-menu.html?v=1.2.2"),
       height: 360,
     },
   });
@@ -160,6 +166,9 @@ async function startSceneSync(requestedGeneration: number) {
   await clearLocalDisplays();
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
+  await ensureMetadataNamespaceMigrated();
+  if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
+    return;
 
   const [role, sceneDpi] = await Promise.all([
     OBR.player.getRole(),
@@ -184,8 +193,19 @@ async function startSceneSync(requestedGeneration: number) {
   handleSceneItems(items, true);
 }
 
-OBR.onReady(() => {
-  setupContextMenus();
+async function initializeBackground(): Promise<void> {
+  try {
+    await ensureMetadataNamespaceMigrated();
+    await setupContextMenus();
+  } catch (error) {
+    console.error("DWTools metadata namespace migration failed", error);
+    await OBR.notification.show(
+      "DWTools could not migrate its saved data. Reload Owlbear and try again.",
+      "ERROR",
+    );
+    return;
+  }
+
   const characterSync = new CharacterSyncCoordinator(
     createObrCharacterRepository(),
     obrSceneItemStore,
@@ -194,6 +214,7 @@ OBR.onReady(() => {
       onReadyChange: (callback) => OBR.scene.onReadyChange(callback),
     },
     (error) => console.error("DWTools character synchronization failed", error),
+    ensureMetadataNamespaceMigrated,
   );
   characterSync.start();
   restartSceneSync();
@@ -206,4 +227,6 @@ OBR.onReady(() => {
     scheduleRender(true);
   });
   window.addEventListener("unload", () => characterSync.stop(), { once: true });
-});
+}
+
+OBR.onReady(() => void initializeBackground());

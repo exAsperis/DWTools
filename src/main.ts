@@ -54,6 +54,7 @@ import {
   createObrCharacterRepository,
   createObrCreatureService,
 } from "./obrCharacterServices";
+import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import type { InventoryItem, InventorySelection } from "./inventory";
 
 const app = document.querySelector<HTMLElement>("#app")!;
@@ -762,6 +763,15 @@ async function toggleDefaultVisibility(): Promise<void> {
 }
 
 async function startHome(): Promise<void> {
+  try {
+    await ensureMetadataNamespaceMigrated();
+  } catch (error) {
+    console.error("DWTools metadata namespace migration failed", error);
+    app.innerHTML =
+      '<p class="error">DWTools could not migrate its saved data. Reload Owlbear and try again.</p>';
+    notify("DWTools could not migrate its saved data.", "ERROR");
+    return;
+  }
   homeRepository = createObrCharacterRepository();
   homeCreatureService = createObrCreatureService(homeRepository);
   homeManagerService = createObrCharacterManagerService(
@@ -1159,6 +1169,15 @@ async function saveCreature(form: HTMLFormElement): Promise<void> {
 
 async function startEditor(): Promise<void> {
   if (!itemId) return;
+  try {
+    await ensureMetadataNamespaceMigrated();
+  } catch (error) {
+    console.error("DWTools metadata namespace migration failed", error);
+    app.innerHTML =
+      '<p class="error">DWTools could not migrate its saved data. Reload Owlbear and try again.</p>';
+    notify("DWTools could not migrate its saved data.", "ERROR");
+    return;
+  }
   editorRepository = createObrCharacterRepository();
   editorService = createObrCreatureService(editorRepository);
   const [token, roomMetadata] = await Promise.all([

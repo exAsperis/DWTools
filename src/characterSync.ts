@@ -21,6 +21,7 @@ export class CharacterSyncCoordinator {
     private readonly scene: SceneItemStore,
     private readonly readiness: SceneReadySource,
     private readonly onError: (error: unknown) => void = console.error,
+    private readonly beforeSync: () => Promise<void> = async () => undefined,
   ) {}
 
   start(): void {
@@ -70,6 +71,8 @@ export class CharacterSyncCoordinator {
 
   private async syncReadyScene(): Promise<void> {
     if (await this.readiness.isReady()) {
+      await this.beforeSync();
+      if (!(await this.readiness.isReady())) return;
       await syncAllLinkedCharactersInCurrentScene(this.repository, this.scene);
     }
   }

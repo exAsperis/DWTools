@@ -166,7 +166,7 @@ local/deterministic geometry model while improving reconciliation:
 
 Keep Dungeon World data in token metadata:
 
-`com.bryan.dungeon-world-creatures/creature`
+`com.ex-asperis.dwtools/creature`
 
 Render every overlay into `OBR.scene.local` on each client.
 
@@ -456,6 +456,20 @@ orphan recovery, and closed-scene limitations.
 - **Decision:** implement tests before changing the live renderer again.
 
 ## Implementation status
+
+### Version 1.2.2 — metadata namespace migration
+
+- the active namespace is `com.ex-asperis.dwtools`;
+- room settings and character records migrate before repositories start;
+- creature and character-link keys migrate when each scene becomes ready;
+- new-namespaced values win conflicts and old keys are removed immediately;
+- legacy display markers remain recognizable for local reconciliation and
+  shared-item cleanup; and
+- migration is idempotent and performs no writes after legacy keys are gone.
+
+The former `com.bryan.dungeon-world-creatures` namespace remains only as
+one-time migration input. Closed scenes cannot be updated eagerly, so the
+scene migration must remain available until every legacy scene has been opened.
 
 ### Version 0.2.0 — implemented 2026-07-25
 

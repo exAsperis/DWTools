@@ -11,7 +11,7 @@ The authoritative character record lives in Owlbear room metadata under one
 independent key per record:
 
 ```text
-com.bryan.dungeon-world-creatures/character/<character-id>
+com.ex-asperis.dwtools/character/<character-id>
 ```
 
 The manifest is discovered by scanning that prefix. There is no monolithic
@@ -20,7 +20,7 @@ record map and no separate index.
 Each linked scene token stores a versioned relationship under:
 
 ```text
-com.bryan.dungeon-world-creatures/character-link
+com.ex-asperis.dwtools/character-link
 ```
 
 The link is a DWTools relationship only. It does not change Owlbear ownership,
@@ -150,6 +150,13 @@ Changed records synchronize current-scene tokens. Opening a scene performs a
 full linked-token synchronization. Missing records retain their links for
 orphan recovery. Legacy tombstones from version 1.1.1 still remove stale links
 while they exist, preserving backward compatibility.
+
+Version 1.2.2 changed the DWTools namespace from
+`com.bryan.dungeon-world-creatures` to `com.ex-asperis.dwtools`. Startup moves
+room settings and character records atomically, while each scene's creature
+and character-link metadata moves when that scene is opened. New-namespaced
+values win conflicts, migrated legacy keys are removed immediately, and the
+absence of legacy keys makes the migration idempotent.
 
 ## Deletion
 

@@ -11,7 +11,11 @@ import OBR, {
   type Item,
   type PathCommand,
 } from "@owlbear-rodeo/sdk";
-import { DISPLAY_KEY, type CreatureData } from "./constants";
+import {
+  DISPLAY_KEY,
+  LEGACY_DISPLAY_KEY,
+  type CreatureData,
+} from "./constants";
 import { iconCommands, type DwIconName } from "./icons";
 import {
   getCreatureData,
@@ -47,7 +51,10 @@ export interface ReconciliationPlan {
 }
 
 export function isDisplay(item: Item): boolean {
-  return item.metadata[DISPLAY_KEY] === true;
+  return (
+    item.metadata[DISPLAY_KEY] === true ||
+    item.metadata[LEGACY_DISPLAY_KEY] === true
+  );
 }
 
 function displayMetadata(role: string, renderKey: string) {
