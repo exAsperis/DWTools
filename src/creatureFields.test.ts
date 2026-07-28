@@ -51,6 +51,17 @@ describe("canonical creature field mapping", () => {
     };
     applyCreatureFieldsToItem(item, replacement);
     expect(item.name).toBe("Goblin Chief");
+    expect(
+      (item as unknown as { text: { plainText: string } }).text.plainText,
+    ).toBe("Goblin Chief");
+    expect(
+      (item as unknown as { text: { richText: unknown } }).text.richText,
+    ).toEqual([
+      {
+        type: "paragraph",
+        children: [{ text: "Goblin Chief" }],
+      },
+    ]);
     expect(item.metadata[CREATURE_KEY]).toEqual({
       tags: "Small",
       hpCurrent: 9,
@@ -68,6 +79,9 @@ describe("canonical creature field mapping", () => {
     item.name = "Custom token label";
     applyCreatureFieldsToItem(item, { ...replacement, hpCurrent: 7 }, false);
     expect(item.name).toBe("Custom token label");
+    expect(
+      (item as unknown as { text: { plainText: string } }).text.plainText,
+    ).toBe("Goblin Chief");
     expect(item.metadata[CREATURE_KEY]).toMatchObject({ hpCurrent: 7 });
   });
 

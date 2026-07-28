@@ -1,4 +1,4 @@
-import type { Item } from "@owlbear-rodeo/sdk";
+import { isImage, type Item } from "@owlbear-rodeo/sdk";
 import {
   CHARACTER_LINK_KEY,
   CREATURE_KEY,
@@ -168,7 +168,18 @@ export function applyCreatureFieldsToItem(
   overwriteName = true,
 ): void {
   const normalized = normalizeCreatureFields(fields);
-  if (overwriteName) draftItem.name = normalized.name;
+  if (overwriteName) {
+    draftItem.name = normalized.name;
+    if (isImage(draftItem)) {
+      draftItem.text.plainText = normalized.name;
+      draftItem.text.richText = [
+        {
+          type: "paragraph",
+          children: [{ text: normalized.name }],
+        },
+      ];
+    }
+  }
   draftItem.metadata[CREATURE_KEY] = normalizeCreatureData(normalized);
 }
 

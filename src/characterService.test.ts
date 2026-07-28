@@ -99,6 +99,9 @@ describe("CreatureService linking and mutation", () => {
     await creatures.linkToExistingCharacter(existing.id, record.id);
 
     expect(existing.name).toBe("Raganah");
+    expect(
+      (existing as unknown as { text: { plainText: string } }).text.plainText,
+    ).toBe("Raganah");
     expect(existing.metadata[CREATURE_KEY]).toEqual(
       creatureDataFromFields(record.fields),
     );
@@ -122,6 +125,9 @@ describe("CreatureService linking and mutation", () => {
     await creatures.linkToExistingCharacter(existing.id, record.id, false);
 
     expect(existing.name).toBe("Custom label");
+    expect(
+      (existing as unknown as { text: { plainText: string } }).text.plainText,
+    ).toBe("Custom label");
     expect(existing.metadata[CREATURE_KEY]).toEqual(
       creatureDataFromFields(record.fields),
     );

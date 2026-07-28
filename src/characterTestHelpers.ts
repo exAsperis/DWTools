@@ -74,7 +74,13 @@ export function token(
 ): Item {
   return {
     id,
+    type: "IMAGE",
     name,
+    text: {
+      type: "PLAIN",
+      plainText: name,
+      richText: [{ type: "paragraph", children: [{ text: name }] }],
+    },
     metadata: {
       [CREATURE_KEY]: { ...data },
       ...(link ? { [CHARACTER_LINK_KEY]: { ...link } } : {}),
