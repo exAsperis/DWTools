@@ -56,6 +56,10 @@ import {
 } from "./obrCharacterServices";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import type { InventoryItem, InventorySelection } from "./inventory";
+import {
+  getOverwriteLabelOnLink,
+  persistOverwriteLabelOnLink,
+} from "./overwriteLabel";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const params = new URLSearchParams(window.location.search);
@@ -832,6 +836,8 @@ let editorLinkRecords: CharacterRecord[] = [];
 let editorLinking = false;
 let editorLinkSearch = "";
 let editorBusy = false;
+let editorOverwriteLabel = true;
+let editorSavingOverwriteLabel = false;
 let editorError: string | undefined;
 let editorHadCreatureData = false;
 
@@ -873,7 +879,7 @@ function buildCharacterRecordSection(token: Item): string {
   const picker = editorLinking
     ? `
       <div class="link-picker">
-        <p>Selecting an existing record replaces every persistent DWTools field on this token.</p>
+        <p>Selecting an existing record replaces this token's DWTools creature data. ${editorOverwriteLabel ? "Its label will also be overwritten." : "Its label will be retained."}</p>
         <label>Search characters<input id="link-search" type="search" value="${escapeHtml(editorLinkSearch)}"></label>
         <div class="link-results">
           ${
@@ -899,6 +905,10 @@ function buildCharacterRecordSection(token: Item): string {
     <section class="character-link-section">
       <span>${status}</span>
       <div class="link-actions">${controls}</div>
+      <label class="visibility">
+        <input id="overwrite-label" type="checkbox" ${editorOverwriteLabel ? "checked" : ""} ${editorSavingOverwriteLabel ? "disabled" : ""}>
+        Overwrite label
+      </label>
       ${picker}
     </section>`;
 }
@@ -958,6 +968,13 @@ function renderEditor(): void {
   document
     .querySelector("#link-character")
     ?.addEventListener("click", () => void openLinkPicker());
+  document
+    .querySelector<HTMLInputElement>("#overwrite-label")
+    ?.addEventListener("change", (event) => {
+      void saveOverwriteLabelPreference(
+        (event.currentTarget as HTMLInputElement).checked,
+      );
+    });
   for (const button of document.querySelectorAll("#create-character")) {
     button.addEventListener("click", () => void createAndLinkCharacter());
   }
@@ -1034,6 +1051,31 @@ async function openLinkPicker(): Promise<void> {
   }
 }
 
+async function saveOverwriteLabelPreference(
+  overwriteLabel: boolean,
+): Promise<void> {
+  if (editorSavingOverwriteLabel) return;
+  const previous = editorOverwriteLabel;
+  editorOverwriteLabel = overwriteLabel;
+  editorSavingOverwriteLabel = true;
+  renderEditor();
+  try {
+    await persistOverwriteLabelOnLink(
+      (update) => OBR.room.setMetadata(update),
+      overwriteLabel,
+    );
+  } catch (error) {
+    editorOverwriteLabel = previous;
+    editorError = messageFrom(
+      error,
+      "DWTools could not save the overwrite-label setting.",
+    );
+  } finally {
+    editorSavingOverwriteLabel = false;
+    renderEditor();
+  }
+}
+
 async function linkExistingCharacter(
   characterId: string | undefined,
 ): Promise<void> {
@@ -1044,7 +1086,7 @@ async function linkExistingCharacter(
   if (!selected) return;
   if (
     !window.confirm(
-      `Link to "${selected.fields.name}"? This token's current DWTools fields will be replaced by the latest character record.`,
+      `Link to "${selected.fields.name}"? This token's current DWTools creature data will be replaced by the latest character record. Its label will be ${editorOverwriteLabel ? "overwritten" : "retained"}.`,
     )
   ) {
     return;
@@ -1053,7 +1095,11 @@ async function linkExistingCharacter(
   editorError = undefined;
   renderEditor();
   try {
-    await editorService.linkToExistingCharacter(editorToken.id, characterId);
+    await editorService.linkToExistingCharacter(
+      editorToken.id,
+      characterId,
+      editorOverwriteLabel,
+    );
     notify(`Linked to ${selected.fields.name}.`, "SUCCESS");
     editorLinking = false;
     await reloadEditor();
@@ -1198,6 +1244,7 @@ async function startEditor(): Promise<void> {
     token.metadata[CREATURE_KEY],
     getDefaultOverlayVisibility(roomMetadata),
   );
+  editorOverwriteLabel = getOverwriteLabelOnLink(roomMetadata);
   editorToken = {
     ...token,
     metadata: {
@@ -1231,6 +1278,12 @@ async function startEditor(): Promise<void> {
     OBR.scene.items.onChange((items) => {
       const updated = items.find((item) => item.id === itemId);
       if (updated && !editorBusy) void reloadEditor();
+    }),
+    OBR.room.onMetadataChange((metadata) => {
+      if (!editorSavingOverwriteLabel) {
+        editorOverwriteLabel = getOverwriteLabelOnLink(metadata);
+        renderEditor();
+      }
     }),
     OBR.theme.onChange(applyTheme),
   ];
@@ -1281,6 +1334,8 @@ if (preview === "home") {
   };
   renderHome();
 } else if (preview === "editor") {
+  editorOverwriteLabel =
+    params.get("overwriteLabel")?.toLocaleLowerCase() !== "false";
   editorToken = {
     id: "preview",
     name: "Frogman",

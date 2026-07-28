@@ -5,6 +5,7 @@ export const CREATURE_KEY = `${EXTENSION_ID}/creature`;
 export const DISPLAY_KEY = `${EXTENSION_ID}/display`;
 export const EDIT_POPOVER_ID = `${EXTENSION_ID}/edit-popover`;
 export const DEFAULT_OVERLAY_VISIBILITY_KEY = `${EXTENSION_ID}/default-overlay-visible`;
+export const OVERWRITE_LABEL_ON_LINK_KEY = `${EXTENSION_ID}/overwrite-label-on-link`;
 export const CHARACTER_KEY_PREFIX = `${EXTENSION_ID}/character/`;
 export const CHARACTER_LINK_KEY = `${EXTENSION_ID}/character-link`;
 export const CONTEXT_MENU_ID = `${EXTENSION_ID}/menu`;

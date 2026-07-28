@@ -108,6 +108,26 @@ describe("CreatureService linking and mutation", () => {
     expect(getCharacterLink(existing)?.characterId).toBe(record.id);
   });
 
+  it("links to an existing record without overwriting the token label", async () => {
+    const record = activeRecord("raganah");
+    const existing = token("one", "Custom label", {
+      hpCurrent: 3,
+      armor: 0,
+      tags: "Old",
+    });
+    const { creatures } = setup([existing], {
+      [characterMetadataKey(record.id)]: record,
+    });
+
+    await creatures.linkToExistingCharacter(existing.id, record.id, false);
+
+    expect(existing.name).toBe("Custom label");
+    expect(existing.metadata[CREATURE_KEY]).toEqual(
+      creatureDataFromFields(record.fields),
+    );
+    expect(getCharacterLink(existing)?.characterId).toBe(record.id);
+  });
+
   it("unlinks while retaining all current creature values", async () => {
     const linked = token(
       "one",
@@ -158,7 +178,29 @@ describe("CreatureService linking and mutation", () => {
     const recordData = creatureDataFromFields(result.record!.fields);
     expect(first.metadata[CREATURE_KEY]).toEqual(recordData);
     expect(sibling.metadata[CREATURE_KEY]).toEqual(recordData);
-    expect(sibling.name).toBe("Raganah");
+    expect(first.name).toBe("Raganah");
+    expect(sibling.name).toBe("Old copy");
+  });
+
+  it("synchronizes Character name changes without changing token labels", async () => {
+    const record = activeRecord("raganah");
+    const link = { schemaVersion: 1 as const, characterId: record.id };
+    const first = token("one", "Hero miniature", record.fields, link);
+    const sibling = token("two", "Backup miniature", record.fields, link);
+    const { manager } = setup([first, sibling], {
+      [characterMetadataKey(record.id)]: record,
+    });
+
+    await manager.save(record.id, {
+      ...record.fields,
+      name: "Raganah the Returned",
+      hpCurrent: 6,
+    });
+
+    expect(first.name).toBe("Hero miniature");
+    expect(sibling.name).toBe("Backup miniature");
+    expect(first.metadata[CREATURE_KEY]).toMatchObject({ hpCurrent: 6 });
+    expect(sibling.metadata[CREATURE_KEY]).toMatchObject({ hpCurrent: 6 });
   });
 
   it("retains orphan links and fields for missing records", async () => {

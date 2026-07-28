@@ -61,7 +61,7 @@ describe("CharacterSyncCoordinator", () => {
     state.ready(true);
     await state.coordinator.whenIdle();
 
-    expect(state.linked.name).toBe("Raganah");
+    expect(state.linked.name).toBe("Stale");
     expect(state.linked.metadata[CREATURE_KEY]).toEqual(
       creatureDataFromFields(state.record.fields),
     );

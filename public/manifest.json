@@ -1,6 +1,6 @@
 {
   "name": "DWTools",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "manifest_version": 1,
   "description": "Persistent Dungeon World characters with inventory, Load, HP, armor, damage, tags, moves, instinct, and treasure.",
   "author": "ex Asperis",
@@ -8,9 +8,9 @@
   "action": {
     "title": "DWTools",
     "icon": "/DWTools/icon.svg",
-    "popover": "/DWTools/?v=1.2.2",
+    "popover": "/DWTools/?v=1.2.3",
     "height": 760,
     "width": 390
   },
-  "background_url": "/DWTools/background.html?v=1.2.2"
+  "background_url": "/DWTools/background.html?v=1.2.3"
 }

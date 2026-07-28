@@ -25,11 +25,15 @@ com.ex-asperis.dwtools/character-link
 
 The link is a DWTools relationship only. It does not change Owlbear ownership,
 permissions, `createdUserId`, image data, visibility, position, scale, rotation,
-layer, or selection.
+layer, or selection. An explicit link can optionally copy the Character name
+to the native token label according to the room-wide **Overwrite label**
+preference, which defaults to enabled.
 
 The room record is authoritative. A linked token retains a synchronized
-scene-local copy of the complete persistent creature fields so existing
-overlays and UI continue to read the established creature metadata.
+scene-local copy of the persistent creature data so existing overlays and UI
+continue to read the established creature metadata. The Character name remains
+part of the record, but the token's native label is overwritten only during an
+explicit link when requested. Later synchronization does not change it.
 
 Inventory and Load are never copied to Creature token metadata. Multiple tokens
 linked to one Character therefore share the same canonical inventory without
@@ -38,7 +42,8 @@ creating redundant scene metadata.
 ## Persistent fields
 
 `CreatureFields` derives from the existing `CreatureData` schema and adds the
-token's native name. It includes:
+Character's name. When first created from a token, that name comes from the
+token's native label. It includes:
 
 - name;
 - tags;
@@ -138,7 +143,8 @@ All explicit DWTools creature mutations use `CreatureService`.
 - Unlinked tokens update only their scene item.
 - Linked tokens write the authoritative room record first.
 - After a successful record write, all tokens linked to that character in the
-  current scene receive the record's complete fields.
+  current scene receive the record's creature data while retaining their
+  individual native token labels.
 - A failed record write leaves token fields unchanged.
 
 Do not add an arbitrary scene-item watcher that writes token changes back to a

@@ -64,6 +64,11 @@ describe("canonical creature field mapping", () => {
       treasure: "Coins",
       visibleToPlayers: false,
     });
+
+    item.name = "Custom token label";
+    applyCreatureFieldsToItem(item, { ...replacement, hpCurrent: 7 }, false);
+    expect(item.name).toBe("Custom token label");
+    expect(item.metadata[CREATURE_KEY]).toMatchObject({ hpCurrent: 7 });
   });
 
   it("sets and removes only versioned link metadata", () => {

@@ -151,6 +151,23 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-28 — Character linking can overwrite a token label once
+
+The Character record section includes a room-wide **Overwrite label** setting,
+enabled by default. When enabled, an explicit link, change-link, or relink
+copies the selected Character name to the token's native Owlbear label. When
+disabled, the existing token label is retained.
+
+This is a one-time link action. Background synchronization, scene readiness,
+and later Character-name edits synchronize DWTools creature data without
+changing native token labels. Character names and token labels therefore remain
+independent after linking; token-label changes do not write back to Character
+records.
+
+Reason: GMs often want the Character name applied when first associating a
+token, while still retaining the freedom to use scene-specific token labels
+without a continuing name-sync relationship.
+
 ### 2026-07-28 — DWTools uses the ex Asperis metadata namespace
 
 All active DWTools metadata and UI identifiers use

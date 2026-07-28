@@ -52,7 +52,7 @@ function apiError(error: unknown, message: string): CreatureUpdateError {
 }
 
 function fieldsNeedUpdate(item: Item, fields: CreatureFields): boolean {
-  return !creatureFieldsEqual(item, fields);
+  return !creatureFieldsEqual(item, fields, false);
 }
 
 export async function currentSceneLinkedTokenCounts(
@@ -98,7 +98,7 @@ export async function syncCharacterToCurrentScene(
       if (lookup.status === "deleted") {
         removeCharacterLink(draft);
       } else {
-        applyCreatureFieldsToItem(draft, lookup.record.fields);
+        applyCreatureFieldsToItem(draft, lookup.record.fields, false);
       }
     }
   });
@@ -150,7 +150,7 @@ export async function syncAllLinkedCharactersInCurrentScene(
       if (lookup.status === "deleted") {
         removeCharacterLink(draft);
       } else if (lookup.status === "active") {
-        applyCreatureFieldsToItem(draft, lookup.record.fields);
+        applyCreatureFieldsToItem(draft, lookup.record.fields, false);
       }
     }
   });
@@ -248,6 +248,7 @@ export class CreatureService {
   async linkToExistingCharacter(
     itemId: string,
     characterId: string,
+    overwriteLabel = true,
   ): Promise<CharacterRecord> {
     const [item, lookup] = await Promise.all([
       this.requireItem(itemId),
@@ -262,7 +263,11 @@ export class CreatureService {
     }
     try {
       await this.scene.updateItems([item], (drafts) => {
-        applyCreatureFieldsToItem(drafts[0], lookup.record.fields);
+        applyCreatureFieldsToItem(
+          drafts[0],
+          lookup.record.fields,
+          overwriteLabel,
+        );
         setCharacterLink(drafts[0], characterId);
       });
     } catch (error) {

@@ -55,8 +55,8 @@ character tokens.
 1. Right-click the token, choose **DWTools**, and open **Edit creature**.
 2. In the **Character record** section, select **Link to character**.
 3. Choose an existing record, or select **Create new from this creature**.
-4. Confirm before linking an existing record. Its latest fields replace the
-   token's current DWTools fields.
+4. Confirm before linking an existing record. Its latest creature data replaces
+   the token's current DWTools creature data.
 
 After linking, edits to that character update all of its linked tokens in the
 current scene. When another scene opens, its linked tokens synchronize from
@@ -64,7 +64,9 @@ the same room record.
 
 Use **Change link** to associate the token with another character. Use
 **Unlink** to stop synchronization while retaining all current creature
-fields on the token.
+fields on the token. The room-wide **Overwrite label** setting defaults on and
+controls whether an explicit link copies the Character name to the token label.
+Later synchronization leaves token labels unchanged.
 
 ### Manage characters and inventory
 

@@ -165,9 +165,10 @@ export function extractCreatureFields(item: Item): CreatureFields {
 export function applyCreatureFieldsToItem(
   draftItem: Item,
   fields: CreatureFields,
+  overwriteName = true,
 ): void {
   const normalized = normalizeCreatureFields(fields);
-  draftItem.name = normalized.name;
+  if (overwriteName) draftItem.name = normalized.name;
   draftItem.metadata[CREATURE_KEY] = normalizeCreatureData(normalized);
 }
 
@@ -204,12 +205,15 @@ export function removeCharacterLink(draftItem: Item): void {
 export function creatureFieldsEqual(
   item: Item,
   fields: CreatureFields,
+  includeName = true,
 ): boolean {
   try {
-    return (
-      JSON.stringify(extractCreatureFields(item)) ===
-      JSON.stringify(normalizeCreatureFields(fields))
-    );
+    const itemFields = extractCreatureFields(item);
+    const normalizedFields = normalizeCreatureFields(fields);
+    if (!includeName) {
+      itemFields.name = normalizedFields.name;
+    }
+    return JSON.stringify(itemFields) === JSON.stringify(normalizedFields);
   } catch {
     return false;
   }

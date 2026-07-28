@@ -32,18 +32,19 @@ creature data has been added.
 Open the token's creature editor and use its **Character record** section:
 
 - **Link to character** associates the token with an existing room character.
-  Confirming the link replaces the token's DWTools fields with the latest
-  fields from that character record.
+  Confirming the link replaces the token's DWTools creature data with the
+  latest data from that character record. **Overwrite label** controls whether
+  the explicit link also copies the Character name to the token label.
 - **Create new from this creature** creates a room character using the token's
   current name and creature fields, then links the token to it.
-- **Change link** replaces the token's fields with a different character
-  record.
+- **Change link** associates the token with a different character record.
 - **Unlink** keeps the token's current fields but stops future synchronization.
 
 Once linked, the room character record is authoritative. Editing any linked
 token updates the record and every token linked to that character in the
 current scene. Linked tokens in another scene receive the latest record when
-that scene is opened.
+that scene is opened. Later synchronization leaves native token labels
+unchanged.
 
 ### Manage characters and inventory
 
