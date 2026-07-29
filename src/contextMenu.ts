@@ -9,11 +9,7 @@ import {
 import type { CreatureService } from "./characterService";
 import { formatDamageResult, parseDamage, rollDamage } from "./damage";
 import { adjustedHp } from "./hp";
-import {
-  buildContextSummary,
-  displayValue,
-  escapeHtml,
-} from "./contextMenuView";
+import { buildContextSummary } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
 import { createObrCharacterRepository } from "./obrCharacterServices";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
@@ -53,25 +49,9 @@ function render() {
   }
 
   const data = getData(token);
-  const moves = (data.moves ?? "")
-    .split(/\r?\n/)
-    .map((move) => move.trim())
-    .filter(Boolean);
   app.innerHTML = `
     <section class="panel">
       <div class="summary" aria-label="Creature summary">${buildContextSummary(data, characterRecord)}</div>
-      <div class="details">
-        <div class="line"><span class="label">Instinct:</span> ${displayValue(data.instinct)}</div>
-        <div class="line">
-          <span class="label">Moves:</span>
-          ${
-            moves.length
-              ? `<ul class="moves">${moves.map((move) => `<li>${escapeHtml(move)}</li>`).join("")}</ul>`
-              : '<span class="empty">—</span>'
-          }
-        </div>
-        <div class="line"><span class="label">Treasure:</span> ${displayValue(data.treasure)}</div>
-      </div>
       <button class="edit" type="button" id="edit">Edit creature</button>
     </section>`;
 
@@ -81,10 +61,18 @@ function render() {
       () => void adjustHp(Number(button.dataset.hp)),
     );
   }
+  for (const button of app.querySelectorAll<HTMLButtonElement>("[data-xp]")) {
+    button.addEventListener(
+      "click",
+      () => void adjustXp(Number(button.dataset.xp)),
+    );
+  }
+  for (const button of app.querySelectorAll<HTMLButtonElement>(
+    "[data-modifier]",
+  )) {
+    button.addEventListener("click", () => showModifierRoll(button));
+  }
   app.querySelector("#damage")?.addEventListener("click", rollTokenDamage);
-  app
-    .querySelector("#visibility")
-    ?.addEventListener("click", () => void toggleVisibility());
   app
     .querySelector("#edit")
     ?.addEventListener("click", () => void openEditor());
@@ -116,24 +104,29 @@ async function adjustHp(amount: number) {
   }
 }
 
-async function toggleVisibility() {
+async function adjustXp(amount: number) {
   if (!token || !creatureService) return;
   const latest = (await OBR.scene.items.getItems([token.id]))[0];
   if (!latest) return;
   const data = getData(latest);
   try {
     await creatureService.updateCreatureFields(latest.id, {
-      visibleToPlayers: data.visibleToPlayers === false,
+      xp: Math.max(0, (data.xp ?? 0) + amount),
     });
   } catch (error) {
-    console.error("DWTools could not update overlay visibility", error);
+    console.error("DWTools could not update XP", error);
     void OBR.notification.show(
-      error instanceof Error
-        ? error.message
-        : "DWTools could not update overlay visibility.",
+      error instanceof Error ? error.message : "DWTools could not update XP.",
       "ERROR",
     );
   }
+}
+
+function showModifierRoll(button: HTMLButtonElement) {
+  const modifier = Number(button.dataset.modifier);
+  if (!Number.isFinite(modifier)) return;
+  const sign = modifier >= 0 ? "+" : "";
+  void OBR.notification.show(`Roll 2d6${sign}${modifier}`, "SUCCESS");
 }
 
 function rollTokenDamage() {
@@ -200,6 +193,10 @@ if (preview === "context") {
         damage: "b[2d6]+1",
         damageDescription: "Claws",
         damageTags: "Close, Messy",
+        level: 3,
+        xp: 10,
+        scores: [16, 13, 10, 8, 11, 7],
+        conditions: { weak: -1 },
         instinct: "To defend the drowned temple",
         moves: "Strike from beneath the water\nCall the marsh to its aid",
         treasure: "A waterlogged purse and a silver idol",

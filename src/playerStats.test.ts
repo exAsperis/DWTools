@@ -5,6 +5,7 @@ import {
   calculatedMaxLoad,
   compactConditions,
   compactScores,
+  effectiveAbilityModifier,
   formatModifier,
   isMaximumMismatch,
   shouldPromptForRecalculation,
@@ -33,6 +34,12 @@ describe("Dungeon World player stat calculations", () => {
     expect(formatModifier(0)).toBe("+0");
     expect(formatModifier(2)).toBe("+2");
     expect(formatModifier(-1)).toBe("-1");
+  });
+
+  it("applies condition penalties to effective displayed modifiers", () => {
+    expect(effectiveAbilityModifier(16, undefined)).toBe(2);
+    expect(effectiveAbilityModifier(16, -1)).toBe(1);
+    expect(effectiveAbilityModifier(null, -1)).toBeUndefined();
   });
 
   it("uses Constitution score for HP and Strength modifier for Load", () => {

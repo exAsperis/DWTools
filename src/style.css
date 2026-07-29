@@ -23,6 +23,7 @@ button:disabled { cursor: wait; opacity: .55; }
 .home h1 { position: absolute; left: 50%; margin: 0; font-size: 23px; transform: translateX(-50%); }
 .home p { color: var(--dw-text-secondary); line-height: 1.5; }
 .extension-logo { display: block; width: 48px; height: 48px; }
+.extension-version { margin: 20px 0 0; color: var(--dw-text-disabled); font-size: 10px; text-align: center; }
 .muted { font-size: 13px; }
 .home-section, .character-manager { display: grid; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--dw-border); }
 .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -107,15 +108,14 @@ button:disabled { cursor: wait; opacity: .55; }
 .expandable-fields > summary { cursor: pointer; color: var(--dw-text); font-size: 14px; }
 .expandable-fields > summary::marker { color: var(--dw-primary); }
 .editor-section-body { display: grid; gap: 11px; padding-top: 12px; }
-.progression-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.base-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.base-row label:last-child { grid-column: 1 / -1; }
+.progression-row { display: grid; grid-template-columns: 1fr 1fr 2fr; align-items: start; gap: 10px; }
+.base-row { display: grid; grid-template-columns: 1fr 1fr 1.45fr; align-items: start; gap: 10px; }
 .ability-list { display: grid; gap: 7px; }
-.ability-row { display: grid; grid-template-columns: minmax(0, 88px) 40px minmax(0, 1fr); align-items: end; gap: 8px; padding: 7px 0; border-top: 1px solid var(--dw-border); }
-.ability-score { grid-template-columns: auto 1fr; align-items: baseline; column-gap: 5px; }
-.ability-score input { grid-column: 1 / -1; }
-.field-help { overflow: hidden; color: var(--dw-text-disabled); font-size: 9px; font-weight: 500; text-overflow: ellipsis; }
-.ability-modifier { align-self: end; padding: 9px 0; color: var(--dw-text); font-size: 14px; font-weight: 800; text-align: center; }
+.ability-row { display: grid; grid-template-columns: minmax(0, 88px) 44px minmax(0, 1fr); align-items: start; gap: 8px; padding: 7px 0; border-top: 1px solid var(--dw-border); }
+.ability-score input { max-width: 72px; }
+.ability-modifier { display: grid; gap: 6px; color: var(--dw-text); text-align: center; }
+.ability-modifier-label { color: var(--dw-text-secondary); font-size: 12px; font-weight: 700; }
+.ability-modifier-value { min-height: 35px; padding: 9px 0; font-size: 14px; font-weight: 800; }
 .condition-toggle { grid-template-columns: auto 1fr; align-items: center; gap: 6px; padding-bottom: 8px; color: var(--dw-text); }
 .condition-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--dw-primary); }
 .condition-toggle span { color: var(--dw-text-disabled); font-size: 9px; font-weight: 500; }
@@ -132,7 +132,9 @@ input.field-invalid, input.field-invalid:focus { border-color: #ef4444; box-shad
 textarea { resize: vertical; line-height: 1.4; }
 .hp-row { display: grid; grid-template-columns: 1fr 18px 1fr; align-items: end; gap: 6px; }
 .slash { padding-bottom: 8px; text-align: center; color: #71717a; }
-.vitals-row { display: grid; grid-template-columns: .8fr 1fr 18px 1fr; align-items: end; gap: 8px; }
+.vitals-row { display: grid; grid-template-columns: minmax(54px, .75fr) minmax(68px, 1fr) 14px minmax(82px, 1fr); align-items: start; gap: 8px; }
+.vitals-row input, .progression-row input[type="number"], .base-row input { max-width: 72px; }
+.vitals-row .slash { margin-top: 29px; padding-bottom: 0; }
 .damage-fields { display: grid; grid-template-columns: 1fr 1.25fr; gap: 10px; }
 .quick-hp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .quick-hp button { border: 1px solid var(--dw-border); border-radius: 7px; padding: 8px; color: var(--dw-text); background: var(--dw-control); cursor: pointer; }

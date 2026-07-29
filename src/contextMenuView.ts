@@ -1,7 +1,13 @@
+import type { CharacterRecord } from "./characterRepository";
 import type { CreatureData } from "./constants";
 import { iconMarkup } from "./icons";
-import type { CharacterRecord } from "./characterRepository";
 import { formatLoad, isOverloaded, totalLoad } from "./inventory";
+import {
+  ABILITY_ABBREVIATIONS,
+  CONDITION_NAMES,
+  effectiveAbilityModifier,
+  formatModifier,
+} from "./playerStats";
 
 export function escapeHtml(value: string): string {
   return value.replace(
@@ -17,8 +23,30 @@ export function escapeHtml(value: string): string {
   );
 }
 
-export function displayValue(value: string | number | undefined): string {
-  return value === undefined || value === "" ? "—" : escapeHtml(String(value));
+function abilityRow(data: CreatureData, start: number, end: number): string {
+  const abilities = [];
+  for (let index = start; index < end; index += 1) {
+    const modifier = effectiveAbilityModifier(
+      data.scores?.[index],
+      data.conditions?.[CONDITION_NAMES[index]],
+    );
+    if (modifier === undefined) continue;
+    const formatted = formatModifier(modifier);
+    abilities.push(`
+      <button class="modifier-roll" type="button" data-ability="${index}" data-modifier="${modifier}" title="Roll 2d6${formatted}">
+        <span>${ABILITY_ABBREVIATIONS[index]}</span> <strong>${formatted}</strong>
+      </button>`);
+  }
+  return abilities.length
+    ? `<div class="summary-row ability-summary-row">${abilities.join("")}</div>`
+    : "";
+}
+
+function detailRow(label: string, value: string | undefined): string {
+  const text = value?.trim();
+  return text
+    ? `<div class="summary-row detail-row"><span class="label">${label}:</span> ${escapeHtml(text)}</div>`
+    : "";
 }
 
 export function buildContextSummary(
@@ -27,25 +55,58 @@ export function buildContextSummary(
 ): string {
   const description = data.damageDescription?.trim();
   const damageTags = data.damageTags?.trim();
+  const hasDamage = Boolean(data.damage?.trim() || description || damageTags);
+  const hasHp = data.hpCurrent !== undefined || data.hpMax !== undefined;
+  const hpText =
+    data.hpCurrent !== undefined
+      ? `HP ${data.hpCurrent}${data.hpMax !== undefined ? `/${data.hpMax}` : ""}`
+      : `Maximum HP ${data.hpMax}`;
+  const combatFields = [
+    data.armor !== undefined
+      ? `<span class="stat-group armor-stat">${iconMarkup("shield")}<span>${data.armor}</span></span>`
+      : "",
+    hasHp
+      ? `<span class="hp-group">
+          ${data.hpCurrent !== undefined ? '<button class="hp-button" type="button" data-hp="-1" aria-label="Decrease HP">−</button>' : ""}
+          <span class="hp-value">${hpText}</span>
+          ${data.hpCurrent !== undefined ? '<button class="hp-button" type="button" data-hp="1" aria-label="Increase HP">+</button>' : ""}
+        </span>`
+      : "",
+  ].filter(Boolean);
+  const levelReady =
+    data.level !== undefined &&
+    data.xp !== undefined &&
+    data.xp >= data.level + 7;
+  const progressionFields = [
+    data.level !== undefined
+      ? `<span class="level-value ${levelReady ? "level-ready" : ""}">Lv ${data.level}</span>`
+      : "",
+    data.xp !== undefined
+      ? `<span class="xp-group">
+          <button class="xp-button" type="button" data-xp="-1" aria-label="Decrease XP">−</button>
+          <span>XP ${data.xp}</span>
+          <button class="xp-button" type="button" data-xp="1" aria-label="Increase XP">+</button>
+        </span>`
+      : "",
+  ].filter(Boolean);
+  const moves = (data.moves ?? "")
+    .split(/\r?\n/)
+    .map((move) => move.trim())
+    .filter(Boolean);
   return `
-    <div class="summary-row tags-row">
-      <button class="visibility-button" type="button" id="visibility" aria-label="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}" title="${data.visibleToPlayers === false ? "Hidden from players" : "Visible to players"}">
-        ${iconMarkup(data.visibleToPlayers === false ? "eye-off" : "eye")}
-      </button>
-      <span class="descriptors">${displayValue(data.tags)}</span>
-    </div>
-    <div class="summary-row combat-row">
-      <span class="stat-group armor-stat">${iconMarkup("shield")}<span>${displayValue(data.armor)}</span></span>
-      <button class="hp-button" type="button" data-hp="-1" aria-label="Decrease HP">−</button>
-      <span class="hp-value">HP ${displayValue(data.hpCurrent)}/${displayValue(data.hpMax)}</span>
-      <button class="hp-button" type="button" data-hp="1" aria-label="Increase HP">+</button>
-    </div>
-    <div class="summary-row damage-row">
-      ${iconMarkup("sword")}
-      <button class="damage" type="button" id="damage" title="Roll damage">${displayValue(data.damage)}</button>
-      ${description ? `<span class="damage-description">(${escapeHtml(description)})</span>` : ""}
-      ${damageTags ? `<span class="descriptors">${escapeHtml(damageTags)}</span>` : ""}
-    </div>
+    ${combatFields.length ? `<div class="summary-row combat-row">${combatFields.join("")}</div>` : ""}
+    ${
+      hasDamage
+        ? `<div class="summary-row damage-row">
+          ${iconMarkup("sword")}
+          ${data.damage?.trim() ? `<button class="damage" type="button" id="damage" title="Roll damage">${escapeHtml(data.damage.trim())}</button>` : ""}
+          ${description ? `<span class="damage-description">(${escapeHtml(description)})</span>` : ""}
+          ${damageTags ? `<span class="descriptors">${escapeHtml(damageTags)}</span>` : ""}
+        </div>`
+        : ""
+    }
+    ${abilityRow(data, 0, 3)}
+    ${abilityRow(data, 3, 6)}
     ${
       record
         ? `<div class="summary-row load-row ${isOverloaded(totalLoad(record.inventory), record.fields.maxLoad) ? "load-warning" : ""}">
@@ -53,5 +114,17 @@ export function buildContextSummary(
           ${isOverloaded(totalLoad(record.inventory), record.fields.maxLoad) ? "<strong>Overloaded</strong>" : ""}
         </div>`
         : ""
-    }`;
+    }
+    ${progressionFields.length ? `<div class="summary-row progression-summary-row">${progressionFields.join("")}</div>` : ""}
+    ${detailRow("Tags", data.tags)}
+    ${detailRow("Instinct", data.instinct)}
+    ${
+      moves.length
+        ? `<div class="summary-row detail-row">
+          <span class="label">Moves:</span>
+          <ul class="moves">${moves.map((move) => `<li>${escapeHtml(move)}</li>`).join("")}</ul>
+        </div>`
+        : ""
+    }
+    ${detailRow("Treasure", data.treasure)}`;
 }

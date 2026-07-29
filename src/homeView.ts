@@ -191,6 +191,7 @@ export function buildHomeMarkup(
   saving: boolean,
   sections: HomeSectionState = DEFAULT_HOME_SECTIONS,
   characterManagerMarkup = "",
+  version = "",
 ): string {
   const stateLabel = defaultVisibleToPlayers
     ? "Default: visible to players"
@@ -244,6 +245,7 @@ export function buildHomeMarkup(
           : ""
       }
       ${characterManagerMarkup}
+      ${version ? `<p class="extension-version">version ${version}</p>` : ""}
       <dialog id="move-dialog" class="move-dialog">
         <div class="move-dialog-heading">
           <h2 id="move-dialog-title"></h2>

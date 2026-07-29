@@ -151,13 +151,38 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-29 — Ability names identify scores; abbreviations identify modifiers
+
+In every editing form, the full ability names **Strength**, **Dexterity**,
+**Constitution**, **Intelligence**, **Wisdom**, and **Charisma** label the raw
+score inputs. The abbreviations **STR**, **DEX**, **CON**, **INT**, **WIS**, and
+**CHA** label calculated modifiers; an abbreviation must not label a raw score.
+
+The token context menu presents the six abbreviated modifiers in two
+three-value rows. These are effective roll modifiers, so the corresponding
+debility's −1 penalty is included. Each abbreviated modifier is one clickable
+roll target for `2d6` plus the displayed value. The editor continues to show
+the underlying score-derived modifier beside a separate, explicit debility
+control so Maximum Load remains calculated from the Strength score's normal
+modifier rather than a temporary debility.
+
+The context menu has no player-overlay visibility control. It omits absent
+values instead of substituting dashes, and orders its available rows as combat,
+damage, modifiers, Load, Level/XP, Tags, Instinct, Moves, and Treasure. Level
+is gold when XP is at least Level + 7.
+
+Reason: full names and abbreviations need one stable semantic meaning, while
+the quick-reference menu should show the number that will actually be applied
+to a roll and avoid spending space on absent data or an infrequent visibility
+setting.
+
 ### 2026-07-29 — Shared player-character stats and structured editors
 
 Creature and Character definitions can carry optional Level, XP, Alignment, HP
 base, Load base, Maximum Load, six compact ability scores, and sparse debility
 conditions. Scores are stored in STR, DEX, CON, INT, WIS, CHA order. Modifiers
-use the published Dungeon World table and conditions do not change the
-displayed raw-score modifier.
+use the published Dungeon World table. The later ability-labeling decision
+above supersedes how conditions affect context-menu modifier presentation.
 
 Maximum HP remains manually editable while showing the suggested HP base plus
 Constitution score. Maximum Load moves from the top-level Character record into

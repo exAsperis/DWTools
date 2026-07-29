@@ -86,4 +86,20 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain("Outstanding Warrants");
     expect(markup).toContain("Bolster");
   });
+
+  it("shows the extension version at the bottom when provided", () => {
+    const markup = buildHomeMarkup(
+      "PLAYER",
+      true,
+      false,
+      DEFAULT_HOME_SECTIONS,
+      "",
+      "1.3.0",
+    );
+
+    expect(markup).toContain('<p class="extension-version">version 1.3.0</p>');
+    expect(markup.indexOf("version 1.3.0")).toBeLessThan(
+      markup.indexOf('<dialog id="move-dialog"'),
+    );
+  });
 });

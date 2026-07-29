@@ -59,11 +59,13 @@ export function buildCreatureFieldsMarkup(
     .map(
       (score, index) => `
         <div class="ability-row">
-          <label class="ability-score">${ABILITY_ABBREVIATIONS[index]}
-            <span class="field-help">${ABILITY_NAMES[index]}</span>
+          <label class="ability-score">${ABILITY_NAMES[index]}
             <input id="${id(`score-${index}`)}" name="score-${index}" type="number" min="3" max="18" step="1" value="${numberValue(score)}">
           </label>
-          <span class="ability-modifier" data-score-modifier="${index}" aria-label="${ABILITY_NAMES[index]} modifier">${formatModifier(abilityModifier(score))}</span>
+          <span class="ability-modifier" aria-label="${ABILITY_NAMES[index]} modifier">
+            <span class="ability-modifier-label">${ABILITY_ABBREVIATIONS[index]}</span>
+            <span class="ability-modifier-value" data-score-modifier="${index}">${formatModifier(abilityModifier(score))}</span>
+          </span>
           <label class="condition-toggle">
             <input id="${id(`condition-${CONDITION_NAMES[index]}`)}" name="condition-${CONDITION_NAMES[index]}" type="checkbox" ${fields.conditions?.[CONDITION_NAMES[index]] === -1 ? "checked" : ""}>
             ${CONDITION_LABELS[index]} <span>−1 ${ABILITY_ABBREVIATIONS[index]}</span>
@@ -79,7 +81,7 @@ export function buildCreatureFieldsMarkup(
         <label>Armor<input id="${id("armor")}" name="armor" type="number" step="1" value="${numberValue(fields.armor)}"></label>
         <label>Current HP<input id="${id("hpCurrent")}" name="hpCurrent" type="number" step="1" value="${numberValue(fields.hpCurrent)}"></label>
         <span class="slash">/</span>
-        <label>Maximum HP
+        <label class="calculated-field">Maximum HP
           <input id="${id("hpMax")}" name="hpMax" class="${hpMismatch ? "calculation-mismatch" : ""}" type="number" min="0" step="1" value="${numberValue(fields.hpMax)}">
           <span class="calculated-hint" data-calculated-hp>Calculated: ${suggestedHp ?? "—"}</span>
         </label>
@@ -109,12 +111,12 @@ export function buildCreatureFieldsMarkup(
         <div class="progression-row">
           <label>Level<input id="${id("level")}" name="level" type="number" min="1" max="10" step="1" value="${numberValue(fields.level)}"></label>
           <label>XP<input id="${id("xp")}" name="xp" type="number" min="0" step="1" value="${numberValue(fields.xp)}"></label>
+          <label>Alignment<input id="${id("alignment")}" name="alignment" type="text" maxlength="120" value="${escapeHtml(fields.alignment ?? "")}"></label>
         </div>
-        <label>Alignment<input id="${id("alignment")}" name="alignment" type="text" maxlength="120" value="${escapeHtml(fields.alignment ?? "")}"></label>
         <div class="base-row">
           <label>HP base<input id="${id("hpBase")}" name="hpBase" type="number" min="0" step="1" value="${numberValue(fields.hpBase)}"></label>
           <label>Load base<input id="${id("loadBase")}" name="loadBase" type="number" min="0" step="1" value="${numberValue(fields.loadBase)}"></label>
-          <label>Maximum Load
+          <label class="calculated-field">Maximum Load
             <input id="${id("maxLoad")}" name="maxLoad" class="${loadMismatch ? "calculation-mismatch" : ""}" type="number" min="0" step="any" value="${numberValue(fields.maxLoad)}">
             <span class="calculated-hint" data-calculated-load>Calculated: ${suggestedLoad ?? "—"}</span>
           </label>

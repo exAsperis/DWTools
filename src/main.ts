@@ -26,6 +26,7 @@ import {
   CREATURE_KEY,
   DEFAULT_OVERLAY_VISIBILITY_KEY,
   EDIT_POPOVER_ID,
+  EXTENSION_VERSION,
 } from "./constants";
 import {
   extractCreatureFields,
@@ -343,6 +344,7 @@ function renderHome(): void {
     savingDefaultVisibility,
     homeSections,
     managerMarkup,
+    EXTENSION_VERSION,
   );
   document
     .querySelector("#default-visibility")

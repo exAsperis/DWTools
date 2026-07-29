@@ -38,11 +38,21 @@ describe("character manager view", () => {
       /<details class="editor-section expandable-fields player-fields" open>/,
     );
     expect(characterMarkup).toContain('data-score-modifier="0"');
+    expect(characterMarkup).toContain('<label class="ability-score">Strength');
+    expect(characterMarkup).toContain(
+      '<span class="ability-modifier-label">STR</span>',
+    );
     expect(characterMarkup).toContain(">+2</span>");
     expect(characterMarkup).toContain("Weak <span>−1 STR</span>");
     expect(characterMarkup).toContain("Calculated: 22");
     expect(characterMarkup).toContain("Calculated: 14");
     expect(characterMarkup).toContain("calculation-mismatch");
+    expect(characterMarkup).toMatch(
+      /<div class="progression-row">[\s\S]*Level[\s\S]*XP[\s\S]*Alignment[\s\S]*<\/div>/,
+    );
+    expect(characterMarkup).toMatch(
+      /<div class="base-row">[\s\S]*HP base[\s\S]*Load base[\s\S]*Maximum Load[\s\S]*<\/div>/,
+    );
   });
 
   it("shows record details, current-scene link count, timestamp, and usage", () => {

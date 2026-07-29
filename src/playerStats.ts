@@ -49,6 +49,14 @@ export function abilityModifier(
   return 3;
 }
 
+export function effectiveAbilityModifier(
+  score: number | null | undefined,
+  condition: -1 | undefined,
+): number | undefined {
+  const modifier = abilityModifier(score);
+  return modifier === undefined ? undefined : modifier + (condition ?? 0);
+}
+
 export function formatModifier(modifier: number | undefined): string {
   if (modifier === undefined) return "—";
   return modifier >= 0 ? `+${modifier}` : String(modifier);
