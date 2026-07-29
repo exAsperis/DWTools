@@ -57,6 +57,14 @@ import {
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import type { InventoryItem, InventorySelection } from "./inventory";
 import {
+  abilityModifier,
+  calculatedMaxHp,
+  calculatedMaxLoad,
+  formatModifier,
+  isMaximumMismatch,
+  shouldPromptForRecalculation,
+} from "./playerStats";
+import {
   getOverwriteLabelOnLink,
   persistOverwriteLabelOnLink,
 } from "./overwriteLabel";
@@ -103,6 +111,113 @@ function attachDamageFeedback(form: HTMLFormElement): void {
   }
 }
 
+function formNumber(form: HTMLFormElement, name: string): number | undefined {
+  const input = form.elements.namedItem(name);
+  if (!(input instanceof HTMLInputElement) || input.value.trim() === "") {
+    return undefined;
+  }
+  return Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : undefined;
+}
+
+function attachPlayerStatFeedback(form: HTMLFormElement): void {
+  const hpMax = form.elements.namedItem("hpMax");
+  const maxLoad = form.elements.namedItem("maxLoad");
+  const hpHint = form.querySelector<HTMLElement>("[data-calculated-hp]");
+  const loadHint = form.querySelector<HTMLElement>("[data-calculated-load]");
+  if (!(hpMax instanceof HTMLInputElement)) return;
+
+  const refresh = () => {
+    for (let index = 0; index < 6; index += 1) {
+      const score = formNumber(form, `score-${index}`);
+      const modifier = form.querySelector<HTMLElement>(
+        `[data-score-modifier="${index}"]`,
+      );
+      if (modifier)
+        modifier.textContent = formatModifier(abilityModifier(score));
+    }
+    const suggestedHp = calculatedMaxHp(
+      formNumber(form, "hpBase"),
+      formNumber(form, "score-2"),
+    );
+    const suggestedLoad = calculatedMaxLoad(
+      formNumber(form, "loadBase"),
+      formNumber(form, "score-0"),
+    );
+    if (hpHint) hpHint.textContent = `Calculated: ${suggestedHp ?? "—"}`;
+    if (loadHint) {
+      loadHint.textContent = `Calculated: ${suggestedLoad ?? "—"}`;
+    }
+    hpMax.classList.toggle(
+      "calculation-mismatch",
+      isMaximumMismatch(formNumber(form, "hpMax"), suggestedHp),
+    );
+    if (maxLoad instanceof HTMLInputElement) {
+      maxLoad.classList.toggle(
+        "calculation-mismatch",
+        isMaximumMismatch(formNumber(form, "maxLoad"), suggestedLoad),
+      );
+    }
+  };
+
+  const bindScorePrompt = (
+    scoreName: "score-0" | "score-2",
+    maximum: Element | RadioNodeList | null,
+    label: string,
+    calculate: () => number | undefined,
+  ) => {
+    const score = form.elements.namedItem(scoreName);
+    if (
+      !(score instanceof HTMLInputElement) ||
+      !(maximum instanceof HTMLInputElement)
+    ) {
+      return;
+    }
+    score.dataset.lastPromptedValue = score.value;
+    score.addEventListener("blur", () => {
+      const previous = score.dataset.lastPromptedValue ?? "";
+      const calculated = calculate();
+      if (
+        !shouldPromptForRecalculation(
+          previous,
+          score.value,
+          formNumber(form, maximum.name),
+          calculated,
+        )
+      ) {
+        score.dataset.lastPromptedValue = score.value;
+        refresh();
+        return;
+      }
+      score.dataset.lastPromptedValue = score.value;
+      const current = maximum.value.trim() || "blank";
+      if (
+        window.confirm(
+          `${label} changed. Recalculate ${maximum.name === "hpMax" ? "Maximum HP" : "Maximum Load"} from ${current} to ${calculated}?`,
+        )
+      ) {
+        maximum.value = String(calculated);
+      }
+      refresh();
+    });
+  };
+
+  for (const input of form.querySelectorAll<HTMLInputElement>(
+    '[name^="score-"], [name="hpBase"], [name="loadBase"], [name="hpMax"], [name="maxLoad"]',
+  )) {
+    input.addEventListener("input", refresh);
+  }
+  bindScorePrompt("score-2", hpMax, "Constitution", () =>
+    calculatedMaxHp(formNumber(form, "hpBase"), formNumber(form, "score-2")),
+  );
+  bindScorePrompt("score-0", maxLoad, "Strength", () =>
+    calculatedMaxLoad(
+      formNumber(form, "loadBase"),
+      formNumber(form, "score-0"),
+    ),
+  );
+  refresh();
+}
+
 function fieldPatch(
   current: CreatureFields,
   next: CreatureFields,
@@ -115,6 +230,9 @@ function fieldPatch(
         "tags",
         "hpCurrent",
         "hpMax",
+        "hpBase",
+        "maxLoad",
+        "loadBase",
         "armor",
         "damage",
         "damageDescription",
@@ -122,11 +240,16 @@ function fieldPatch(
         "instinct",
         "moves",
         "treasure",
+        "level",
+        "xp",
+        "scores",
+        "conditions",
+        "alignment",
         "visibleToPlayers",
       ];
   const patch: CreatureFieldPatch = {};
   for (const key of keys) {
-    if (current[key] !== next[key]) {
+    if (JSON.stringify(current[key]) !== JSON.stringify(next[key])) {
       (patch as Record<keyof CreatureFields, unknown>)[key] = next[key];
     }
   }
@@ -304,6 +427,7 @@ function bindManagerControls(): void {
   );
   if (form) {
     attachDamageFeedback(form);
+    attachPlayerStatFeedback(form);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       void saveManagedCharacter(form);
@@ -423,22 +547,6 @@ function bindInlineCommit(
 
 function bindInventoryControls(): void {
   if (!homeManagerService) return;
-  for (const input of document.querySelectorAll<HTMLInputElement>(
-    "[data-max-load]",
-  )) {
-    const record = recordForControl(input);
-    if (!record) continue;
-    const original = numberValue(record.maxLoad);
-    bindInlineCommit(input, original, () => {
-      if (input.value === original) return;
-      const next = input.value.trim() === "" ? undefined : Number(input.value);
-      void runInventoryMutation(
-        () => homeManagerService!.setMaxLoad(record.id, next),
-        "Maximum Load saved.",
-      );
-    });
-  }
-
   for (const input of document.querySelectorAll<HTMLInputElement>(
     "[data-inventory-name]",
   )) {
@@ -951,6 +1059,7 @@ function renderEditor(): void {
     if (autofill !== null) hpMaxInput.value = autofill;
   });
   attachDamageFeedback(form);
+  attachPlayerStatFeedback(form);
   for (const button of form.querySelectorAll<HTMLButtonElement>("[data-hp]")) {
     button.addEventListener("click", () => {
       hpInput.value = String(
@@ -1305,7 +1414,7 @@ if (preview === "home") {
   };
   managerRecords = [
     {
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "preview-active",
       fields: {
         name: "Raganah",

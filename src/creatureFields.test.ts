@@ -8,6 +8,7 @@ import {
   applyCreatureFieldsToItem,
   extractCreatureFields,
   getCharacterLink,
+  normalizeCreatureData,
   removeCharacterLink,
   setCharacterLink,
 } from "./creatureFields";
@@ -19,6 +20,9 @@ describe("canonical creature field mapping", () => {
       tags: "Small",
       hpCurrent: 3,
       hpMax: 6,
+      hpBase: 8,
+      maxLoad: 12,
+      loadBase: 11,
       armor: 1,
       damage: "d6",
       damageDescription: "Knife",
@@ -26,6 +30,11 @@ describe("canonical creature field mapping", () => {
       instinct: "To steal",
       moves: "Hide",
       treasure: "Coins",
+      level: 4,
+      xp: 3,
+      scores: [16, null, 15, 12, 13, 8],
+      conditions: { weak: -1, confused: -1 },
+      alignment: "Good",
       visibleToPlayers: false,
     });
     const fields = extractCreatureFields(item);
@@ -34,6 +43,9 @@ describe("canonical creature field mapping", () => {
       tags: "Small",
       hpCurrent: 3,
       hpMax: 6,
+      hpBase: 8,
+      maxLoad: 12,
+      loadBase: 11,
       armor: 1,
       damage: "d6",
       damageDescription: "Knife",
@@ -41,6 +53,11 @@ describe("canonical creature field mapping", () => {
       instinct: "To steal",
       moves: "Hide",
       treasure: "Coins",
+      level: 4,
+      xp: 3,
+      scores: [16, null, 15, 12, 13, 8],
+      conditions: { weak: -1, confused: -1 },
+      alignment: "Good",
       visibleToPlayers: false,
     });
 
@@ -66,6 +83,9 @@ describe("canonical creature field mapping", () => {
       tags: "Small",
       hpCurrent: 9,
       hpMax: 6,
+      hpBase: 8,
+      maxLoad: 12,
+      loadBase: 11,
       armor: 1,
       damage: "d6",
       damageDescription: "Knife",
@@ -73,6 +93,11 @@ describe("canonical creature field mapping", () => {
       instinct: "To steal",
       moves: "Hide",
       treasure: "Coins",
+      level: 4,
+      xp: 3,
+      scores: [16, null, 15, 12, 13, 8],
+      conditions: { weak: -1, confused: -1 },
+      alignment: "Good",
       visibleToPlayers: false,
     });
 
@@ -96,5 +121,28 @@ describe("canonical creature field mapping", () => {
     removeCharacterLink(item);
     expect(item.metadata[CHARACTER_LINK_KEY]).toBeUndefined();
     expect(item.metadata[CREATURE_KEY]).toEqual({ hpCurrent: 3 });
+  });
+
+  it("compacts blank player fields and rejects invalid ranges or conditions", () => {
+    expect(
+      normalizeCreatureData({
+        scores: [null, null, null, null, null, null],
+        conditions: {},
+        alignment: "   ",
+      }),
+    ).toEqual({});
+    expect(() =>
+      normalizeCreatureData({ scores: [2, null, null, null, null, null] }),
+    ).toThrow("between 3 and 18");
+    expect(() => normalizeCreatureData({ level: 11 })).toThrow(
+      "between 1 and 10",
+    );
+    expect(() => normalizeCreatureData({ xp: 1.5 })).toThrow("whole number");
+    expect(() => normalizeCreatureData({ conditions: { weak: 0 } })).toThrow(
+      "must be -1",
+    );
+    expect(() =>
+      normalizeCreatureData({ conditions: { frightened: -1 } }),
+    ).toThrow("unknown key");
   });
 });

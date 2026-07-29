@@ -151,6 +151,29 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-29 — Shared player-character stats and structured editors
+
+Creature and Character definitions can carry optional Level, XP, Alignment, HP
+base, Load base, Maximum Load, six compact ability scores, and sparse debility
+conditions. Scores are stored in STR, DEX, CON, INT, WIS, CHA order. Modifiers
+use the published Dungeon World table and conditions do not change the
+displayed raw-score modifier.
+
+Maximum HP remains manually editable while showing the suggested HP base plus
+Constitution score. Maximum Load moves from the top-level Character record into
+shared creature fields and remains manually editable while showing the
+suggested Load base plus Strength modifier. Mismatched manual values receive a
+gold border, and changing the relevant score offers to apply the calculated
+value. Inventory remains authoritative only on the room Character record.
+
+Both editing surfaces group fields into always-visible Common fields and
+expandable GM Character and Player Character sections. Creature editing opens
+GM fields by default; persistent Character editing opens player fields by
+default. These additions do not expand the persistent token overlay.
+
+Reason: the same definition model must support monsters and player characters
+without duplicating schema or sacrificing manual playbook-specific overrides.
+
 ### 2026-07-28 — Character linking can overwrite a token label once
 
 The Character record section includes a room-wide **Overwrite label** setting,
@@ -239,6 +262,10 @@ preserving GM-only room-wide management and the existing controlled-token
 permission model. Reason: persistent Characters also represent player
 characters and shared containers, while Owlbear token control already provides
 the intended scene-scoped assignment mechanism.
+
+The top-level `maxLoad` storage portion was superseded on 2026-07-29 when
+Maximum Load became a shared creature field. Inventory ownership and
+controlled-token access remain unchanged.
 
 ### 2026-07-27 — Main panel follows Owlbear theme and groups moves
 

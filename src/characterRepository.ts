@@ -17,7 +17,7 @@ import {
   type InventorySelection,
 } from "./inventory";
 
-export const CHARACTER_RECORD_SCHEMA_VERSION = 2;
+export const CHARACTER_RECORD_SCHEMA_VERSION = 3;
 export const OWLBEAR_ROOM_METADATA_LIMIT_BYTES = 16 * 1024;
 export const CHARACTER_METADATA_SAFE_MAX_BYTES = 15 * 1024;
 export const CHARACTER_METADATA_WARNING_BYTES = Math.floor(
@@ -33,7 +33,6 @@ interface CharacterAuditFields {
 
 export interface CharacterRecord extends CharacterAuditFields {
   fields: CreatureFields;
-  maxLoad?: number;
   inventory?: InventoryItem[];
   createdAt: string;
   createdBy: string;
@@ -135,7 +134,7 @@ export function characterIdFromMetadataKey(key: string): string | undefined {
 function parseCharacterRecordVersion(
   value: unknown,
   expectedId: string,
-  sourceVersion: 1 | typeof CHARACTER_RECORD_SCHEMA_VERSION,
+  sourceVersion: 1 | 2 | typeof CHARACTER_RECORD_SCHEMA_VERSION,
 ): StoredCharacterRecord | undefined {
   if (!isObject(value) || !isAuditFields(value, expectedId)) return undefined;
 
@@ -171,18 +170,17 @@ function parseCharacterRecordVersion(
 
   try {
     const inventory =
-      sourceVersion === CHARACTER_RECORD_SCHEMA_VERSION
-        ? normalizeInventory(value.inventory)
-        : [];
-    const maxLoad =
-      sourceVersion === CHARACTER_RECORD_SCHEMA_VERSION
-        ? normalizeMaxLoad(value.maxLoad)
-        : undefined;
+      sourceVersion >= 2 ? normalizeInventory(value.inventory) : [];
+    const legacyMaxLoad =
+      sourceVersion === 2 ? normalizeMaxLoad(value.maxLoad) : undefined;
+    const fields = normalizeCreatureFields(value.fields);
     return {
       schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
       id: expectedId,
-      fields: normalizeCreatureFields(value.fields),
-      ...(maxLoad === undefined ? {} : { maxLoad }),
+      fields:
+        legacyMaxLoad === undefined || fields.maxLoad !== undefined
+          ? fields
+          : { ...fields, maxLoad: legacyMaxLoad },
       ...(inventory.length ? { inventory } : {}),
       revision: Number(value.revision),
       createdAt: value.createdAt,
@@ -204,6 +202,8 @@ export function migrateCharacterRecord(
   switch (value.schemaVersion) {
     case 1:
       return parseCharacterRecordVersion(value, expectedId, 1);
+    case 2:
+      return parseCharacterRecordVersion(value, expectedId, 2);
     case CHARACTER_RECORD_SCHEMA_VERSION:
       return parseCharacterRecordVersion(
         value,
@@ -415,20 +415,6 @@ export class CharacterRepository {
       "Another client kept changing this character. Reload it and try again.",
       { characterId, attempts: this.patchRetries },
     );
-  }
-
-  async setMaxLoad(
-    characterId: string,
-    maxLoad: number | undefined,
-  ): Promise<CharacterRecord> {
-    const normalized = normalizeMaxLoad(maxLoad);
-    return this.mutateRecord(characterId, (current) => {
-      const withoutMaxLoad = { ...current };
-      delete withoutMaxLoad.maxLoad;
-      return normalized === undefined
-        ? withoutMaxLoad
-        : { ...withoutMaxLoad, maxLoad: normalized };
-    });
   }
 
   async addInventoryItem(

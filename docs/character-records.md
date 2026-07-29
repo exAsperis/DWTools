@@ -1,6 +1,6 @@
 # DWTools character-record engineering notes
 
-Last updated: 2026-07-27
+Last updated: 2026-07-29
 
 This document records the architecture and operational limits of persistent
 room-level character records.
@@ -35,9 +35,11 @@ continue to read the established creature metadata. The Character name remains
 part of the record, but the token's native label is overwritten only during an
 explicit link when requested. Later synchronization does not change it.
 
-Inventory and Load are never copied to Creature token metadata. Multiple tokens
-linked to one Character therefore share the same canonical inventory without
-creating redundant scene metadata.
+Inventory and calculated current Load are never copied to Creature token
+metadata. Maximum Load is a shared creature field so it is available to
+unlinked creatures and synchronized linked tokens. Multiple tokens linked to
+one Character still share one canonical inventory without creating redundant
+scene metadata.
 
 ## Persistent fields
 
@@ -48,20 +50,28 @@ token's native label. It includes:
 - name;
 - tags;
 - current and maximum HP;
+- HP base;
+- maximum Load and Load base;
 - armor;
 - damage expression, description, and tags;
 - instinct;
 - moves;
 - treasure; and
+- level, XP, and alignment;
+- six compact ability-score slots in STR, DEX, CON, INT, WIS, CHA order;
+- sparse debility condition key/value pairs; and
 - player-overlay visibility.
 
-Schema 2 adds two optional top-level Character fields:
+Schema 2 added two optional top-level Character fields:
 
 - `maxLoad`, a finite nonnegative number; and
 - `inventory`, a compact array of `[name, unitWeight, count]` tuples.
 
-Schema-1 records are defaulted non-destructively to no maximum Load and an empty
-inventory. Empty inventory arrays are omitted when written.
+Schema 3 moves `maxLoad` into `CreatureFields` while keeping `inventory`
+top-level and record-only. Schema-2 records migrate their legacy top-level
+maximum into `fields.maxLoad`; schema-1 records default non-destructively to no
+maximum Load and an empty inventory. Empty inventory arrays are omitted when
+written.
 
 The pure helpers in `creatureFields.ts` are the canonical mapping between an
 Owlbear item and a character record. Do not add another field mapping in a UI

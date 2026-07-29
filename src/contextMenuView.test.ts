@@ -50,8 +50,8 @@ describe("buildContextSummary", () => {
 
   it("shows linked Character Load and an overloaded warning", () => {
     const record = activeRecord("hero", {
+      fields: { ...activeRecord("hero").fields, maxLoad: 1 },
       inventory: [["Bag of Books", 0.4, 5]],
-      maxLoad: 1,
     });
     const markup = buildContextSummary({}, record);
 

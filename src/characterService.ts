@@ -398,14 +398,6 @@ export class CharacterManagerService {
     return record;
   }
 
-  async setMaxLoad(
-    characterId: string,
-    maxLoad: number | undefined,
-  ): Promise<CharacterRecord> {
-    await this.requireCharacterAccess(characterId);
-    return this.repository.setMaxLoad(characterId, maxLoad);
-  }
-
   async addInventoryItem(
     characterId: string,
     item: InventoryItem,

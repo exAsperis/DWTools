@@ -17,10 +17,27 @@ export const LEGACY_CHARACTER_KEY_PREFIX = `${LEGACY_EXTENSION_ID}/character/`;
 export const LEGACY_CHARACTER_LINK_KEY = `${LEGACY_EXTENSION_ID}/character-link`;
 export const LEGACY_CONTEXT_MENU_ID = `${LEGACY_EXTENSION_ID}/menu`;
 
+export type AbilityScores = [
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+];
+
+export type ConditionName =
+  "weak" | "shaky" | "sick" | "stunned" | "confused" | "scarred";
+
+export type Conditions = Partial<Record<ConditionName, -1>>;
+
 export interface CreatureData {
   tags?: string;
   hpCurrent?: number;
   hpMax?: number;
+  hpBase?: number;
+  maxLoad?: number;
+  loadBase?: number;
   armor?: number;
   damage?: string;
   damageDescription?: string;
@@ -28,6 +45,11 @@ export interface CreatureData {
   instinct?: string;
   moves?: string;
   treasure?: string;
+  level?: number;
+  xp?: number;
+  scores?: AbilityScores;
+  conditions?: Conditions;
+  alignment?: string;
   visibleToPlayers?: boolean;
 }
 

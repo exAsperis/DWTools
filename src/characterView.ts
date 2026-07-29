@@ -11,6 +11,17 @@ import {
   totalLoad,
   type InventoryItem,
 } from "./inventory";
+import {
+  ABILITY_ABBREVIATIONS,
+  ABILITY_NAMES,
+  abilityModifier,
+  calculatedMaxHp,
+  calculatedMaxLoad,
+  CONDITION_LABELS,
+  CONDITION_NAMES,
+  emptyScores,
+  formatModifier,
+} from "./playerStats";
 
 export function escapeHtml(value: string): string {
   return value.replace(
@@ -35,29 +46,82 @@ export function numberValue(value: unknown): string {
 export function buildCreatureFieldsMarkup(
   fields: CreatureFields,
   idPrefix = "",
+  editorKind: "creature" | "character" = "creature",
 ): string {
   const id = (name: string) => `${idPrefix}${name}`;
+  const scores = fields.scores ?? emptyScores();
+  const suggestedHp = calculatedMaxHp(fields.hpBase, scores[2]);
+  const suggestedLoad = calculatedMaxLoad(fields.loadBase, scores[0]);
+  const hpMismatch = suggestedHp !== undefined && fields.hpMax !== suggestedHp;
+  const loadMismatch =
+    suggestedLoad !== undefined && fields.maxLoad !== suggestedLoad;
+  const scoreRows = scores
+    .map(
+      (score, index) => `
+        <div class="ability-row">
+          <label class="ability-score">${ABILITY_ABBREVIATIONS[index]}
+            <span class="field-help">${ABILITY_NAMES[index]}</span>
+            <input id="${id(`score-${index}`)}" name="score-${index}" type="number" min="3" max="18" step="1" value="${numberValue(score)}">
+          </label>
+          <span class="ability-modifier" data-score-modifier="${index}" aria-label="${ABILITY_NAMES[index]} modifier">${formatModifier(abilityModifier(score))}</span>
+          <label class="condition-toggle">
+            <input id="${id(`condition-${CONDITION_NAMES[index]}`)}" name="condition-${CONDITION_NAMES[index]}" type="checkbox" ${fields.conditions?.[CONDITION_NAMES[index]] === -1 ? "checked" : ""}>
+            ${CONDITION_LABELS[index]} <span>−1 ${ABILITY_ABBREVIATIONS[index]}</span>
+          </label>
+        </div>`,
+    )
+    .join("");
   return `
-    <label>Name<input id="${id("name")}" name="name" type="text" maxlength="120" required value="${escapeHtml(fields.name)}"></label>
-    <label>Tags<input id="${id("tags")}" name="tags" type="text" maxlength="160" placeholder="Solitary, Small, Intelligent, Stealthy, Devious" value="${escapeHtml(fields.tags ?? "")}"></label>
-    <div class="vitals-row">
-      <label>Armor<input id="${id("armor")}" name="armor" type="number" step="1" value="${numberValue(fields.armor)}"></label>
-      <label>Current HP<input id="${id("hpCurrent")}" name="hpCurrent" type="number" step="1" value="${numberValue(fields.hpCurrent)}"></label>
-      <span class="slash">/</span>
-      <label>Maximum HP<input id="${id("hpMax")}" name="hpMax" type="number" min="0" step="1" value="${numberValue(fields.hpMax)}"></label>
-    </div>
-    <div class="damage-fields">
-      <label>Damage<input id="${id("damage")}" name="damage" type="text" maxlength="40" placeholder="b[2d6]+1" value="${escapeHtml(fields.damage ?? "")}"></label>
-      <label>Description<input id="${id("damageDescription")}" name="damageDescription" type="text" maxlength="80" placeholder="Claws" value="${escapeHtml(fields.damageDescription ?? "")}"></label>
-    </div>
-    <label>Damage tags<input id="${id("damageTags")}" name="damageTags" type="text" maxlength="160" placeholder="Close, Reach, Messy, Forceful" value="${escapeHtml(fields.damageTags ?? "")}"></label>
-    <label>Instinct<textarea id="${id("instinct")}" name="instinct" rows="2">${escapeHtml(fields.instinct ?? "")}</textarea></label>
-    <label>Moves<textarea id="${id("moves")}" name="moves" rows="4" placeholder="One move per line">${escapeHtml(fields.moves ?? "")}</textarea></label>
-    <label>Treasure<textarea id="${id("treasure")}" name="treasure" rows="3">${escapeHtml(fields.treasure ?? "")}</textarea></label>
-    <label class="visibility">
-      <input id="${id("visibleToPlayers")}" name="visibleToPlayers" type="checkbox" ${fields.visibleToPlayers === false ? "" : "checked"}>
-      Show the token overlay to players
-    </label>`;
+    <section class="editor-section common-fields">
+      <h2>Common</h2>
+      <label>Name<input id="${id("name")}" name="name" type="text" maxlength="120" required value="${escapeHtml(fields.name)}"></label>
+      <div class="vitals-row">
+        <label>Armor<input id="${id("armor")}" name="armor" type="number" step="1" value="${numberValue(fields.armor)}"></label>
+        <label>Current HP<input id="${id("hpCurrent")}" name="hpCurrent" type="number" step="1" value="${numberValue(fields.hpCurrent)}"></label>
+        <span class="slash">/</span>
+        <label>Maximum HP
+          <input id="${id("hpMax")}" name="hpMax" class="${hpMismatch ? "calculation-mismatch" : ""}" type="number" min="0" step="1" value="${numberValue(fields.hpMax)}">
+          <span class="calculated-hint" data-calculated-hp>Calculated: ${suggestedHp ?? "—"}</span>
+        </label>
+      </div>
+      <div class="damage-fields">
+        <label>Damage die<input id="${id("damage")}" name="damage" type="text" maxlength="40" placeholder="b[2d6]+1" value="${escapeHtml(fields.damage ?? "")}"></label>
+        <label>Damage description<input id="${id("damageDescription")}" name="damageDescription" type="text" maxlength="80" placeholder="Claws" value="${escapeHtml(fields.damageDescription ?? "")}"></label>
+      </div>
+      <label>Damage tags<input id="${id("damageTags")}" name="damageTags" type="text" maxlength="160" placeholder="Close, Reach, Messy, Forceful" value="${escapeHtml(fields.damageTags ?? "")}"></label>
+      <label class="visibility">
+        <input id="${id("visibleToPlayers")}" name="visibleToPlayers" type="checkbox" ${fields.visibleToPlayers === false ? "" : "checked"}>
+        Show the token overlay to players
+      </label>
+    </section>
+    <details class="editor-section expandable-fields" ${editorKind === "creature" ? "open" : ""}>
+      <summary><strong>GM Character</strong></summary>
+      <div class="editor-section-body">
+        <label>Tags<input id="${id("tags")}" name="tags" type="text" maxlength="160" placeholder="Solitary, Small, Intelligent, Stealthy, Devious" value="${escapeHtml(fields.tags ?? "")}"></label>
+        <label>Instinct<textarea id="${id("instinct")}" name="instinct" rows="2">${escapeHtml(fields.instinct ?? "")}</textarea></label>
+        <label>Moves<textarea id="${id("moves")}" name="moves" rows="4" placeholder="One move per line">${escapeHtml(fields.moves ?? "")}</textarea></label>
+        <label>Treasure<textarea id="${id("treasure")}" name="treasure" rows="3">${escapeHtml(fields.treasure ?? "")}</textarea></label>
+      </div>
+    </details>
+    <details class="editor-section expandable-fields player-fields" ${editorKind === "character" ? "open" : ""}>
+      <summary><strong>Player Character</strong></summary>
+      <div class="editor-section-body">
+        <div class="progression-row">
+          <label>Level<input id="${id("level")}" name="level" type="number" min="1" max="10" step="1" value="${numberValue(fields.level)}"></label>
+          <label>XP<input id="${id("xp")}" name="xp" type="number" min="0" step="1" value="${numberValue(fields.xp)}"></label>
+        </div>
+        <label>Alignment<input id="${id("alignment")}" name="alignment" type="text" maxlength="120" value="${escapeHtml(fields.alignment ?? "")}"></label>
+        <div class="base-row">
+          <label>HP base<input id="${id("hpBase")}" name="hpBase" type="number" min="0" step="1" value="${numberValue(fields.hpBase)}"></label>
+          <label>Load base<input id="${id("loadBase")}" name="loadBase" type="number" min="0" step="1" value="${numberValue(fields.loadBase)}"></label>
+          <label>Maximum Load
+            <input id="${id("maxLoad")}" name="maxLoad" class="${loadMismatch ? "calculation-mismatch" : ""}" type="number" min="0" step="any" value="${numberValue(fields.maxLoad)}">
+            <span class="calculated-hint" data-calculated-load>Calculated: ${suggestedLoad ?? "—"}</span>
+          </label>
+        </div>
+        <div class="ability-list" aria-label="Ability scores and conditions">${scoreRows}</div>
+      </div>
+    </details>`;
 }
 
 export function buildCharacterSummary(record: CharacterRecord): string {
@@ -166,12 +230,12 @@ function inventoryMarkup(
   state: CharacterManagerViewState,
 ): string {
   const inventory = record.inventory ?? [];
-  const overloaded = isOverloaded(totalLoad(inventory), record.maxLoad);
+  const overloaded = isOverloaded(totalLoad(inventory), record.fields.maxLoad);
   const expanded = state.expandedInventories?.has(record.id) ?? false;
   const summary =
-    !inventory.length && record.maxLoad === undefined
+    !inventory.length && record.fields.maxLoad === undefined
       ? "Empty"
-      : formatLoad(inventory, record.maxLoad);
+      : formatLoad(inventory, record.fields.maxLoad);
   return `
     <details class="inventory-section ${overloaded ? "overloaded" : ""}" data-inventory-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
       <summary>
@@ -179,9 +243,6 @@ function inventoryMarkup(
         <span class="inventory-summary ${overloaded ? "load-warning" : ""}">${summary}</span>
       </summary>
       <div class="inventory-editor">
-        <label class="max-load">Maximum Load
-          <input data-max-load type="number" min="0" step="any" value="${numberValue(record.maxLoad)}" placeholder="No maximum">
-        </label>
         <div class="inventory-list" aria-label="${escapeHtml(record.fields.name)} inventory">
           ${inventory.length ? inventory.map((item, index) => inventoryRowMarkup(record, item, index, state)).join("") : '<p class="manager-status inventory-empty">No items.</p>'}
           ${
@@ -222,7 +283,7 @@ function characterCardMarkup(
     <details class="character-card" data-character-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
       <summary class="character-card-summary">
         <strong>${escapeHtml(record.fields.name)}</strong>
-        <span>${formatLoad(record.inventory, record.maxLoad)}</span>
+        <span>${formatLoad(record.inventory, record.fields.maxLoad)}</span>
       </summary>
       <div class="character-card-body">
         <span>HP ${numberValue(record.fields.hpCurrent) || "—"}/${numberValue(record.fields.hpMax) || "—"} · ARM ${numberValue(record.fields.armor) || "—"} · DMG ${escapeHtml(record.fields.damage ?? "—")}</span>
@@ -246,7 +307,7 @@ export function buildCharacterManagerMarkup(
         <div class="manager-heading"><h2>${state.editing.kind === "create" ? "New character record" : `Edit ${escapeHtml(state.editing.fields.name)}`}</h2></div>
         ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
         <form id="character-manager-form" class="manager-form">
-          ${buildCreatureFieldsMarkup(state.editing.fields, "manager-")}
+          ${buildCreatureFieldsMarkup(state.editing.fields, "manager-", "character")}
           <div class="manager-actions">
             <button type="button" class="secondary" id="manager-cancel">Cancel</button>
             <button type="submit" class="primary" ${state.saving ? "disabled" : ""}>${state.saving ? "Saving…" : "Save record"}</button>

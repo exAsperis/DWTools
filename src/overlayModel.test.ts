@@ -246,6 +246,26 @@ describe("overlay identity and source signatures", () => {
     );
   });
 
+  it("ignores player-character-only metadata", () => {
+    const data: CreatureData = { hpCurrent: 8, hpMax: 12 };
+    const playerData: CreatureData = {
+      ...data,
+      level: 3,
+      xp: 6,
+      hpBase: 8,
+      loadBase: 12,
+      maxLoad: 14,
+      scores: [16, 12, 14, 9, 13, 8],
+      conditions: { weak: -1 },
+      alignment: "Good",
+    };
+    const image = creatureImage({}, data);
+
+    expect(overlaySourceSignature(image, playerData, "GM", 100)).toBe(
+      overlaySourceSignature(image, data, "GM", 100),
+    );
+  });
+
   it("ignores token visibility for GM rendering but reacts for player rendering", () => {
     const data: CreatureData = {
       hpCurrent: 8,

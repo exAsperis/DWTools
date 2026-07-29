@@ -1,11 +1,50 @@
 import { describe, expect, it } from "vitest";
 import { activeRecord } from "./characterTestHelpers";
+import type { CreatureFields } from "./constants";
 import {
   buildCharacterDeleteConfirmation,
   buildCharacterManagerMarkup,
+  buildCreatureFieldsMarkup,
 } from "./characterView";
 
 describe("character manager view", () => {
+  it("renders context-specific sections, modifiers, conditions, and calculations", () => {
+    const fields: CreatureFields = {
+      name: "Raganah",
+      hpMax: 22,
+      hpBase: 8,
+      maxLoad: 13,
+      loadBase: 12,
+      scores: [16, null, 14, null, null, null],
+      conditions: { weak: -1 as const },
+    };
+    const creatureMarkup = buildCreatureFieldsMarkup(fields);
+    const characterMarkup = buildCreatureFieldsMarkup(
+      fields,
+      "manager-",
+      "character",
+    );
+
+    expect(creatureMarkup).toMatch(
+      /<details class="editor-section expandable-fields" open>/,
+    );
+    expect(creatureMarkup).toMatch(
+      /<details class="editor-section expandable-fields player-fields" >/,
+    );
+    expect(characterMarkup).toMatch(
+      /<details class="editor-section expandable-fields" >/,
+    );
+    expect(characterMarkup).toMatch(
+      /<details class="editor-section expandable-fields player-fields" open>/,
+    );
+    expect(characterMarkup).toContain('data-score-modifier="0"');
+    expect(characterMarkup).toContain(">+2</span>");
+    expect(characterMarkup).toContain("Weak <span>−1 STR</span>");
+    expect(characterMarkup).toContain("Calculated: 22");
+    expect(characterMarkup).toContain("Calculated: 14");
+    expect(characterMarkup).toContain("calculation-mismatch");
+  });
+
   it("shows record details, current-scene link count, timestamp, and usage", () => {
     const record = activeRecord("raganah");
     const markup = buildCharacterManagerMarkup(
@@ -89,11 +128,11 @@ describe("character manager view", () => {
 
   it("renders compact two-line inventory rows and controls", () => {
     const record = activeRecord("raganah", {
+      fields: { ...activeRecord("raganah").fields, maxLoad: 11 },
       inventory: [
         ["Coin", 0.01, 137],
         ["Bag of Books", 0.4, 5],
       ],
-      maxLoad: 11,
     });
     const markup = buildCharacterManagerMarkup(
       {
@@ -120,14 +159,15 @@ describe("character manager view", () => {
     expect(markup).toContain("inventory-inline-input inventory-name");
     expect(markup).toContain("inventory-inline-input inventory-weight");
     expect(markup).toContain("Load: 3.37 / 11.00");
+    expect(markup).not.toContain("data-max-load");
     expect(markup).toContain("Add Item");
     expect(markup).toContain("Transfer");
   });
 
   it("always shows collapsed Inventory and highlights overload", () => {
     const record = activeRecord("raganah", {
+      fields: { ...activeRecord("raganah").fields, maxLoad: 3 },
       inventory: [["Sword", 2, 2]],
-      maxLoad: 3,
     });
     const markup = buildCharacterManagerMarkup(
       {

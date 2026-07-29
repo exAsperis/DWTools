@@ -60,7 +60,25 @@ describe("character manifest parsing", () => {
     if (lookup?.status !== "active") throw new Error("Expected active record");
     expect(lookup.record.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
     expect(lookup.record.inventory).toBeUndefined();
-    expect(lookup.record.maxLoad).toBeUndefined();
+    expect(lookup.record.fields.maxLoad).toBeUndefined();
+  });
+
+  it("migrates schema-2 Maximum Load into shared fields", () => {
+    const legacy = {
+      ...activeRecord("legacy"),
+      schemaVersion: 2,
+      maxLoad: 11,
+    };
+    const manifest = parseCharacterManifest({
+      [characterMetadataKey("legacy")]: legacy,
+    });
+    const lookup = manifest.get("legacy");
+
+    expect(lookup?.status).toBe("active");
+    if (lookup?.status !== "active") throw new Error("Expected active record");
+    expect(lookup.record.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
+    expect(lookup.record.fields.maxLoad).toBe(11);
+    expect(lookup.record).not.toHaveProperty("maxLoad");
   });
 });
 
@@ -76,7 +94,7 @@ describe("CharacterRepository writes", () => {
     });
 
     expect(result).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "character-1",
       revision: 1,
       fields: { name: "Raganah", hpCurrent: 6, hpMax: 8 },
@@ -86,6 +104,27 @@ describe("CharacterRepository writes", () => {
     });
     expect(store.metadata["com.other/data"]).toEqual({ preserved: true });
     expect(store.metadata[characterMetadataKey("character-1")]).toEqual(result);
+  });
+
+  it("persists migrated schema-2 Maximum Load in schema-3 fields on mutation", async () => {
+    const legacy = {
+      ...activeRecord("legacy"),
+      schemaVersion: 2,
+      maxLoad: 11,
+    };
+    const store = new FakeMetadataStore({
+      [characterMetadataKey("legacy")]: legacy,
+    });
+
+    const result = await repository(store, ["migration-write"]).patch(
+      "legacy",
+      { hpCurrent: 7 },
+    );
+
+    expect(result.schemaVersion).toBe(3);
+    expect(result.fields.maxLoad).toBe(11);
+    expect(result).not.toHaveProperty("maxLoad");
+    expect(store.metadata[characterMetadataKey("legacy")]).toEqual(result);
   });
 
   it("rejects a write beyond the conservative safe maximum", async () => {
@@ -274,19 +313,19 @@ describe("CharacterRepository writes", () => {
     ).rejects.toThrow("Inventory changed");
   });
 
-  it("stores and removes Maximum Load without adding an empty inventory", async () => {
+  it("stores and removes Maximum Load in shared fields", async () => {
     const record = activeRecord("raganah");
     const store = new FakeMetadataStore({
       [characterMetadataKey(record.id)]: record,
     });
     const repo = repository(store, ["max-write", "remove-max-write"]);
 
-    const withMaximum = await repo.setMaxLoad(record.id, 11);
-    expect(withMaximum.maxLoad).toBe(11);
+    const withMaximum = await repo.patch(record.id, { maxLoad: 11 });
+    expect(withMaximum.fields.maxLoad).toBe(11);
     expect(withMaximum.inventory).toBeUndefined();
 
-    const withoutMaximum = await repo.setMaxLoad(record.id, undefined);
-    expect(withoutMaximum.maxLoad).toBeUndefined();
+    const withoutMaximum = await repo.patch(record.id, { maxLoad: undefined });
+    expect(withoutMaximum.fields.maxLoad).toBeUndefined();
     expect(
       JSON.stringify(store.metadata[characterMetadataKey(record.id)]),
     ).not.toContain('"maxLoad"');

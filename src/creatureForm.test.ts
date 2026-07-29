@@ -23,12 +23,21 @@ describe("readCreatureForm", () => {
     form.set("armor", " 2 ");
     form.set("hpCurrent", " 7 ");
     form.set("hpMax", " 10 ");
+    form.set("hpBase", "8");
+    form.set("maxLoad", "11.5");
+    form.set("loadBase", "12");
     form.set("damage", " d8+1 ");
     form.set("damageDescription", " Claws ");
     form.set("damageTags", " Close, Messy ");
     form.set("instinct", " To defend ");
     form.set("moves", " Strike\nHide ");
     form.set("treasure", " Silver idol ");
+    form.set("level", "3");
+    form.set("xp", "7");
+    form.set("score-0", "16");
+    form.set("score-2", "15");
+    form.set("condition-weak", "on");
+    form.set("alignment", " Good ");
     form.set("visibleToPlayers", "on");
 
     expect(readCreatureForm(form, {}, false)).toEqual({
@@ -36,12 +45,20 @@ describe("readCreatureForm", () => {
       armor: 2,
       hpCurrent: 7,
       hpMax: 10,
+      hpBase: 8,
+      maxLoad: 11.5,
+      loadBase: 12,
       damage: "d8+1",
       damageDescription: "Claws",
       damageTags: "Close, Messy",
       instinct: "To defend",
       moves: "Strike\nHide",
       treasure: "Silver idol",
+      level: 3,
+      xp: 7,
+      scores: [16, null, 15, null, null, null],
+      conditions: { weak: -1 },
+      alignment: "Good",
       visibleToPlayers: true,
     });
   });
@@ -57,12 +74,20 @@ describe("readCreatureForm", () => {
       armor: undefined,
       hpCurrent: undefined,
       hpMax: undefined,
+      hpBase: undefined,
+      maxLoad: undefined,
+      loadBase: undefined,
       damage: undefined,
       damageDescription: undefined,
       damageTags: undefined,
       instinct: undefined,
       moves: undefined,
       treasure: undefined,
+      level: undefined,
+      xp: undefined,
+      scores: undefined,
+      conditions: undefined,
+      alignment: undefined,
       visibleToPlayers: false,
     });
   });

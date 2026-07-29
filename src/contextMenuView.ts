@@ -48,9 +48,9 @@ export function buildContextSummary(
     </div>
     ${
       record
-        ? `<div class="summary-row load-row ${isOverloaded(totalLoad(record.inventory), record.maxLoad) ? "load-warning" : ""}">
-          ${formatLoad(record.inventory, record.maxLoad)}
-          ${isOverloaded(totalLoad(record.inventory), record.maxLoad) ? "<strong>Overloaded</strong>" : ""}
+        ? `<div class="summary-row load-row ${isOverloaded(totalLoad(record.inventory), record.fields.maxLoad) ? "load-warning" : ""}">
+          ${formatLoad(record.inventory, record.fields.maxLoad)}
+          ${isOverloaded(totalLoad(record.inventory), record.fields.maxLoad) ? "<strong>Overloaded</strong>" : ""}
         </div>`
         : ""
     }`;
