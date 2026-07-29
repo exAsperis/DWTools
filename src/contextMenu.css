@@ -25,15 +25,15 @@ button { font: inherit; }
 .load-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800; }
 .load-warning { color: #fca5a5; }
 .stat-group { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
-.hp-group, .xp-group { display: inline-flex; align-items: center; gap: 8px; }
+.hp-group, .xp-group { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
 .descriptors { color: var(--dw-text-secondary); font-style: italic; }
 .damage-description { white-space: normal; }
 .ability-summary-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.modifier-roll { border: 0; padding: 2px 0; color: #a78bfa; background: transparent; font-weight: 700; cursor: pointer; }
+.modifier-roll { border: 0; padding: 2px 0; color: inherit; background: transparent; font-weight: 700; cursor: pointer; }
+.modifier-roll.condition-affected { color: #a78bfa; }
 .modifier-roll:hover { text-decoration: underline; filter: brightness(1.15); }
-.progression-summary-row { display: flex; align-items: center; gap: 9px; font-weight: 800; }
+.progression-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 800; }
 .level-ready { color: #fbbf24; }
-.level-value + .xp-group { border-left: 1px solid #ffffff3d; padding-left: 9px; }
 .detail-row { line-height: 1.4; }
 
 .damage {
@@ -69,7 +69,6 @@ button { font: inherit; }
   line-height: 1;
 }
 
-.xp-button { width: 28px; height: 26px; }
 .hp-button:hover, .xp-button:hover, .edit:hover { background: #ffffff18; }
 .hp-button:disabled, .xp-button:disabled { cursor: wait; opacity: .5; }
 .hp-value { text-align: center; font-weight: 800; }
@@ -109,8 +108,7 @@ button { font: inherit; }
 [data-obr-theme="light"] .hp-button:hover,
 [data-obr-theme="light"] .xp-button:hover,
 [data-obr-theme="light"] .edit:hover { background: #0000000d; }
-[data-obr-theme="light"] .modifier-roll { color: #7c3aed; }
-[data-obr-theme="light"] .level-value + .xp-group { border-left-color: #0000002b; }
+[data-obr-theme="light"] .modifier-roll.condition-affected { color: #7c3aed; }
 [data-obr-theme="light"] .empty,
 [data-obr-theme="light"] .loading { color: var(--dw-text-secondary, #52525b); }
 [data-obr-theme="light"] .error { color: #991b1b; }

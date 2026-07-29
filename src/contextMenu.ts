@@ -7,7 +7,7 @@ import {
   type CreatureData,
 } from "./constants";
 import type { CreatureService } from "./characterService";
-import { formatDamageResult, parseDamage, rollDamage } from "./damage";
+import { rollDamageFormula } from "./damage";
 import { adjustedHp } from "./hp";
 import { buildContextSummary } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
@@ -126,7 +126,8 @@ function showModifierRoll(button: HTMLButtonElement) {
   const modifier = Number(button.dataset.modifier);
   if (!Number.isFinite(modifier)) return;
   const sign = modifier >= 0 ? "+" : "";
-  void OBR.notification.show(`Roll 2d6${sign}${modifier}`, "SUCCESS");
+  const result = rollDamageFormula(`2d6${sign}${modifier}`);
+  if (result) void OBR.notification.show(result, "SUCCESS");
 }
 
 function rollTokenDamage() {
@@ -139,18 +140,15 @@ function rollTokenDamage() {
     );
     return;
   }
-  const parsed = parseDamage(damage);
-  if (!parsed) {
+  const result = rollDamageFormula(damage);
+  if (!result) {
     void OBR.notification.show(
       `Unsupported damage expression: ${damage}`,
       "ERROR",
     );
     return;
   }
-  void OBR.notification.show(
-    formatDamageResult(damage, rollDamage(parsed)),
-    "SUCCESS",
-  );
+  void OBR.notification.show(result, "SUCCESS");
 }
 
 async function openEditor() {

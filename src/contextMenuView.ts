@@ -26,6 +26,8 @@ export function escapeHtml(value: string): string {
 function abilityRow(data: CreatureData, start: number, end: number): string {
   const abilities = [];
   for (let index = start; index < end; index += 1) {
+    const isConditionAffected =
+      data.conditions?.[CONDITION_NAMES[index]] === -1;
     const modifier = effectiveAbilityModifier(
       data.scores?.[index],
       data.conditions?.[CONDITION_NAMES[index]],
@@ -33,7 +35,7 @@ function abilityRow(data: CreatureData, start: number, end: number): string {
     if (modifier === undefined) continue;
     const formatted = formatModifier(modifier);
     abilities.push(`
-      <button class="modifier-roll" type="button" data-ability="${index}" data-modifier="${modifier}" title="Roll 2d6${formatted}">
+      <button class="modifier-roll${isConditionAffected ? " condition-affected" : ""}" type="button" data-ability="${index}" data-modifier="${modifier}" title="Roll 2d6${formatted}">
         <span>${ABILITY_ABBREVIATIONS[index]}</span> <strong>${formatted}</strong>
       </button>`);
   }

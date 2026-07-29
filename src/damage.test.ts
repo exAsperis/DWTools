@@ -4,6 +4,7 @@ import {
   normalizeDamageFormula,
   parseDamage,
   rollDamage,
+  rollDamageFormula,
 } from "./damage";
 
 describe("damage input feedback", () => {
@@ -59,5 +60,14 @@ describe("rollDamage", () => {
     );
     expect(result.rolls).toEqual([1, 6]);
     expect(result.total).toBe(7);
+  });
+
+  it("parses, rolls, and formats one shared result string", () => {
+    const values = [0, 0.99];
+
+    expect(rollDamageFormula("2d6+1", () => values.shift() ?? 0)).toBe(
+      "2d6+1: [1, 6] sum + 1 = 8",
+    );
+    expect(rollDamageFormula("not dice")).toBeNull();
   });
 });

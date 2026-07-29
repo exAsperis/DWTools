@@ -161,15 +161,20 @@ score inputs. The abbreviations **STR**, **DEX**, **CON**, **INT**, **WIS**, and
 The token context menu presents the six abbreviated modifiers in two
 three-value rows. These are effective roll modifiers, so the corresponding
 debility's −1 penalty is included. Each abbreviated modifier is one clickable
-roll target for `2d6` plus the displayed value. The editor continues to show
-the underlying score-derived modifier beside a separate, explicit debility
-control so Maximum Load remains calculated from the Strength score's normal
-modifier rather than a temporary debility.
+roll target for `2d6` plus the displayed value and reports the individual dice,
+modifier, and total using the same result format as a damage roll. A modifier
+uses the normal context-menu text color unless its ability is affected by an
+active debility, in which case it is purple. The editor continues to show the
+underlying score-derived modifier beside a separate, explicit debility control,
+aligned with the score and modifier values rather than their headings, so
+Maximum Load remains calculated from the Strength score's normal modifier
+rather than a temporary debility.
 
 The context menu has no player-overlay visibility control. It omits absent
 values instead of substituting dashes, and orders its available rows as combat,
 damage, modifiers, Load, Level/XP, Tags, Instinct, Moves, and Treasure. Level
-is gold when XP is at least Level + 7.
+is gold when XP is at least Level + 7. The XP adjustment group is right-aligned
+like the HP adjustment group and does not use a vertical separator.
 
 Reason: full names and abbreviations need one stable semantic meaning, while
 the quick-reference menu should show the number that will actually be applied

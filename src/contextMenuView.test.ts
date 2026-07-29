@@ -30,6 +30,12 @@ describe("buildContextSummary", () => {
     expect(markup).toContain('data-hp="-1"');
     expect(markup).toContain('data-hp="1"');
     expect(markup).toContain('data-ability="0" data-modifier="1"');
+    expect(markup).toContain(
+      'class="modifier-roll condition-affected" type="button" data-ability="0"',
+    );
+    expect(markup).toContain(
+      'class="modifier-roll" type="button" data-ability="1"',
+    );
     expect(markup).toContain("<span>STR</span> <strong>+1</strong>");
     expect(markup).toContain('class="level-value level-ready">Lv 3');
     expect(markup).toContain('data-xp="-1"');

@@ -94,3 +94,13 @@ export function formatDamageResult(
       : ` ${result.modifier > 0 ? "+" : "−"} ${Math.abs(result.modifier)}`;
   return `${source}: [${result.rolls.join(", ")}] ${choice}${modifier} = ${result.total}`;
 }
+
+export function rollDamageFormula(
+  source: string,
+  random: () => number = Math.random,
+): string | null {
+  const expression = parseDamage(source);
+  return expression
+    ? formatDamageResult(source, rollDamage(expression, random))
+    : null;
+}

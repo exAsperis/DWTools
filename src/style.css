@@ -116,7 +116,7 @@ button:disabled { cursor: wait; opacity: .55; }
 .ability-modifier { display: grid; gap: 6px; color: var(--dw-text); text-align: center; }
 .ability-modifier-label { color: var(--dw-text-secondary); font-size: 12px; font-weight: 700; }
 .ability-modifier-value { min-height: 35px; padding: 9px 0; font-size: 14px; font-weight: 800; }
-.condition-toggle { grid-template-columns: auto 1fr; align-items: center; gap: 6px; padding-bottom: 8px; color: var(--dw-text); }
+.condition-toggle { grid-template-columns: auto 1fr; align-items: center; align-self: start; gap: 6px; margin-top: 20px; color: var(--dw-text); }
 .condition-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--dw-primary); }
 .condition-toggle span { color: var(--dw-text-disabled); font-size: 9px; font-weight: 500; }
 .calculated-hint { color: var(--dw-text-disabled); font-size: 10px; font-weight: 500; }
