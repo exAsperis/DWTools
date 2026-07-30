@@ -1,6 +1,6 @@
 # DWTools overlay engineering notes
 
-Last updated: 2026-07-26
+Last updated: 2026-07-30
 
 This document is the durable record for DWTools token-overlay work. It explains
 the current defects, the evidence behind the diagnosis, prior approaches, the
@@ -540,3 +540,13 @@ artifact shape. Do not use color emoji in overlay Text items.
   removed by reconciliation; and
 - GM source signatures ignore token visibility because it does not alter the
   GM's desired overlay, while player signatures still react to it.
+
+### Version 1.3.2 — derived encumbrance warning
+
+- a normally absent top bar appears only for linked Characters whose
+  inventory-derived Current Load exceeds Maximum Load;
+- the bar reuses HP geometry, type scale, background color, and opacity;
+- room Character inventory remains authoritative and Current Load is not
+  duplicated into token metadata; and
+- inventory changes participate in render signatures so the deterministic
+  components reconcile in place.

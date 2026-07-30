@@ -1,5 +1,6 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import { CharacterSyncCoordinator } from "./characterSync";
+import type { CharacterRecord } from "./characterRepository";
 import { CONTEXT_MENU_ID, LEGACY_CONTEXT_MENU_ID } from "./constants";
 import {
   applyLocalDisplayPlan,
@@ -18,7 +19,9 @@ import {
   getOverlaySourceSignatures,
   signatureMapsEqual,
   type PlayerRole,
+  type OverlayLoadStates,
 } from "./overlayModel";
+import { totalLoad } from "./inventory";
 
 const characterFilter = {
   min: 1,
@@ -47,7 +50,7 @@ async function setupContextMenus(): Promise<void> {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.3.1"),
+      url: assetUrl("context-menu.html?v=1.3.2"),
       height: 360,
     },
   });
@@ -58,6 +61,7 @@ interface RenderRequest {
   items: Item[];
   role: PlayerRole;
   sceneDpi: number;
+  loadStates: OverlayLoadStates;
 }
 
 interface PreparedRender {
@@ -70,6 +74,7 @@ let lifecycleChain = Promise.resolve();
 let latestSceneItems: Item[] = [];
 let activeRole: PlayerRole | undefined;
 let activeSceneDpi: number | undefined;
+let activeLoadStates: OverlayLoadStates = new Map();
 let lastSourceSignatures = new Map<string, string>();
 let unsubscribeItems: (() => void) | undefined;
 let unsubscribeGrid: (() => void) | undefined;
@@ -83,6 +88,7 @@ const renderQueue = new LatestTaskQueue<RenderRequest, PreparedRender>(
       request.items,
       request.role,
       request.sceneDpi,
+      request.loadStates,
     ),
   }),
   async ({ generation, plan }) => {
@@ -123,6 +129,7 @@ function scheduleRender(force = false) {
     latestSceneItems,
     activeRole,
     activeSceneDpi,
+    activeLoadStates,
   );
   if (!force && signatureMapsEqual(signatures, lastSourceSignatures)) return;
   lastSourceSignatures = signatures;
@@ -131,7 +138,20 @@ function scheduleRender(force = false) {
     items: latestSceneItems,
     role: activeRole,
     sceneDpi: activeSceneDpi,
+    loadStates: activeLoadStates,
   });
+}
+
+function loadStatesFor(records: CharacterRecord[]): OverlayLoadStates {
+  return new Map(
+    records.map((record) => [
+      record.id,
+      {
+        currentLoad: totalLoad(record.inventory),
+        maxLoad: record.fields.maxLoad,
+      },
+    ]),
+  );
 }
 
 function handleSceneItems(items: Item[], force = false) {
@@ -206,8 +226,10 @@ async function initializeBackground(): Promise<void> {
     return;
   }
 
+  const characterRepository = createObrCharacterRepository();
+  const overlayCharacterRepository = createObrCharacterRepository();
   const characterSync = new CharacterSyncCoordinator(
-    createObrCharacterRepository(),
+    characterRepository,
     obrSceneItemStore,
     {
       isReady: () => OBR.scene.isReady(),
@@ -217,6 +239,19 @@ async function initializeBackground(): Promise<void> {
     ensureMetadataNamespaceMigrated,
   );
   characterSync.start();
+  const refreshOverlayLoadStates = async () => {
+    activeLoadStates = loadStatesFor(await overlayCharacterRepository.list());
+    lastSourceSignatures = new Map();
+    scheduleRender(true);
+  };
+  await refreshOverlayLoadStates();
+  const unsubscribeOverlayCharacters = overlayCharacterRepository.subscribe(
+    () => {
+      void refreshOverlayLoadStates().catch((error) => {
+        console.error("DWTools encumbrance refresh failed", error);
+      });
+    },
+  );
   restartSceneSync();
   OBR.scene.onReadyChange(() => restartSceneSync());
   OBR.player.onChange((player) => {
@@ -226,7 +261,14 @@ async function initializeBackground(): Promise<void> {
     scheduleLegacyCleanup(latestSceneItems);
     scheduleRender(true);
   });
-  window.addEventListener("unload", () => characterSync.stop(), { once: true });
+  window.addEventListener(
+    "unload",
+    () => {
+      characterSync.stop();
+      unsubscribeOverlayCharacters();
+    },
+    { once: true },
+  );
 }
 
 OBR.onReady(() => void initializeBackground());

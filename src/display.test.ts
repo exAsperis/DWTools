@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   CREATURE_KEY,
+  CHARACTER_LINK_KEY,
   DISPLAY_KEY,
   LEGACY_DISPLAY_KEY,
   type CreatureData,
@@ -52,6 +53,81 @@ function creatureImage(
 }
 
 describe("buildDesiredDisplays", () => {
+  it("adds a matching top warning only for an encumbered linked Character", () => {
+    const token = creatureImage(
+      { x: 300, y: 400 },
+      { hpCurrent: 8, hpMax: 12 },
+    );
+    token.metadata[CHARACTER_LINK_KEY] = {
+      schemaVersion: 1,
+      characterId: "hero",
+    };
+    const desired = buildDesiredDisplays(
+      [token],
+      "GM",
+      100,
+      new Map([["hero", { currentLoad: 13, maxLoad: 10 }]]),
+    );
+    const warningBackground = desired.find((item) =>
+      item.id.endsWith("-encumbrance-bg"),
+    );
+    const warningText = desired.find((item) =>
+      item.id.endsWith("-encumbrance-text"),
+    );
+    const hpBackground = desired.find((item) => item.id.endsWith("-hp-bg"));
+    const hpText = desired.find((item) => item.id.endsWith("-hp-text"));
+    const layout = getOverlayLayout(getImageGeometry(token, 100));
+
+    expect(warningBackground && isCurve(warningBackground)).toBe(true);
+    expect(warningText && isText(warningText)).toBe(true);
+    if (
+      warningBackground &&
+      isCurve(warningBackground) &&
+      warningText &&
+      isText(warningText) &&
+      hpBackground &&
+      isCurve(hpBackground) &&
+      hpText &&
+      isText(hpText)
+    ) {
+      expect(warningBackground.position).toEqual({
+        x: layout.hpLeft,
+        y: layout.encumbrance.top,
+      });
+      expect(warningBackground.style.fillColor).toBe("#18181b");
+      expect(warningBackground.style.fillOpacity).toBe(0.82);
+      expect(warningText.text.plainText).toBe("Encumbered (X)");
+      expect(warningText.text.style.fontSize).toBe(hpText.text.style.fontSize);
+      expect(warningBackground.points).toEqual(
+        expect.arrayContaining([expect.objectContaining({})]),
+      );
+      expect(layout.encumbrance.width).toBe(layout.hpWidth);
+      expect(layout.encumbrance.height).toBe(layout.hpHeight);
+    }
+  });
+
+  it("does not add a warning bar when linked Load is at maximum", () => {
+    const token = creatureImage(
+      { x: 300, y: 400 },
+      { hpCurrent: 8, hpMax: 12 },
+    );
+    token.metadata[CHARACTER_LINK_KEY] = {
+      schemaVersion: 1,
+      characterId: "hero",
+    };
+
+    const desired = buildDesiredDisplays(
+      [token],
+      "GM",
+      100,
+      new Map([["hero", { currentLoad: 10, maxLoad: 10 }]]),
+    );
+
+    expect(desired.some((item) => item.id.includes("-encumbrance-"))).toBe(
+      false,
+    );
+  });
+
   it("recognizes legacy displays and reconciles their metadata in place", () => {
     const desired = buildDesiredDisplays(
       [creatureImage({ x: 300, y: 400 }, { hpCurrent: 4, hpMax: 6 })],

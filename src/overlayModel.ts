@@ -1,9 +1,11 @@
 import { isImage, type Image, type Item } from "@owlbear-rodeo/sdk";
 import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
+import { getCharacterLink } from "./creatureFields";
+import { isOverloaded } from "./inventory";
 
 export type PlayerRole = "GM" | "PLAYER";
 
-export const OVERLAY_LAYOUT_VERSION = 17;
+export const OVERLAY_LAYOUT_VERSION = 18;
 export const OVERLAY_HORIZONTAL_INSET_RATIO = 0.08;
 
 export interface ImageGeometry {
@@ -32,6 +34,7 @@ export interface OverlayLayout {
     width: number;
     height: number;
   };
+  encumbrance: OverlayBox;
   visibilityIndicator: OverlayBox;
   armor: OverlayBox;
   damage: OverlayBox;
@@ -43,6 +46,13 @@ export interface OverlayBox {
   width: number;
   height: number;
 }
+
+export interface OverlayLoadState {
+  currentLoad: number;
+  maxLoad: number | undefined;
+}
+
+export type OverlayLoadStates = ReadonlyMap<string, OverlayLoadState>;
 
 function rotate(vector: { x: number; y: number }, degrees: number) {
   const radians = (degrees * Math.PI) / 180;
@@ -125,6 +135,12 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
       width,
       height: hpHeight,
     },
+    encumbrance: {
+      left: hpLeft,
+      top: geometry.top,
+      width,
+      height: hpHeight,
+    },
     visibilityIndicator: {
       left: hpLeft,
       top: hpTop,
@@ -144,6 +160,23 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
       height: rowHeight,
     },
   };
+}
+
+export function encumbranceText(
+  load: OverlayLoadState | undefined,
+): "Encumbered (-1)" | "Encumbered (X)" | undefined {
+  if (!load || !isOverloaded(load.currentLoad, load.maxLoad)) return undefined;
+  return load.maxLoad !== undefined && load.currentLoad <= load.maxLoad + 2
+    ? "Encumbered (-1)"
+    : "Encumbered (X)";
+}
+
+export function getTokenLoadState(
+  token: Item,
+  loadStates: OverlayLoadStates,
+): OverlayLoadState | undefined {
+  const link = getCharacterLink(token);
+  return link ? loadStates.get(link.characterId) : undefined;
 }
 
 export function hpColor(percent: number, overMaximum = false): string {
@@ -168,12 +201,16 @@ export function hpPercent(data: CreatureData): number {
     : 0;
 }
 
-export function hasOverlayData(data: CreatureData): boolean {
+export function hasOverlayData(
+  data: CreatureData,
+  load?: OverlayLoadState,
+): boolean {
   return (
     data.hpCurrent !== undefined ||
     data.hpMax !== undefined ||
     data.armor !== undefined ||
-    Boolean(data.damage)
+    Boolean(data.damage) ||
+    encumbranceText(load) !== undefined
   );
 }
 
@@ -186,9 +223,10 @@ export function shouldRenderOverlay(
   token: Item,
   data: CreatureData,
   role: PlayerRole,
+  load?: OverlayLoadState,
 ): boolean {
   return (
-    hasOverlayData(data) &&
+    hasOverlayData(data, load) &&
     (role === "GM" || (token.visible && data.visibleToPlayers !== false))
   );
 }
@@ -202,6 +240,7 @@ export function overlaySourceSignature(
   data: CreatureData,
   role: PlayerRole,
   sceneDpi: number,
+  load?: OverlayLoadState,
 ): string {
   return JSON.stringify({
     layout: OVERLAY_LAYOUT_VERSION,
@@ -220,6 +259,7 @@ export function overlaySourceSignature(
     armor: data.armor,
     damage: data.damage,
     visibleToPlayers: data.visibleToPlayers !== false,
+    encumbrance: encumbranceText(load),
   });
 }
 
@@ -227,13 +267,18 @@ export function getOverlaySourceSignatures(
   items: Item[],
   role: PlayerRole,
   sceneDpi: number,
+  loadStates: OverlayLoadStates = new Map(),
 ): Map<string, string> {
   const signatures = new Map<string, string>();
   for (const item of items) {
     if (item.layer !== "CHARACTER" || !isImage(item)) continue;
     const data = getCreatureData(item);
-    if (!hasOverlayData(data)) continue;
-    signatures.set(item.id, overlaySourceSignature(item, data, role, sceneDpi));
+    const load = getTokenLoadState(item, loadStates);
+    if (!hasOverlayData(data, load)) continue;
+    signatures.set(
+      item.id,
+      overlaySourceSignature(item, data, role, sceneDpi, load),
+    );
   }
   return signatures;
 }

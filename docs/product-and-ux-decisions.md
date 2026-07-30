@@ -35,6 +35,9 @@ The persistent token overlay contains only the combat summary:
 - damage; and
 - current and maximum HP.
 
+For linked Characters, it also shows a normally hidden encumbrance warning
+when inventory-derived Current Load exceeds Maximum Load.
+
 Instinct, moves, treasure, and other longer-form Dungeon World material belong
 in the editor rather than on the always-visible overlay. New features should
 not be added to the overlay merely because space can be made for them. They
@@ -150,6 +153,21 @@ The persistent overlay retains its compact two-line information hierarchy and
 client-local, single-writer renderer architecture.
 
 ## Decision history
+
+### 2026-07-30 — Encumbrance appears only when actionable
+
+A full-width warning bar appears at the rendered portrait's top edge only when
+a linked Character's inventory-derived Current Load exceeds Maximum Load. It
+uses the HP bar's width, height, font size, dark background, and opacity.
+Loads of 1 or 2 above maximum display **Encumbered (-1)**; loads more than 2
+above maximum display **Encumbered (X)**.
+
+Current Load remains derived from the authoritative room Character inventory
+and is not copied into token metadata. The client-local background renderer
+reads that derived state and remains the sole overlay writer.
+
+Reason: encumbrance is an actionable at-a-glance condition, while hiding the
+bar at normal Load avoids spending persistent portrait space.
 
 ### 2026-07-29 — Ability names identify scores; abbreviations identify modifiers
 

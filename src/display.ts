@@ -19,16 +19,20 @@ import {
 import { iconCommands, type DwIconName } from "./icons";
 import {
   getCreatureData,
+  getTokenLoadState,
   getImageGeometry,
   getOverlayLayout,
   hpColor,
   hpPercent,
+  encumbranceText,
   isHpOverMaximum,
   overlayItemId,
   overlaySourceSignature,
   roundedRectanglePoints,
   shouldRenderOverlay,
   type OverlayBox,
+  type OverlayLoadState,
+  type OverlayLoadStates,
   type PlayerRole,
 } from "./overlayModel";
 
@@ -190,12 +194,15 @@ function buildTokenOverlay(
   data: CreatureData,
   role: PlayerRole,
   sceneDpi: number,
+  load?: OverlayLoadState,
 ): Item[] {
-  if (!isImage(token) || !shouldRenderOverlay(token, data, role)) return [];
+  if (!isImage(token) || !shouldRenderOverlay(token, data, role, load))
+    return [];
 
   const geometry = getImageGeometry(token, sceneDpi);
   const layout = getOverlayLayout(geometry);
-  const renderKey = overlaySourceSignature(token, data, role, sceneDpi);
+  const renderKey = overlaySourceSignature(token, data, role, sceneDpi, load);
+  const encumbrance = encumbranceText(load);
   const percent = hpPercent(data);
   const hpBox = {
     left: layout.hpLeft,
@@ -224,6 +231,19 @@ function buildTokenOverlay(
   };
 
   const items: Item[] = [
+    ...(encumbrance
+      ? [
+          buildBackground(token, "encumbrance", renderKey, layout.encumbrance),
+          buildOverlayText(
+            token,
+            "encumbrance",
+            renderKey,
+            encumbrance,
+            layout.encumbrance,
+            layout.fontSize,
+          ),
+        ]
+      : []),
     buildBackground(token, "armor", renderKey, layout.armor),
     buildOverlayIcon(token, "armor", renderKey, "shield", armorIconBox, 0.7),
     buildOverlayText(
@@ -293,12 +313,19 @@ export function buildDesiredDisplays(
   sceneItems: Item[],
   role: PlayerRole,
   sceneDpi: number,
+  loadStates: OverlayLoadStates = new Map(),
 ): Item[] {
   const desired: Item[] = [];
   for (const item of sceneItems) {
     if (item.layer !== "CHARACTER" || !isImage(item)) continue;
     desired.push(
-      ...buildTokenOverlay(item, getCreatureData(item), role, sceneDpi),
+      ...buildTokenOverlay(
+        item,
+        getCreatureData(item),
+        role,
+        sceneDpi,
+        getTokenLoadState(item, loadStates),
+      ),
     );
   }
   return desired;
@@ -413,9 +440,15 @@ export async function prepareLocalDisplayPlan(
   sceneItems: Item[],
   role: PlayerRole,
   sceneDpi: number,
+  loadStates: OverlayLoadStates = new Map(),
 ): Promise<ReconciliationPlan> {
   const currentDisplays = await OBR.scene.local.getItems(isDisplay);
-  const desiredDisplays = buildDesiredDisplays(sceneItems, role, sceneDpi);
+  const desiredDisplays = buildDesiredDisplays(
+    sceneItems,
+    role,
+    sceneDpi,
+    loadStates,
+  );
   return planDisplayReconciliation(currentDisplays, desiredDisplays);
 }
 

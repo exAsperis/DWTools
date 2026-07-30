@@ -4,6 +4,7 @@ import { CREATURE_KEY, type CreatureData } from "./constants";
 import {
   getImageGeometry,
   getOverlayLayout,
+  encumbranceText,
   hpColor,
   hpPercent,
   isHpOverMaximum,
@@ -155,6 +156,40 @@ describe("getOverlayLayout", () => {
       height: layout.hpHeight,
     });
   });
+
+  it("matches the top encumbrance bar to the HP bar at the portrait top", () => {
+    const geometry = getImageGeometry(creatureImage(), 100);
+    const layout = getOverlayLayout(geometry);
+
+    expect(layout.encumbrance).toEqual({
+      left: layout.hpLeft,
+      top: geometry.top,
+      width: layout.hpWidth,
+      height: layout.hpHeight,
+    });
+  });
+});
+
+describe("encumbrance status", () => {
+  it("is absent at or below Maximum Load", () => {
+    expect(encumbranceText({ currentLoad: 10, maxLoad: 10 })).toBeUndefined();
+    expect(encumbranceText({ currentLoad: 9, maxLoad: 10 })).toBeUndefined();
+    expect(
+      encumbranceText({ currentLoad: 12, maxLoad: undefined }),
+    ).toBeUndefined();
+  });
+
+  it("shows -1 through two Load over maximum and X beyond that", () => {
+    expect(encumbranceText({ currentLoad: 11, maxLoad: 10 })).toBe(
+      "Encumbered (-1)",
+    );
+    expect(encumbranceText({ currentLoad: 12, maxLoad: 10 })).toBe(
+      "Encumbered (-1)",
+    );
+    expect(encumbranceText({ currentLoad: 12.01, maxLoad: 10 })).toBe(
+      "Encumbered (X)",
+    );
+  });
 });
 
 describe("HP status", () => {
@@ -219,6 +254,20 @@ describe("overlay visibility", () => {
       shouldRenderOverlay(creatureImage({}, sharedData), sharedData, "PLAYER"),
     ).toBe(true);
   });
+
+  it("renders an encumbrance-only overlay using the same role visibility", () => {
+    const load = { currentLoad: 11, maxLoad: 10 };
+
+    expect(shouldRenderOverlay(creatureImage(), {}, "GM", load)).toBe(true);
+    expect(
+      shouldRenderOverlay(
+        creatureImage({}, { visibleToPlayers: false }),
+        { visibleToPlayers: false },
+        "PLAYER",
+        load,
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("overlay identity and source signatures", () => {
@@ -264,6 +313,24 @@ describe("overlay identity and source signatures", () => {
     expect(overlaySourceSignature(image, playerData, "GM", 100)).toBe(
       overlaySourceSignature(image, data, "GM", 100),
     );
+  });
+
+  it("reacts only when derived Load changes the displayed warning", () => {
+    const data: CreatureData = { hpCurrent: 8, hpMax: 12 };
+    const image = creatureImage({}, data);
+
+    expect(
+      overlaySourceSignature(image, data, "GM", 100, {
+        currentLoad: 10,
+        maxLoad: 10,
+      }),
+    ).toBe(overlaySourceSignature(image, data, "GM", 100));
+    expect(
+      overlaySourceSignature(image, data, "GM", 100, {
+        currentLoad: 11,
+        maxLoad: 10,
+      }),
+    ).not.toBe(overlaySourceSignature(image, data, "GM", 100));
   });
 
   it("ignores token visibility for GM rendering but reacts for player rendering", () => {
