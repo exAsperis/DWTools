@@ -83,6 +83,16 @@ export function isOverloaded(
   return currentLoad - maxLoad > LOAD_COMPARISON_EPSILON * scale;
 }
 
+export function encumbranceText(
+  currentLoad: number,
+  maxLoad: number | undefined,
+): "Encumbered (-1)" | "Encumbered (X)" | undefined {
+  if (!isOverloaded(currentLoad, maxLoad)) return undefined;
+  return maxLoad !== undefined && currentLoad <= maxLoad + 2
+    ? "Encumbered (-1)"
+    : "Encumbered (X)";
+}
+
 export function formatLoadValue(value: number): string {
   const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
   return rounded.toFixed(2);

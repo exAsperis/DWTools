@@ -94,11 +94,11 @@ describe("buildHomeMarkup", () => {
       false,
       DEFAULT_HOME_SECTIONS,
       "",
-      "1.3.2",
+      "1.3.3",
     );
 
-    expect(markup).toContain('<p class="extension-version">version 1.3.2</p>');
-    expect(markup.indexOf("version 1.3.2")).toBeLessThan(
+    expect(markup).toContain('<p class="extension-version">version 1.3.3</p>');
+    expect(markup.indexOf("version 1.3.3")).toBeLessThan(
       markup.indexOf('<dialog id="move-dialog"'),
     );
   });

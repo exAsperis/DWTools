@@ -1,7 +1,7 @@
 import type { CharacterRecord } from "./characterRepository";
 import type { CreatureData } from "./constants";
 import { iconMarkup } from "./icons";
-import { formatLoad, isOverloaded, totalLoad } from "./inventory";
+import { encumbranceText, formatLoad, totalLoad } from "./inventory";
 import {
   ABILITY_ABBREVIATIONS,
   CONDITION_NAMES,
@@ -95,6 +95,17 @@ export function buildContextSummary(
     .split(/\r?\n/)
     .map((move) => move.trim())
     .filter(Boolean);
+  const currentLoad = record ? totalLoad(record.inventory) : undefined;
+  const encumbrance =
+    record && currentLoad !== undefined
+      ? encumbranceText(currentLoad, record.fields.maxLoad)
+      : undefined;
+  const encumbranceClass =
+    encumbrance === "Encumbered (-1)"
+      ? "encumbered-minus-one"
+      : encumbrance === "Encumbered (X)"
+        ? "encumbered-x"
+        : "";
   return `
     ${combatFields.length ? `<div class="summary-row combat-row">${combatFields.join("")}</div>` : ""}
     ${
@@ -111,9 +122,9 @@ export function buildContextSummary(
     ${abilityRow(data, 3, 6)}
     ${
       record
-        ? `<div class="summary-row load-row ${isOverloaded(totalLoad(record.inventory), record.fields.maxLoad) ? "load-warning" : ""}">
+        ? `<div class="summary-row load-row ${encumbranceClass}">
           ${formatLoad(record.inventory, record.fields.maxLoad)}
-          ${isOverloaded(totalLoad(record.inventory), record.fields.maxLoad) ? "<strong>Overloaded</strong>" : ""}
+          ${encumbrance ? `<strong>${encumbrance}</strong>` : ""}
         </div>`
         : ""
     }

@@ -23,7 +23,8 @@ button { font: inherit; }
 .combat-row { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; }
 .damage-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 3px 6px; }
 .load-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800; }
-.load-warning { color: #fca5a5; }
+.encumbered-minus-one { color: #a78bfa; }
+.encumbered-x { color: #fca5a5; }
 .stat-group { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
 .hp-group, .xp-group { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
 .descriptors { color: var(--dw-text-secondary); font-style: italic; }
@@ -108,7 +109,8 @@ button { font: inherit; }
 [data-obr-theme="light"] .hp-button:hover,
 [data-obr-theme="light"] .xp-button:hover,
 [data-obr-theme="light"] .edit:hover { background: #0000000d; }
-[data-obr-theme="light"] .modifier-roll.condition-affected { color: #7c3aed; }
+[data-obr-theme="light"] .modifier-roll.condition-affected,
+[data-obr-theme="light"] .encumbered-minus-one { color: #7c3aed; }
 [data-obr-theme="light"] .empty,
 [data-obr-theme="light"] .loading { color: var(--dw-text-secondary, #52525b); }
 [data-obr-theme="light"] .error { color: #991b1b; }

@@ -81,7 +81,7 @@ describe("buildContextSummary", () => {
     expect(markup).toContain("Close &amp; Messy");
   });
 
-  it("shows linked Character Load and an overloaded warning", () => {
+  it("shows a purple -1 encumbrance warning through two Load over maximum", () => {
     const record = activeRecord("hero", {
       fields: { ...activeRecord("hero").fields, maxLoad: 1 },
       inventory: [["Bag of Books", 0.4, 5]],
@@ -89,8 +89,21 @@ describe("buildContextSummary", () => {
     const markup = buildContextSummary({}, record);
 
     expect(markup).toContain("Load: 2.00 / 1.00");
-    expect(markup).toContain("Overloaded");
-    expect(markup).toContain("load-warning");
+    expect(markup).toContain("Encumbered (-1)");
+    expect(markup).toContain("encumbered-minus-one");
+    expect(markup).not.toContain("Overloaded");
+  });
+
+  it("shows a red X encumbrance warning beyond two Load over maximum", () => {
+    const record = activeRecord("hero", {
+      fields: { ...activeRecord("hero").fields, maxLoad: 1 },
+      inventory: [["Anvil", 1, 4]],
+    });
+    const markup = buildContextSummary({}, record);
+
+    expect(markup).toContain("Load: 4.00 / 1.00");
+    expect(markup).toContain("Encumbered (X)");
+    expect(markup).toContain("encumbered-x");
   });
 
   it("does not highlight level below the level-up threshold", () => {

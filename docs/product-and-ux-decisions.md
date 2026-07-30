@@ -154,6 +154,16 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-30 — Context-menu encumbrance matches the token overlay
+
+The linked Character Load row uses the same thresholds and messages as the
+persistent encumbrance bar: **Encumbered (-1)** when Current Load is up to two
+above Maximum Load and **Encumbered (X)** beyond that. The `-1` state is purple;
+the `X` state retains the former Overloaded warning's red.
+
+Reason: both at-a-glance surfaces should describe the same Dungeon World
+mechanical state with consistent wording while distinguishing its severity.
+
 ### 2026-07-30 — Encumbrance appears only when actionable
 
 A full-width warning bar appears at the rendered portrait's top edge only when

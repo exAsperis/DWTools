@@ -1,7 +1,7 @@
 import { isImage, type Image, type Item } from "@owlbear-rodeo/sdk";
 import { CREATURE_KEY, isCreatureData, type CreatureData } from "./constants";
 import { getCharacterLink } from "./creatureFields";
-import { isOverloaded } from "./inventory";
+import { encumbranceText as getEncumbranceText } from "./inventory";
 
 export type PlayerRole = "GM" | "PLAYER";
 
@@ -165,10 +165,7 @@ export function getOverlayLayout(geometry: ImageGeometry): OverlayLayout {
 export function encumbranceText(
   load: OverlayLoadState | undefined,
 ): "Encumbered (-1)" | "Encumbered (X)" | undefined {
-  if (!load || !isOverloaded(load.currentLoad, load.maxLoad)) return undefined;
-  return load.maxLoad !== undefined && load.currentLoad <= load.maxLoad + 2
-    ? "Encumbered (-1)"
-    : "Encumbered (X)";
+  return load ? getEncumbranceText(load.currentLoad, load.maxLoad) : undefined;
 }
 
 export function getTokenLoadState(

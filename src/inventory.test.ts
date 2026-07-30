@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  encumbranceText,
   findSelectedInventoryIndex,
   formatLoad,
   isOverloaded,
@@ -45,6 +46,14 @@ describe("inventory tuple validation and Load", () => {
   it("uses an epsilon for overload comparisons", () => {
     expect(isOverloaded(0.1 + 0.2, 0.3)).toBe(false);
     expect(isOverloaded(3.01, 3)).toBe(true);
+  });
+
+  it("uses the shared encumbrance thresholds and messages", () => {
+    expect(encumbranceText(10, 10)).toBeUndefined();
+    expect(encumbranceText(11, 10)).toBe("Encumbered (-1)");
+    expect(encumbranceText(12, 10)).toBe("Encumbered (-1)");
+    expect(encumbranceText(12.01, 10)).toBe("Encumbered (X)");
+    expect(encumbranceText(12, undefined)).toBeUndefined();
   });
 
   it("resolves the original index first and then one exact tuple match", () => {

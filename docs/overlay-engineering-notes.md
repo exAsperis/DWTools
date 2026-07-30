@@ -550,3 +550,9 @@ artifact shape. Do not use color emoji in overlay Text items.
   duplicated into token metadata; and
 - inventory changes participate in render signatures so the deterministic
   components reconcile in place.
+
+### Version 1.3.3 — shared encumbrance presentation
+
+- the context-menu Load row and token overlay use one threshold/message helper;
+- `Encumbered (-1)` is purple in the context menu; and
+- `Encumbered (X)` uses the existing red overload-warning color.
