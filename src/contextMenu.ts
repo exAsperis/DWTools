@@ -8,6 +8,7 @@ import {
 } from "./constants";
 import type { CreatureService } from "./characterService";
 import { rollDamageFormula } from "./damage";
+import { evaluateRollExpression } from "./rollExpression";
 import { adjustedHp } from "./hp";
 import { buildContextSummary } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
@@ -72,6 +73,11 @@ function render() {
   )) {
     button.addEventListener("click", () => showModifierRoll(button));
   }
+  for (const button of app.querySelectorAll<HTMLButtonElement>(
+    "[data-roll-expression]",
+  )) {
+    button.addEventListener("click", () => rollExpression(button));
+  }
   app.querySelector("#damage")?.addEventListener("click", rollTokenDamage);
   app
     .querySelector("#edit")
@@ -130,6 +136,21 @@ function showModifierRoll(button: HTMLButtonElement) {
   if (result) void OBR.notification.show(result, "SUCCESS");
 }
 
+function rollExpression(button: HTMLButtonElement) {
+  const source = button.dataset.rollExpression;
+  if (!source) return;
+  showRollResult(source);
+}
+
+function showRollResult(source: string) {
+  const result = evaluateRollExpression(source);
+  if (!result.ok) {
+    void OBR.notification.show(result.message, "ERROR");
+    return;
+  }
+  void OBR.notification.show(result.message, "SUCCESS");
+}
+
 function rollTokenDamage() {
   if (!token) return;
   const damage = getData(token).damage?.trim();
@@ -140,15 +161,7 @@ function rollTokenDamage() {
     );
     return;
   }
-  const result = rollDamageFormula(damage);
-  if (!result) {
-    void OBR.notification.show(
-      `Unsupported damage expression: ${damage}`,
-      "ERROR",
-    );
-    return;
-  }
-  void OBR.notification.show(result, "SUCCESS");
+  showRollResult(damage);
 }
 
 async function openEditor() {

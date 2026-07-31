@@ -26,6 +26,8 @@ describe("damage input feedback", () => {
     expect(isDamageFormulaInvalid("   ")).toBe(false);
     expect(isDamageFormulaInvalid("d8")).toBe(false);
     expect(isDamageFormulaInvalid("b[2d10]+1")).toBe(false);
+    expect(isDamageFormulaInvalid("(d8 + d{1,2,4}) * 2")).toBe(false);
+    expect(isDamageFormulaInvalid("d{fail,partial,success}")).toBe(false);
     expect(isDamageFormulaInvalid("fire breath")).toBe(true);
     expect(isDamageFormulaInvalid("0")).toBe(true);
     expect(isDamageFormulaInvalid("-8")).toBe(true);

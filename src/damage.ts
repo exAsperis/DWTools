@@ -1,3 +1,5 @@
+import { evaluateRollExpression, isRollExpression } from "./rollExpression";
+
 export type DamageMode = "sum" | "best" | "worst";
 
 export interface DamageExpression {
@@ -24,7 +26,7 @@ export function normalizeDamageFormula(input: string): string {
 }
 
 export function isDamageFormulaInvalid(input: string): boolean {
-  return input.trim() !== "" && parseDamage(input) === null;
+  return input.trim() !== "" && !isRollExpression(input);
 }
 
 export function parseDamage(input: string): DamageExpression | null {
@@ -100,7 +102,8 @@ export function rollDamageFormula(
   random: () => number = Math.random,
 ): string | null {
   const expression = parseDamage(source);
-  return expression
-    ? formatDamageResult(source, rollDamage(expression, random))
-    : null;
+  if (expression)
+    return formatDamageResult(source, rollDamage(expression, random));
+  const result = evaluateRollExpression(source, random);
+  return result.ok ? result.message : null;
 }

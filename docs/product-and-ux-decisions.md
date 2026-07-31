@@ -154,6 +154,25 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-30 — Context-menu notes support Markdown and embedded rolls
+
+Moves and Treasure in the token context menu render a deliberately limited,
+HTML-safe Markdown subset: paragraphs and line breaks, bold, italics, unordered
+lists, and numbered lists. Plain lines remain paragraphs rather than receiving
+implicit bullets. Treasure preserves authored multi-line structure.
+
+Dice notation in Moves, Treasure, and the Damage die is presented as a roll
+control with a leading `🎲`. In addition to the established dice notation,
+rolls support uniformly selected ordered choices such as
+`d{fail,partial,success}` and numeric arithmetic with unary signs,
+parentheses, addition, subtraction, multiplication, and division. Choice
+entries are trimmed finite decimal numbers or text. Arithmetic applied to a
+selected text result is an error.
+
+Reason: creature notes often mix structured prose with random tables, and the
+context menu should preserve that structure while making embedded game
+mechanics immediately usable without enabling arbitrary HTML.
+
 ### 2026-07-30 — Context-menu encumbrance matches the token overlay
 
 The linked Character Load row uses the same thresholds and messages as the

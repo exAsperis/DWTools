@@ -1,5 +1,6 @@
 import type { CharacterRecord } from "./characterRepository";
 import type { CreatureData } from "./constants";
+import { renderContextMarkdown } from "./contextMarkdown";
 import { iconMarkup } from "./icons";
 import { encumbranceText, formatLoad, totalLoad } from "./inventory";
 import {
@@ -91,10 +92,8 @@ export function buildContextSummary(
         </span>`
       : "",
   ].filter(Boolean);
-  const moves = (data.moves ?? "")
-    .split(/\r?\n/)
-    .map((move) => move.trim())
-    .filter(Boolean);
+  const moves = data.moves?.trim();
+  const treasure = data.treasure?.trim();
   const currentLoad = record ? totalLoad(record.inventory) : undefined;
   const encumbrance =
     record && currentLoad !== undefined
@@ -112,7 +111,7 @@ export function buildContextSummary(
       hasDamage
         ? `<div class="summary-row damage-row">
           ${iconMarkup("sword")}
-          ${data.damage?.trim() ? `<button class="damage" type="button" id="damage" title="Roll damage">${escapeHtml(data.damage.trim())}</button>` : ""}
+          ${data.damage?.trim() ? `<button class="damage" type="button" id="damage" title="Roll damage">🎲 ${escapeHtml(data.damage.trim())}</button>` : ""}
           ${description ? `<span class="damage-description">(${escapeHtml(description)})</span>` : ""}
           ${damageTags ? `<span class="descriptors">${escapeHtml(damageTags)}</span>` : ""}
         </div>`
@@ -132,12 +131,19 @@ export function buildContextSummary(
     ${detailRow("Tags", data.tags)}
     ${detailRow("Instinct", data.instinct)}
     ${
-      moves.length
+      moves
         ? `<div class="summary-row detail-row">
           <span class="label">Moves:</span>
-          <ul class="moves">${moves.map((move) => `<li>${escapeHtml(move)}</li>`).join("")}</ul>
+          <div class="markdown-content">${renderContextMarkdown(moves)}</div>
         </div>`
         : ""
     }
-    ${detailRow("Treasure", data.treasure)}`;
+    ${
+      treasure
+        ? `<div class="summary-row detail-row">
+          <span class="label">Treasure:</span>
+          <div class="markdown-content">${renderContextMarkdown(treasure)}</div>
+        </div>`
+        : ""
+    }`;
 }

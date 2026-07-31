@@ -41,7 +41,7 @@ describe("buildContextSummary", () => {
     expect(markup).toContain('data-xp="-1"');
     expect(markup).toContain("XP 10");
     expect(markup).toContain("Instinct:");
-    expect(markup).toContain("<li>Claw</li>");
+    expect(markup).toContain("<p>Claw<br>Leap</p>");
     expect(markup).not.toContain("visibility-button");
     expect(markup.indexOf("armor-stat")).toBeLessThan(
       markup.indexOf("damage-row"),
@@ -52,6 +52,27 @@ describe("buildContextSummary", () => {
     expect(markup.indexOf("progression-summary-row")).toBeLessThan(
       markup.indexOf("Tags:"),
     );
+  });
+
+  it("renders safe Markdown and dice links only in Moves and Treasure", () => {
+    const markup = buildContextSummary({
+      tags: "A d6 tag",
+      instinct: "Roll d8",
+      moves: "- **Strike** for d6+1\n- _Retreat_",
+      treasure: "Coins\n\n1. d{1,2,4}\n2. d{fail,success}",
+      damage: "d10",
+    });
+
+    expect(markup).toContain("<strong>Strike</strong>");
+    expect(markup).toContain("<em>Retreat</em>");
+    expect(markup).toContain("<ol>");
+    expect(markup).toContain("Coins</p><ol>");
+    expect(markup).toContain('data-roll-expression="d6+1"');
+    expect(markup).toContain('data-roll-expression="d{fail,success}"');
+    expect(markup).toContain('id="damage" title="Roll damage">🎲 d10');
+    expect(markup).toContain("A d6 tag");
+    expect(markup).toContain("Roll d8");
+    expect(markup.match(/data-roll-expression=/g)).toHaveLength(3);
   });
 
   it("omits missing fields instead of rendering placeholders", () => {
