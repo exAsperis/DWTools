@@ -6,15 +6,20 @@ export type HomeSection =
   | "moves"
   | "basicMoves"
   | "specialMoves"
+  | "encounter"
+  | "encounterInactive"
   | "settings"
   | "characters";
-export type HomeMajorSection = "agenda" | "moves" | "settings" | "characters";
+export type HomeMajorSection =
+  "agenda" | "moves" | "encounter" | "settings" | "characters";
 
 export interface HomeSectionState {
   agenda: boolean;
   moves: boolean;
   basicMoves: boolean;
   specialMoves: boolean;
+  encounter: boolean;
+  encounterInactive: boolean;
   settings: boolean;
   characters: boolean;
 }
@@ -30,6 +35,8 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionState = {
   moves: true,
   basicMoves: true,
   specialMoves: false,
+  encounter: false,
+  encounterInactive: false,
   settings: false,
   characters: false,
 };
@@ -37,6 +44,7 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionState = {
 export const DEFAULT_HOME_SECTION_ORDER: HomeMajorSection[] = [
   "agenda",
   "moves",
+  "encounter",
   "settings",
   "characters",
 ];
@@ -49,12 +57,21 @@ export function normalizeHomeSectionOrder(value: unknown): HomeMajorSection[] {
           typeof entry === "string" && valid.has(entry as HomeMajorSection),
       )
     : [];
-  return [
-    ...new Set(stored),
-    ...DEFAULT_HOME_SECTION_ORDER.filter(
-      (section) => !stored.includes(section),
-    ),
-  ];
+  const normalized = [...new Set(stored)];
+  for (const section of DEFAULT_HOME_SECTION_ORDER) {
+    if (section !== "encounter" && !normalized.includes(section)) {
+      normalized.push(section);
+    }
+  }
+  if (!normalized.includes("encounter")) {
+    const movesIndex = normalized.indexOf("moves");
+    normalized.splice(
+      movesIndex >= 0 ? movesIndex + 1 : normalized.length,
+      0,
+      "encounter",
+    );
+  }
+  return normalized;
 }
 
 export const BASIC_MOVES: MoveDefinition[] = [
@@ -213,6 +230,7 @@ export function buildHomeMarkup(
   saving: boolean,
   sections: HomeSectionState = DEFAULT_HOME_SECTIONS,
   characterManagerMarkup = "",
+  encounterMarkup = "",
   version = "",
 ): string {
   const stateLabel = defaultVisibleToPlayers
@@ -249,6 +267,14 @@ export function buildHomeMarkup(
             : ""
         }
       </section>
+      ${
+        role === "GM"
+          ? `<section class="home-section encounter-section" data-home-section="encounter">
+        ${sectionHeading("Encounter (Scene)", "encounter", sections.encounter)}
+        ${sections.encounter ? encounterMarkup : ""}
+      </section>`
+          : ""
+      }
       ${
         role === "GM"
           ? `<section class="home-section" data-home-section="settings">

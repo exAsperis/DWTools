@@ -45,6 +45,16 @@ import {
 } from "./creatureClipboard";
 import { maximumHpAutofill, readCreatureFieldsForm } from "./creatureForm";
 import { isDamageFormulaInvalid, normalizeDamageFormula } from "./damage";
+import { adjustedHp } from "./hp";
+import { evaluateRollExpression } from "./rollExpression";
+import {
+  buildEncounterMarkup,
+  encounterItems,
+  encounterStateFromMetadata,
+  setEncounterItemActive,
+  type EncounterItem,
+  type EncounterState,
+} from "./encounter";
 import {
   getDefaultOverlayVisibility,
   initializeCreatureData,
@@ -288,6 +298,13 @@ let managerLegacyCleanupComplete = false;
 let managerEditing: CharacterManagerViewState["editing"];
 let managerDraftCharacterId: string | undefined;
 let managerTransfer: CharacterManagerViewState["transfer"];
+let homeEncounterItems: EncounterItem[] = [];
+let homeEncounterState: EncounterState = {
+  schemaVersion: 1,
+  inactiveItemIds: [],
+};
+const encounterBusyItemIds = new Set<string>();
+let encounterRefreshGeneration = 0;
 const managerExpandedCharacters = new Set<string>();
 const managerExpandedInventories = new Set<string>();
 const HOME_SECTIONS_KEY = "dwtools/home-sections";
@@ -312,6 +329,14 @@ function loadLegacyHomeSections(): HomeSectionState {
         typeof stored.specialMoves === "boolean"
           ? stored.specialMoves
           : DEFAULT_HOME_SECTIONS.specialMoves,
+      encounter:
+        typeof stored.encounter === "boolean"
+          ? stored.encounter
+          : DEFAULT_HOME_SECTIONS.encounter,
+      encounterInactive:
+        typeof stored.encounterInactive === "boolean"
+          ? stored.encounterInactive
+          : DEFAULT_HOME_SECTIONS.encounterInactive,
       settings:
         typeof stored.settings === "boolean"
           ? stored.settings
@@ -395,12 +420,19 @@ function renderHome(): void {
     managerState(),
     homeSections.characters || Boolean(managerEditing),
   );
+  const encounterMarkup = buildEncounterMarkup(
+    homeEncounterItems,
+    homeEncounterState,
+    homeSections.encounterInactive,
+    encounterBusyItemIds,
+  );
   app.innerHTML = buildHomeMarkup(
     homeRole,
     defaultVisibleToPlayers,
     savingDefaultVisibility,
     homeSections,
     managerMarkup,
+    encounterMarkup,
     EXTENSION_VERSION,
   );
   const home = document.querySelector<HTMLElement>(".home");
@@ -487,7 +519,132 @@ function renderHome(): void {
     ?.addEventListener("click", () =>
       document.querySelector<HTMLDialogElement>("#move-dialog")?.close(),
     );
+  bindEncounterControls();
   bindManagerControls();
+}
+
+function showEncounterRoll(source: string): void {
+  const result = evaluateRollExpression(source);
+  notify(result.message, result.ok ? "SUCCESS" : "ERROR");
+}
+
+function bindEncounterControls(): void {
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-encounter-active]",
+  )) {
+    button.addEventListener("click", () => {
+      const itemId = button.dataset.itemId;
+      if (!itemId) return;
+      void changeEncounterActivity(
+        itemId,
+        button.dataset.encounterActive === "true",
+      );
+    });
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-encounter-hp]",
+  )) {
+    button.addEventListener("click", () => {
+      const itemId = button.dataset.itemId;
+      const amount = Number(button.dataset.encounterHp);
+      if (itemId && Number.isFinite(amount))
+        void adjustEncounterHp(itemId, amount);
+    });
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-encounter-damage]",
+  )) {
+    button.addEventListener("click", () => {
+      const source = button.dataset.encounterDamage;
+      if (source) showEncounterRoll(source);
+    });
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    ".encounter-section [data-roll-expression]",
+  )) {
+    button.addEventListener("click", () => {
+      const source = button.dataset.rollExpression;
+      if (source) showEncounterRoll(source);
+    });
+  }
+}
+
+async function changeEncounterActivity(
+  itemId: string,
+  active: boolean,
+): Promise<void> {
+  if (homeRole !== "GM" || encounterBusyItemIds.has(itemId)) return;
+  encounterBusyItemIds.add(itemId);
+  renderHome();
+  try {
+    homeEncounterState = await setEncounterItemActive(
+      {
+        getMetadata: () => OBR.scene.getMetadata(),
+        setMetadata: (update) => OBR.scene.setMetadata(update),
+      },
+      homeEncounterItems.map((item) => item.id),
+      itemId,
+      active,
+    );
+  } catch (error) {
+    console.error("DWTools could not update encounter activity", error);
+    notify(
+      messageFrom(error, "DWTools could not update encounter activity."),
+      "ERROR",
+    );
+  } finally {
+    encounterBusyItemIds.delete(itemId);
+    renderHome();
+  }
+}
+
+async function adjustEncounterHp(
+  itemId: string,
+  amount: number,
+): Promise<void> {
+  if (
+    homeRole !== "GM" ||
+    !homeCreatureService ||
+    encounterBusyItemIds.has(itemId)
+  )
+    return;
+  encounterBusyItemIds.add(itemId);
+  renderHome();
+  try {
+    const latest = (await OBR.scene.items.getItems([itemId]))[0];
+    if (!latest) return;
+    const entry = encounterItems([latest])[0];
+    if (!entry || entry.data.hpCurrent === undefined) return;
+    await homeCreatureService.updateCreatureFields(itemId, {
+      hpCurrent: adjustedHp(entry.data.hpCurrent, amount),
+    });
+  } catch (error) {
+    console.error("DWTools could not update encounter HP", error);
+    notify(
+      messageFrom(error, "DWTools could not update encounter HP."),
+      "ERROR",
+    );
+  } finally {
+    encounterBusyItemIds.delete(itemId);
+    renderHome();
+  }
+}
+
+async function refreshEncounter(items?: Item[]): Promise<void> {
+  const generation = ++encounterRefreshGeneration;
+  if (homeRole !== "GM" || !(await OBR.scene.isReady())) {
+    if (generation !== encounterRefreshGeneration) return;
+    homeEncounterItems = [];
+    homeEncounterState = { schemaVersion: 1, inactiveItemIds: [] };
+    return;
+  }
+  const [sceneItems, metadata] = await Promise.all([
+    items ? Promise.resolve(items) : OBR.scene.items.getItems(),
+    OBR.scene.getMetadata(),
+  ]);
+  if (generation !== encounterRefreshGeneration) return;
+  homeEncounterItems = encounterItems(sceneItems);
+  homeEncounterState = encounterStateFromMetadata(metadata);
 }
 
 function bindManagerControls(): void {
@@ -498,7 +655,7 @@ function bindManagerControls(): void {
       fields: { name: "Untitled character", visibleToPlayers: true },
     };
     homeSections.characters = true;
-    localStorage.setItem(HOME_SECTIONS_KEY, JSON.stringify(homeSections));
+    void persistHomeLayout();
     renderHome();
   });
   document.querySelector("#manager-cancel")?.addEventListener("click", () => {
@@ -1008,7 +1165,7 @@ async function startHome(): Promise<void> {
   homeRole = role;
   homeMetadata = roomMetadata;
   loadHomeLayout(playerMetadata);
-  await refreshManager(false);
+  await Promise.all([refreshManager(false), refreshEncounter()]);
   renderHome();
 
   const unsubscribers = [
@@ -1028,10 +1185,20 @@ async function startHome(): Promise<void> {
       managerEditing = undefined;
       managerDraftCharacterId = undefined;
       managerTransfer = undefined;
-      void refreshManager();
+      void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
     }),
-    OBR.scene.items.onChange(() => {
+    OBR.scene.items.onChange((items) => {
+      encounterRefreshGeneration += 1;
+      homeEncounterItems = homeRole === "GM" ? encounterItems(items) : [];
+      renderHome();
       void refreshManager(homeRole === "PLAYER" || !managerEditing);
+    }),
+    OBR.scene.onMetadataChange((metadata) => {
+      homeEncounterState = encounterStateFromMetadata(metadata);
+      renderHome();
+    }),
+    OBR.scene.onReadyChange(() => {
+      void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
     }),
     OBR.room.onPermissionsChange(
       () => void refreshManager(homeRole === "PLAYER" || !managerEditing),

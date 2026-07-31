@@ -1,4 +1,5 @@
-export type DwIconName = "eye" | "eye-off" | "shield" | "sword";
+export type DwIconName =
+  "eye" | "eye-off" | "shield" | "sword" | "plus-circle" | "minus-circle";
 
 export type IconCommand =
   | ["M" | "L", number, number]
@@ -77,6 +78,14 @@ const ICON_COMMANDS: Record<DwIconName, IconCommand[]> = {
     ["L", 10, 21],
     ["Z"],
   ],
+  "plus-circle": [
+    ...CIRCLE,
+    ["M", 12, 7],
+    ["L", 12, 17],
+    ["M", 7, 12],
+    ["L", 17, 12],
+  ],
+  "minus-circle": [...CIRCLE, ["M", 7, 12], ["L", 17, 12]],
 };
 
 export function iconCommands(icon: DwIconName): IconCommand[] {

@@ -30,4 +30,10 @@ describe("DWTools icons", () => {
     expect(commands).toContainEqual(["L", 12, 22]);
     expect(iconMarkup("sword")).toContain('viewBox="0 0 24 24"');
   });
+
+  it("draws add and remove encounter controls as circle icons", () => {
+    expect(iconCommands("plus-circle")).toContainEqual(["L", 12, 17]);
+    expect(iconCommands("plus-circle")).toContainEqual(["L", 17, 12]);
+    expect(iconCommands("minus-circle")).toContainEqual(["L", 17, 12]);
+  });
 });

@@ -48,6 +48,42 @@ button:disabled { cursor: wait; opacity: .55; }
 .default-visibility-toggle:hover { filter: brightness(1.12); }
 .default-visibility-toggle:disabled { cursor: wait; opacity: .55; }
 .default-visibility-icon { display: block; width: 20px; height: 20px; }
+.encounter-list { display: grid; gap: 8px; }
+.encounter-card { display: grid; gap: 6px; min-width: 0; padding: 8px; border: 1px solid var(--dw-border); border-radius: 8px; background: var(--dw-surface); font-size: 11px; line-height: 1.3; }
+.encounter-identity, .encounter-inactive-row { display: flex; align-items: center; min-width: 0; gap: 3px; }
+.encounter-item-text { overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.encounter-item-name { overflow: hidden; color: var(--dw-text-disabled); text-overflow: ellipsis; white-space: nowrap; }
+.encounter-activity { display: grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; margin-left: auto; border: 0; padding: 2px; color: var(--dw-primary); background: transparent; cursor: pointer; }
+.encounter-activity .dw-icon { width: 19px; height: 19px; }
+.encounter-combat { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 5px; min-width: 0; }
+.encounter-armor { position: relative; display: grid; place-items: center; width: 28px; height: 28px; }
+.encounter-armor .dw-icon { position: absolute; width: 27px; height: 27px; color: var(--dw-text-secondary); }
+.encounter-armor strong { position: relative; padding-top: 1px; font-size: 10px; }
+.encounter-damage { display: flex; align-items: flex-start; min-width: 0; gap: 3px; }
+.encounter-damage > .dw-icon { flex: 0 0 auto; width: 17px; height: 17px; }
+.encounter-damage-copy { display: flex; align-items: baseline; flex-wrap: wrap; min-width: 0; gap: 1px 3px; overflow-wrap: anywhere; }
+.encounter-damage-copy button { border: 0; padding: 0; color: inherit; background: transparent; font-weight: 800; cursor: pointer; }
+.encounter-damage-copy em { flex-basis: 100%; color: var(--dw-text-disabled); }
+.encounter-hp { display: grid; grid-template-columns: 20px 64px 20px; align-items: center; gap: 2px; }
+.encounter-hp > button { width: 20px; height: 20px; border: 1px solid var(--dw-border); border-radius: 999px; padding: 0; color: var(--dw-text); background: var(--dw-control); cursor: pointer; }
+.encounter-hp-bar { position: relative; display: grid; overflow: hidden; place-items: center; height: 18px; border-radius: 4px; background: #27272a; }
+.encounter-hp-fill { position: absolute; inset: 0 auto 0 0; background: #15803d; }
+.encounter-hp-bar strong { position: relative; color: #fff; font-size: 10px; text-shadow: 0 1px 2px #000; }
+.encounter-hp-bar.hp-amber .encounter-hp-fill { background: #b45309; }
+.encounter-hp-bar.hp-red .encounter-hp-fill { background: #b91c1c; }
+.encounter-hp-bar.hp-purple .encounter-hp-fill { background: #7e22ce; }
+.encounter-hp-bar.hp-empty .encounter-hp-fill { display: none; }
+.encounter-instinct { overflow-wrap: anywhere; }
+.encounter-moves { display: grid; gap: 3px; overflow-wrap: anywhere; }
+.encounter-moves .markdown-content { color: var(--dw-text-secondary); }
+.encounter-moves .markdown-content p, .encounter-moves .markdown-content ul, .encounter-moves .markdown-content ol { margin: 0; }
+.encounter-moves .markdown-content ul, .encounter-moves .markdown-content ol { padding-left: 17px; }
+.encounter-moves .inline-roll { border: 0; padding: 0; color: inherit; background: transparent; font-weight: 800; cursor: pointer; }
+.encounter-inactive { display: grid; gap: 7px; padding-top: 3px; }
+.encounter-inactive-toggle { font-size: 13px; }
+.encounter-inactive-list { display: grid; gap: 5px; }
+.encounter-inactive-row { padding: 5px 7px; border: 1px solid var(--dw-border); border-radius: 7px; color: var(--dw-text-secondary); background: var(--dw-surface); font-size: 11px; }
+.encounter-empty { margin: 0; color: var(--dw-text-disabled); font-size: 11px; text-align: center; }
 .manager-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .manager-create { justify-self: start; }
 .metadata-usage { display: grid; gap: 5px; color: var(--dw-text-disabled); font-size: 11px; }

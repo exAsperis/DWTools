@@ -20,6 +20,7 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain("Special Moves");
     expect(markup).not.toContain("Last Breath");
     expect(markup).toContain("Settings");
+    expect(markup).toContain("Encounter (Scene)");
     expect(markup).not.toContain('id="default-visibility"');
     expect(markup).not.toContain("Right-click a character");
     expect(markup).not.toContain("quick HP controls");
@@ -52,6 +53,7 @@ describe("buildHomeMarkup", () => {
     expect(markup).not.toContain("Default character overlay:");
     expect(markup).not.toContain('id="default-visibility"');
     expect(markup).not.toContain("Agenda");
+    expect(markup).not.toContain("Encounter (Scene)");
     expect(markup).toContain("Character Records");
     expect(markup).toContain("Moves");
   });
@@ -74,6 +76,9 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain(
       'data-toggle-section="settings" aria-expanded="false"',
     );
+    expect(markup).toContain(
+      'data-toggle-section="encounter" aria-expanded="false"',
+    );
     expect(markup).not.toContain("(collapse)");
     expect(markup).not.toContain("(expand)");
     expect(markup).toContain('draggable="true" data-drag-section="agenda"');
@@ -85,10 +90,11 @@ describe("buildHomeMarkup", () => {
   it("normalizes persisted major-section order", () => {
     expect(
       normalizeHomeSectionOrder(["characters", "moves", "moves", "bad"]),
-    ).toEqual(["characters", "moves", "agenda", "settings"]);
+    ).toEqual(["characters", "moves", "encounter", "agenda", "settings"]);
     expect(normalizeHomeSectionOrder(undefined)).toEqual([
       "agenda",
       "moves",
+      "encounter",
       "settings",
       "characters",
     ]);
@@ -112,6 +118,7 @@ describe("buildHomeMarkup", () => {
       true,
       false,
       DEFAULT_HOME_SECTIONS,
+      "",
       "",
       "1.3.7",
     );

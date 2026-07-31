@@ -154,6 +154,22 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-31 — Encounter state is shared per scene
+
+The GM-only **Encounter (Scene)** main-panel section lists Character-layer
+Image items that contain DWTools creature metadata. It provides compact armor,
+damage-roll, HP, Instinct, and Markdown Moves controls, while an independently
+collapsible Inactive subsection holds creatures temporarily removed from the
+encounter. Inactive membership is a versioned set of item IDs in scene
+metadata, shared by all GMs; it does not alter token visibility, locking,
+linking, creature data, or overlay rendering.
+
+Encounter defaults after Moves and collapsed. Its major-section placement and
+both disclosure states remain per-player layout preferences. Reason: the GM
+needs one concise, scene-specific view of every foe's immediate mechanical
+options without turning encounter participation into creature identity or
+duplicating the persistent overlay.
+
 ### 2026-07-31 — Main-panel layout is a per-player preference
 
 Major main-panel sections use a disclosure arrow to the left of each title;

@@ -1,5 +1,5 @@
 export const EXTENSION_ID = "com.ex-asperis.dwtools";
-export const EXTENSION_VERSION = "1.3.8";
+export const EXTENSION_VERSION = "1.3.9";
 export const LEGACY_EXTENSION_ID = "com.bryan.dungeon-world-creatures";
 
 export const CREATURE_KEY = `${EXTENSION_ID}/creature`;
@@ -8,6 +8,7 @@ export const EDIT_POPOVER_ID = `${EXTENSION_ID}/edit-popover`;
 export const DEFAULT_OVERLAY_VISIBILITY_KEY = `${EXTENSION_ID}/default-overlay-visible`;
 export const OVERWRITE_LABEL_ON_LINK_KEY = `${EXTENSION_ID}/overwrite-label-on-link`;
 export const PLAYER_HOME_LAYOUT_KEY = `${EXTENSION_ID}/home-layout`;
+export const ENCOUNTER_STATE_KEY = `${EXTENSION_ID}/encounter-state`;
 export const CHARACTER_KEY_PREFIX = `${EXTENSION_ID}/character/`;
 export const CHARACTER_LINK_KEY = `${EXTENSION_ID}/character-link`;
 export const CONTEXT_MENU_ID = `${EXTENSION_ID}/menu`;
