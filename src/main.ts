@@ -49,6 +49,7 @@ import { adjustedHp } from "./hp";
 import { evaluateRollExpression } from "./rollExpression";
 import {
   buildEncounterMarkup,
+  centeredViewportPosition,
   encounterItems,
   encounterStateFromMetadata,
   partitionEncounterItems,
@@ -695,11 +696,24 @@ async function reorderEncounterItem(
 async function locateEncounterItem(itemId: string): Promise<void> {
   if (homeRole !== "GM") return;
   try {
-    const [bounds, scale] = await Promise.all([
-      OBR.scene.items.getItemBounds([itemId]),
-      OBR.viewport.getScale(),
-    ]);
-    await OBR.viewport.animateTo({ position: bounds.center, scale });
+    const [bounds, scale, currentPosition, viewportWidth, viewportHeight] =
+      await Promise.all([
+        OBR.scene.items.getItemBounds([itemId]),
+        OBR.viewport.getScale(),
+        OBR.viewport.getPosition(),
+        OBR.viewport.getWidth(),
+        OBR.viewport.getHeight(),
+      ]);
+    const currentScreenPoint = await OBR.viewport.transformPoint(bounds.center);
+    await OBR.viewport.animateTo({
+      position: centeredViewportPosition(
+        currentPosition,
+        currentScreenPoint,
+        viewportWidth,
+        viewportHeight,
+      ),
+      scale,
+    });
   } catch (error) {
     console.error("DWTools could not locate the encounter item", error);
     notify("That item is no longer available in the scene.", "ERROR");

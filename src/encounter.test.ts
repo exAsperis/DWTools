@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CREATURE_KEY, ENCOUNTER_STATE_KEY } from "./constants";
 import {
   buildEncounterMarkup,
+  centeredViewportPosition,
   currentEncounterState,
   encounterItems,
   hpPresentation,
@@ -39,6 +40,16 @@ function item(
 }
 
 describe("encounter model", () => {
+  it("calculates the viewport translation needed to center a screen point", () => {
+    expect(
+      centeredViewportPosition(
+        { x: -100, y: 40 },
+        { x: 900, y: 100 },
+        1200,
+        800,
+      ),
+    ).toEqual({ x: -400, y: 340 });
+  });
   it("includes visible and hidden DWTools Character images and sorts deterministically", () => {
     const hidden = item("2", "goblin", "B", { armor: 1 });
     hidden.visible = false;

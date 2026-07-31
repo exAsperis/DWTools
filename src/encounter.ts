@@ -41,6 +41,18 @@ export interface EncounterMetadataStore {
   setMetadata(update: Metadata): Promise<void>;
 }
 
+export function centeredViewportPosition(
+  currentPosition: { x: number; y: number },
+  currentScreenPoint: { x: number; y: number },
+  viewportWidth: number,
+  viewportHeight: number,
+): { x: number; y: number } {
+  return {
+    x: currentPosition.x + viewportWidth / 2 - currentScreenPoint.x,
+    y: currentPosition.y + viewportHeight / 2 - currentScreenPoint.y,
+  };
+}
+
 export function encounterItems(items: Item[]): EncounterItem[] {
   return items
     .filter(
