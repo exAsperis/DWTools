@@ -122,6 +122,8 @@ describe("character manager view", () => {
     });
 
     expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('draggable="true" data-drag-section="characters"');
+    expect(markup).not.toContain("(expand)");
     expect(markup).not.toContain("Raganah");
     expect(markup).not.toContain('id="manager-create"');
   });

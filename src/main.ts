@@ -27,6 +27,7 @@ import {
   DEFAULT_OVERLAY_VISIBILITY_KEY,
   EDIT_POPOVER_ID,
   EXTENSION_VERSION,
+  PLAYER_HOME_LAYOUT_KEY,
 } from "./constants";
 import {
   extractCreatureFields,
@@ -54,7 +55,10 @@ import {
   BASIC_MOVES,
   buildHomeMarkup,
   DEFAULT_HOME_SECTIONS,
+  DEFAULT_HOME_SECTION_ORDER,
+  normalizeHomeSectionOrder,
   SPECIAL_MOVES,
+  type HomeMajorSection,
   type HomeRole,
   type HomeSection,
   type HomeSectionState,
@@ -288,7 +292,7 @@ const managerExpandedCharacters = new Set<string>();
 const managerExpandedInventories = new Set<string>();
 const HOME_SECTIONS_KEY = "dwtools/home-sections";
 
-function loadHomeSections(): HomeSectionState {
+function loadLegacyHomeSections(): HomeSectionState {
   try {
     const stored = JSON.parse(localStorage.getItem(HOME_SECTIONS_KEY) ?? "{}");
     return {
@@ -322,7 +326,51 @@ function loadHomeSections(): HomeSectionState {
   }
 }
 
-let homeSections = loadHomeSections();
+function readHomeSections(value: unknown): HomeSectionState {
+  const stored =
+    typeof value === "object" && value !== null
+      ? (value as Partial<HomeSectionState>)
+      : {};
+  return Object.fromEntries(
+    Object.entries(DEFAULT_HOME_SECTIONS).map(([section, fallback]) => [
+      section,
+      typeof stored[section as keyof HomeSectionState] === "boolean"
+        ? stored[section as keyof HomeSectionState]
+        : fallback,
+    ]),
+  ) as unknown as HomeSectionState;
+}
+
+function loadHomeLayout(metadata: Record<string, unknown>): void {
+  const stored = metadata[PLAYER_HOME_LAYOUT_KEY];
+  if (typeof stored === "object" && stored !== null) {
+    const layout = stored as { expanded?: unknown; order?: unknown };
+    homeSections = readHomeSections(layout.expanded);
+    homeSectionOrder = normalizeHomeSectionOrder(layout.order);
+    return;
+  }
+  homeSections = loadLegacyHomeSections();
+  homeSectionOrder = [...DEFAULT_HOME_SECTION_ORDER];
+}
+
+async function persistHomeLayout(): Promise<void> {
+  try {
+    await OBR.player.setMetadata({
+      [PLAYER_HOME_LAYOUT_KEY]: {
+        version: 1,
+        expanded: homeSections,
+        order: homeSectionOrder,
+      },
+    });
+  } catch (error) {
+    console.error("DWTools could not save the panel layout", error);
+    notify("DWTools could not save your panel layout.", "ERROR");
+  }
+}
+
+let homeSections = { ...DEFAULT_HOME_SECTIONS };
+let homeSectionOrder = [...DEFAULT_HOME_SECTION_ORDER];
+let draggedHomeSection: HomeMajorSection | undefined;
 
 function managerState(): CharacterManagerViewState {
   return {
@@ -355,6 +403,18 @@ function renderHome(): void {
     managerMarkup,
     EXTENSION_VERSION,
   );
+  const home = document.querySelector<HTMLElement>(".home");
+  const insertionPoint = document.querySelector<HTMLElement>(
+    ".extension-version, #move-dialog",
+  );
+  if (home && insertionPoint) {
+    for (const section of homeSectionOrder) {
+      const element = home.querySelector<HTMLElement>(
+        `[data-home-section="${section}"]`,
+      );
+      if (element) home.insertBefore(element, insertionPoint);
+    }
+  }
   document
     .querySelector("#default-visibility")
     ?.addEventListener("click", () => void toggleDefaultVisibility());
@@ -364,7 +424,45 @@ function renderHome(): void {
     button.addEventListener("click", () => {
       const section = button.dataset.toggleSection as HomeSection;
       homeSections = { ...homeSections, [section]: !homeSections[section] };
-      localStorage.setItem(HOME_SECTIONS_KEY, JSON.stringify(homeSections));
+      void persistHomeLayout();
+      renderHome();
+    });
+  }
+  for (const heading of document.querySelectorAll<HTMLElement>(
+    "[data-drag-section]",
+  )) {
+    const section = heading.dataset.dragSection as HomeMajorSection;
+    const container = heading.closest<HTMLElement>("[data-home-section]");
+    heading.addEventListener("dragstart", (event) => {
+      draggedHomeSection = section;
+      container?.classList.add("dragging");
+      event.dataTransfer?.setData("text/plain", section);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    });
+    heading.addEventListener("dragend", () => {
+      draggedHomeSection = undefined;
+      document
+        .querySelectorAll(".dragging, .drag-over")
+        .forEach((element) =>
+          element.classList.remove("dragging", "drag-over"),
+        );
+    });
+    container?.addEventListener("dragover", (event) => {
+      if (!draggedHomeSection || draggedHomeSection === section) return;
+      event.preventDefault();
+      container.classList.add("drag-over");
+    });
+    container?.addEventListener("dragleave", () =>
+      container.classList.remove("drag-over"),
+    );
+    container?.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const dragged = draggedHomeSection;
+      if (!dragged || dragged === section) return;
+      const next = homeSectionOrder.filter((entry) => entry !== dragged);
+      next.splice(next.indexOf(section), 0, dragged);
+      homeSectionOrder = next;
+      void persistHomeLayout();
       renderHome();
     });
   }
@@ -901,11 +999,15 @@ async function startHome(): Promise<void> {
     homeRepository,
     homeCreatureService,
   );
-  [homeRole, homeMetadata] = await Promise.all([
+  const [role, roomMetadata, playerMetadata] = await Promise.all([
     OBR.player.getRole(),
     OBR.room.getMetadata(),
+    OBR.player.getMetadata(),
     OBR.theme.getTheme().then(applyTheme),
   ]);
+  homeRole = role;
+  homeMetadata = roomMetadata;
+  loadHomeLayout(playerMetadata);
   await refreshManager(false);
   renderHome();
 
@@ -922,6 +1024,7 @@ async function startHome(): Promise<void> {
     }),
     OBR.player.onChange((player) => {
       homeRole = player.role;
+      loadHomeLayout(player.metadata);
       managerEditing = undefined;
       managerDraftCharacterId = undefined;
       managerTransfer = undefined;

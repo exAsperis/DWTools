@@ -319,11 +319,10 @@ export function buildCharacterManagerMarkup(
   }
 
   return `
-    <section class="character-manager">
-      <div class="section-heading">
-        <h2>Characters</h2>
+    <section class="character-manager" data-home-section="characters">
+      <div class="section-heading major-section-heading" draggable="true" data-drag-section="characters">
         <button class="section-toggle" type="button" data-toggle-section="characters" aria-expanded="${expanded}">
-          (${expanded ? "collapse" : "expand"})
+          <span class="section-arrow" aria-hidden="true">&#9656;</span><span>Characters</span>
         </button>
       </div>
       ${

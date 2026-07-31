@@ -154,6 +154,19 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-31 — Main-panel layout is a per-player preference
+
+Major main-panel sections use a disclosure arrow to the left of each title;
+the arrow and title form one control. Their header rows are draggable so each
+player or GM can reorder the available sections. Major-section order and all
+section expansion states are stored in Owlbear player metadata, making the
+layout follow that Owlbear player rather than a particular browser profile.
+
+This supersedes the per-browser section-state storage recorded on 2026-07-26
+and 2026-07-27. Reason: panel organization is personal to each participant and
+should persist with that participant across browsers without changing shared
+room configuration.
+
 ### 2026-07-30 — Creature metadata uses an editor-local copy/paste workflow
 
 The full creature editor can copy a saved, normalized creature-data snapshot

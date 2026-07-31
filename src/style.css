@@ -26,17 +26,23 @@ button:disabled { cursor: wait; opacity: .55; }
 .extension-version { margin: 20px 0 0; color: var(--dw-text-disabled); font-size: 10px; text-align: center; }
 .muted { font-size: 13px; }
 .home-section, .character-manager { display: grid; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--dw-border); }
-.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.section-heading { display: flex; align-items: center; gap: 10px; }
 .section-heading h2, .character-manager h2 { margin: 0; font-size: 18px; }
-.section-toggle, .move-link { border: 0; padding: 0; color: var(--dw-primary); background: transparent; cursor: pointer; text-decoration: underline; }
-.section-toggle { font-size: 11px; }
+.section-toggle, .move-link { border: 0; padding: 0; color: var(--dw-primary); background: transparent; cursor: pointer; }
+.section-toggle { display: inline-flex; align-items: center; gap: 7px; color: var(--dw-text); font-size: 18px; font-weight: 700; text-align: left; }
+.section-arrow { color: var(--dw-primary); font-size: 16px; transition: transform 120ms ease; }
+.section-toggle[aria-expanded="true"] .section-arrow { transform: rotate(90deg); }
+.major-section-heading { cursor: grab; }
+.major-section-heading:active { cursor: grabbing; }
+.home-section.dragging, .character-manager.dragging { opacity: .5; }
+.home-section.drag-over, .character-manager.drag-over { border-top-color: var(--dw-primary); }
 .section-toggle:hover, .move-link:hover { filter: brightness(1.18); }
 .agenda-list { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--dw-text-secondary); font-size: 13px; line-height: 1.4; }
 .move-subsection { display: grid; gap: 9px; }
 .move-subheading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.move-subheading h3 { margin: 0; font-size: 14px; }
+.move-subheading .section-toggle { font-size: 14px; }
 .move-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
-.move-link { text-align: left; font-size: 13px; }
+.move-link { text-align: left; font-size: 13px; text-decoration: underline; }
 .default-visibility { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--dw-text-secondary); font-size: 13px; }
 .default-visibility-toggle { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--dw-border); border-radius: 999px; padding: 0; color: inherit; background: var(--dw-control); cursor: pointer; }
 .default-visibility-toggle:hover { filter: brightness(1.12); }

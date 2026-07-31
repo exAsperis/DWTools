@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildHomeMarkup,
   DEFAULT_HOME_SECTIONS,
+  normalizeHomeSectionOrder,
   type HomeSectionState,
 } from "./homeView";
 
@@ -73,6 +74,24 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain(
       'data-toggle-section="settings" aria-expanded="false"',
     );
+    expect(markup).not.toContain("(collapse)");
+    expect(markup).not.toContain("(expand)");
+    expect(markup).toContain('draggable="true" data-drag-section="agenda"');
+    expect(markup).toContain(
+      '<span class="section-arrow" aria-hidden="true">&#9656;</span><span>Agenda</span>',
+    );
+  });
+
+  it("normalizes persisted major-section order", () => {
+    expect(
+      normalizeHomeSectionOrder(["characters", "moves", "moves", "bad"]),
+    ).toEqual(["characters", "moves", "agenda", "settings"]);
+    expect(normalizeHomeSectionOrder(undefined)).toEqual([
+      "agenda",
+      "moves",
+      "settings",
+      "characters",
+    ]);
   });
 
   it("renders all Special Moves when their subsection is expanded", () => {

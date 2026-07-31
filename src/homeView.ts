@@ -8,6 +8,7 @@ export type HomeSection =
   | "specialMoves"
   | "settings"
   | "characters";
+export type HomeMajorSection = "agenda" | "moves" | "settings" | "characters";
 
 export interface HomeSectionState {
   agenda: boolean;
@@ -32,6 +33,29 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionState = {
   settings: false,
   characters: false,
 };
+
+export const DEFAULT_HOME_SECTION_ORDER: HomeMajorSection[] = [
+  "agenda",
+  "moves",
+  "settings",
+  "characters",
+];
+
+export function normalizeHomeSectionOrder(value: unknown): HomeMajorSection[] {
+  const valid = new Set<HomeMajorSection>(DEFAULT_HOME_SECTION_ORDER);
+  const stored = Array.isArray(value)
+    ? value.filter(
+        (entry): entry is HomeMajorSection =>
+          typeof entry === "string" && valid.has(entry as HomeMajorSection),
+      )
+    : [];
+  return [
+    ...new Set(stored),
+    ...DEFAULT_HOME_SECTION_ORDER.filter(
+      (section) => !stored.includes(section),
+    ),
+  ];
+}
 
 export const BASIC_MOVES: MoveDefinition[] = [
   {
@@ -150,10 +174,9 @@ function sectionHeading(
   expanded: boolean,
 ): string {
   return `
-    <div class="section-heading">
-      <h2>${title}</h2>
+    <div class="section-heading major-section-heading" draggable="true" data-drag-section="${section}">
       <button class="section-toggle" type="button" data-toggle-section="${section}" aria-expanded="${expanded}">
-        (${expanded ? "collapse" : "expand"})
+        <span class="section-arrow" aria-hidden="true">&#9656;</span><span>${title}</span>
       </button>
     </div>`;
 }
@@ -167,9 +190,8 @@ function moveSubsection(
   return `
     <section class="move-subsection">
       <div class="move-subheading">
-        <h3>${title}</h3>
         <button class="section-toggle" type="button" data-toggle-section="${section}" aria-expanded="${expanded}">
-          (${expanded ? "collapse" : "expand"})
+          <span class="section-arrow" aria-hidden="true">&#9656;</span><span>${title}</span>
         </button>
       </div>
       ${
@@ -204,7 +226,7 @@ export function buildHomeMarkup(
       </div>
       ${
         role === "GM"
-          ? `<section class="home-section">
+          ? `<section class="home-section" data-home-section="agenda">
         ${sectionHeading("Agenda", "agenda", sections.agenda)}
         ${
           sections.agenda
@@ -218,7 +240,7 @@ export function buildHomeMarkup(
       </section>`
           : ""
       }
-      <section class="home-section">
+      <section class="home-section" data-home-section="moves">
         ${sectionHeading("Moves", "moves", sections.moves)}
         ${
           sections.moves
@@ -229,7 +251,7 @@ export function buildHomeMarkup(
       </section>
       ${
         role === "GM"
-          ? `<section class="home-section">
+          ? `<section class="home-section" data-home-section="settings">
         ${sectionHeading("Settings", "settings", sections.settings)}
         ${
           sections.settings
