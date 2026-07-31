@@ -6,6 +6,7 @@ import {
 } from "./characterRepository";
 import {
   CREATURE_KEY,
+  type CreatureData,
   type CreatureFieldPatch,
   type CreatureFields,
 } from "./constants";
@@ -15,6 +16,7 @@ import {
   extractCreatureFields,
   getCharacterLink,
   mergeCreatureFieldPatch,
+  normalizeCreatureData,
   removeCharacterLink,
   setCharacterLink,
 } from "./creatureFields";
@@ -31,7 +33,7 @@ export interface SceneItemStore {
 }
 
 export type CreatureUpdateErrorCode =
-  "API" | "ORPHANED" | "RECORD_SAVED_TOKEN_SYNC_FAILED";
+  "API" | "LINKED" | "ORPHANED" | "RECORD_SAVED_TOKEN_SYNC_FAILED";
 
 export class CreatureUpdateError extends Error {
   constructor(
@@ -243,6 +245,35 @@ export class CreatureService {
       );
     }
     return { fields: record.fields, record };
+  }
+
+  async replaceUnlinkedCreatureData(
+    itemId: string,
+    data: CreatureData,
+  ): Promise<CreatureData> {
+    const normalized = normalizeCreatureData(data);
+    const item = await this.requireItem(itemId);
+    if (getCharacterLink(item)) {
+      throw new CreatureUpdateError(
+        "LINKED",
+        "Unlink this token from its Character record before pasting DWTools data.",
+      );
+    }
+    try {
+      await this.scene.updateItems([item], (drafts) => {
+        const draft = drafts[0];
+        if (!draft || getCharacterLink(draft)) {
+          throw new CreatureUpdateError(
+            "LINKED",
+            "This token became linked before the copied DWTools data could be saved. Unlink it and try again.",
+          );
+        }
+        draft.metadata[CREATURE_KEY] = normalized;
+      });
+    } catch (error) {
+      throw apiError(error, "Owlbear could not paste the creature data.");
+    }
+    return normalized;
   }
 
   async linkToExistingCharacter(

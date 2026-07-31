@@ -31,8 +31,17 @@ import {
 import {
   extractCreatureFields,
   getCharacterLink,
+  normalizeCreatureData,
   normalizeCreatureFields,
 } from "./creatureFields";
+import {
+  clearCreatureClipboard,
+  createCreatureClipboardPayload,
+  creatureFieldsFromClipboard,
+  readCreatureClipboard,
+  writeCreatureClipboard,
+  type CreatureClipboardPayload,
+} from "./creatureClipboard";
 import { maximumHpAutofill, readCreatureFieldsForm } from "./creatureForm";
 import { isDamageFormulaInvalid, normalizeDamageFormula } from "./damage";
 import {
@@ -950,6 +959,8 @@ let editorOverwriteLabel = true;
 let editorSavingOverwriteLabel = false;
 let editorError: string | undefined;
 let editorHadCreatureData = false;
+let editorClipboard: CreatureClipboardPayload | undefined;
+let editorStagedClipboard: CreatureClipboardPayload | undefined;
 
 function buildCharacterRecordSection(token: Item): string {
   const link = getCharacterLink(token);
@@ -1023,6 +1034,31 @@ function buildCharacterRecordSection(token: Item): string {
     </section>`;
 }
 
+function clipboardStatusText(
+  clipboard: CreatureClipboardPayload | undefined,
+): string {
+  return clipboard
+    ? `Copied from ${clipboard.sourceName} · ${new Date(clipboard.copiedAt).toLocaleString()}`
+    : "No copied DWTools data.";
+}
+
+function buildCreatureClipboardSection(): string {
+  const canCopy = editorHadCreatureData || editorLookup.status === "active";
+  return `
+    <section class="creature-clipboard-section">
+      <div class="creature-clipboard-heading">
+        <strong>DWTools data clipboard</strong>
+        <span data-clipboard-status>${escapeHtml(clipboardStatusText(editorClipboard))}</span>
+      </div>
+      ${editorStagedClipboard ? `<p class="clipboard-staged">Pasted data from ${escapeHtml(editorStagedClipboard.sourceName)} is staged. Save to apply it.</p>` : ""}
+      <div class="clipboard-actions">
+        <button class="secondary" type="button" id="copy-creature-data" ${canCopy && !editorBusy ? "" : "disabled"}>Copy DWTools data</button>
+        <button class="secondary" type="button" id="paste-creature-data" ${editorClipboard && !editorBusy ? "" : "disabled"}>Paste DWTools data</button>
+        <button class="secondary" type="button" id="clear-creature-data" ${editorClipboard && !editorBusy ? "" : "disabled"}>Clear copied data</button>
+      </div>
+    </section>`;
+}
+
 function renderEditor(): void {
   if (!editorToken || !editorFields) return;
   const hpOnly = view === "hp";
@@ -1047,6 +1083,7 @@ function renderEditor(): void {
           </div>`
           : buildCreatureFieldsMarkup(editorFields)
       }
+      ${hpOnly ? "" : buildCreatureClipboardSection()}
       <footer>
         ${hpOnly ? "" : '<button class="danger" type="button" id="remove">Remove data</button>'}
         <button class="primary" type="submit" ${editorBusy ? "disabled" : ""}>${editorBusy ? "Saving…" : "Save"}</button>
@@ -1076,6 +1113,15 @@ function renderEditor(): void {
   document
     .querySelector("#remove")
     ?.addEventListener("click", () => void removeCreatureData());
+  document
+    .querySelector("#copy-creature-data")
+    ?.addEventListener("click", () => copySavedCreatureData());
+  document
+    .querySelector("#paste-creature-data")
+    ?.addEventListener("click", () => stageCreatureDataPaste(form));
+  document
+    .querySelector("#clear-creature-data")
+    ?.addEventListener("click", () => clearCopiedCreatureData());
   document
     .querySelector("#link-character")
     ?.addEventListener("click", () => void openLinkPicker());
@@ -1122,6 +1168,101 @@ function renderEditor(): void {
   });
 }
 
+function updateClipboardControls(): void {
+  const status = document.querySelector<HTMLElement>("[data-clipboard-status]");
+  if (status) status.textContent = clipboardStatusText(editorClipboard);
+  const paste = document.querySelector<HTMLButtonElement>(
+    "#paste-creature-data",
+  );
+  const clear = document.querySelector<HTMLButtonElement>(
+    "#clear-creature-data",
+  );
+  if (paste) paste.disabled = !editorClipboard;
+  if (clear) clear.disabled = !editorClipboard;
+}
+
+function copySavedCreatureData(): void {
+  if (
+    !editorToken ||
+    !editorFields ||
+    (!editorHadCreatureData && editorLookup.status !== "active")
+  ) {
+    notify("This token has no saved DWTools data to copy.", "WARNING");
+    return;
+  }
+  try {
+    const payload = createCreatureClipboardPayload(
+      normalizeCreatureData(editorFields),
+      editorToken.name,
+    );
+    writeCreatureClipboard(window.localStorage, payload);
+    editorClipboard = payload;
+    updateClipboardControls();
+    notify(`Copied DWTools data from ${payload.sourceName}.`, "SUCCESS");
+  } catch (error) {
+    notify(
+      messageFrom(error, "DWTools could not copy the creature data."),
+      "ERROR",
+    );
+  }
+}
+
+function clearCopiedCreatureData(): void {
+  try {
+    clearCreatureClipboard(window.localStorage);
+    editorClipboard = undefined;
+    updateClipboardControls();
+    notify("Copied DWTools data cleared.", "SUCCESS");
+  } catch (error) {
+    notify(
+      messageFrom(error, "DWTools could not clear the copied data."),
+      "ERROR",
+    );
+  }
+}
+
+function formDiffersFromEditor(form: HTMLFormElement): boolean {
+  if (!editorFields) return false;
+  try {
+    const current = normalizeCreatureFields(
+      readCreatureFieldsForm(new FormData(form), editorFields, false),
+    );
+    return JSON.stringify(current) !== JSON.stringify(editorFields);
+  } catch {
+    return true;
+  }
+}
+
+function stageCreatureDataPaste(form: HTMLFormElement): void {
+  if (!editorToken || !editorFields) return;
+  if (getCharacterLink(editorToken)) {
+    notify(
+      "Unlink this token from its Character record before pasting DWTools data.",
+      "ERROR",
+    );
+    return;
+  }
+  const clipboard = readCreatureClipboard(window.localStorage);
+  editorClipboard = clipboard;
+  if (!clipboard) {
+    updateClipboardControls();
+    notify("There is no valid copied DWTools data to paste.", "WARNING");
+    return;
+  }
+  if (
+    formDiffersFromEditor(form) &&
+    !window.confirm(
+      "Replace the unsaved form values with the copied DWTools data?",
+    )
+  ) {
+    return;
+  }
+  editorFields = creatureFieldsFromClipboard(editorFields.name, clipboard);
+  editorStagedClipboard = clipboard;
+  editorError = undefined;
+  renderEditor();
+}
+
 async function reloadEditor(): Promise<void> {
   if (!itemId || !editorService || !editorRepository) return;
   const token = await editorService.getItem(itemId);
@@ -1131,6 +1272,7 @@ async function reloadEditor(): Promise<void> {
     return;
   }
   editorHadCreatureData = CREATURE_KEY in token.metadata;
+  editorStagedClipboard = undefined;
   editorToken = token;
   editorFields = extractCreatureFields(token);
   const link = getCharacterLink(token);
@@ -1303,17 +1445,28 @@ async function saveCreature(form: HTMLFormElement): Promise<void> {
     const next = normalizeCreatureFields(
       readCreatureFieldsForm(new FormData(form), editorFields, hpOnly),
     );
-    let patch = fieldPatch(editorFields, next, hpOnly);
-    if (!editorHadCreatureData && !getCharacterLink(editorToken)) {
-      patch = next;
-    }
-    if (Object.keys(patch).length) {
-      await editorService.updateCreatureFields(editorToken.id, patch);
+    const pasted = Boolean(editorStagedClipboard);
+    if (pasted) {
+      await editorService.replaceUnlinkedCreatureData(
+        editorToken.id,
+        normalizeCreatureData(next),
+      );
+      editorStagedClipboard = undefined;
+    } else {
+      let patch = fieldPatch(editorFields, next, hpOnly);
+      if (!editorHadCreatureData && !getCharacterLink(editorToken)) {
+        patch = next;
+      }
+      if (Object.keys(patch).length) {
+        await editorService.updateCreatureFields(editorToken.id, patch);
+      }
     }
     notify(
-      getCharacterLink(editorToken)
-        ? "Character record saved."
-        : "Creature saved.",
+      pasted
+        ? "Copied DWTools data saved."
+        : getCharacterLink(editorToken)
+          ? "Character record saved."
+          : "Creature saved.",
       "SUCCESS",
     );
     await OBR.popover.close(EDIT_POPOVER_ID);
@@ -1337,6 +1490,7 @@ async function startEditor(): Promise<void> {
   }
   editorRepository = createObrCharacterRepository();
   editorService = createObrCreatureService(editorRepository);
+  editorClipboard = readCreatureClipboard(window.localStorage);
   const [token, roomMetadata] = await Promise.all([
     editorService.getItem(itemId),
     OBR.room.getMetadata().catch((error) => {

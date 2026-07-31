@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
-const buildVersion = "1.3.6";
+const buildVersion = "1.3.7";
 
 export default defineConfig({
   base: "/DWTools/",

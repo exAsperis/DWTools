@@ -165,6 +165,63 @@ describe("CreatureService linking and mutation", () => {
     expect(scene.updateCalls).toBe(1);
   });
 
+  it("exactly replaces only unlinked creature metadata", async () => {
+    const existing = token("one", "Custom label", {
+      hpCurrent: 3,
+      armor: 2,
+      tags: "Remove me",
+    });
+    existing.metadata["com.other/data"] = { retained: true };
+    const { creatures } = setup([existing]);
+
+    await creatures.replaceUnlinkedCreatureData(existing.id, {
+      hpCurrent: 8,
+      moves: "Strike",
+    });
+
+    expect(existing.name).toBe("Custom label");
+    expect(existing.metadata[CREATURE_KEY]).toEqual({
+      hpCurrent: 8,
+      moves: "Strike",
+    });
+    expect(existing.metadata["com.other/data"]).toEqual({ retained: true });
+    expect(existing.metadata[CHARACTER_LINK_KEY]).toBeUndefined();
+  });
+
+  it("blocks exact replacement when the target is linked", async () => {
+    const linked = token(
+      "one",
+      "Raganah",
+      { hpCurrent: 8 },
+      { schemaVersion: 1, characterId: "raganah" },
+    );
+    const before = JSON.stringify(linked.metadata);
+    const { creatures } = setup([linked]);
+
+    await expect(
+      creatures.replaceUnlinkedCreatureData(linked.id, { hpCurrent: 1 }),
+    ).rejects.toMatchObject({ code: "LINKED" });
+    expect(JSON.stringify(linked.metadata)).toBe(before);
+  });
+
+  it("rechecks the link inside the scene update", async () => {
+    const existing = token("one", "Goblin", { hpCurrent: 3 });
+    const { creatures, scene } = setup([existing]);
+    const updateItems = scene.updateItems.bind(scene);
+    scene.updateItems = async (items, update) => {
+      existing.metadata[CHARACTER_LINK_KEY] = {
+        schemaVersion: 1,
+        characterId: "new-link",
+      };
+      await updateItems(items, update);
+    };
+
+    await expect(
+      creatures.replaceUnlinkedCreatureData(existing.id, { hpCurrent: 1 }),
+    ).rejects.toMatchObject({ code: "LINKED" });
+    expect(existing.metadata[CREATURE_KEY]).toEqual({ hpCurrent: 3 });
+  });
+
   it("updates the record first and synchronizes sibling tokens", async () => {
     const record = activeRecord("raganah");
     const link = { schemaVersion: 1 as const, characterId: record.id };

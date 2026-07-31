@@ -154,6 +154,23 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-30 — Creature metadata uses an editor-local copy/paste workflow
+
+The full creature editor can copy a saved, normalized creature-data snapshot
+to a browser-local clipboard and stage it on another unlinked token. Saving a
+staged paste exactly replaces that token's DWTools creature data while
+preserving its native name, Character link state, and all non-DWTools
+metadata. Character links are never copied, and linked targets must be
+explicitly unlinked before pasting.
+
+Copied data persists in the current browser until replaced or cleared. Paste
+replaces the form draft for review before Save rather than writing
+immediately.
+
+Reason: token metadata duplication should be deliberate and reviewable without
+ambiguous multi-selection ordering or accidental changes to authoritative
+Character records and unrelated extension data.
+
 ### 2026-07-30 — Choice dice support counts and selection aliases
 
 Choice dice accept an optional count, such as
