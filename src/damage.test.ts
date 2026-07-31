@@ -28,11 +28,17 @@ describe("damage input feedback", () => {
     expect(isDamageFormulaInvalid("b[2d10]+1")).toBe(false);
     expect(isDamageFormulaInvalid("(d8 + d{1,2,4}) * 2")).toBe(false);
     expect(isDamageFormulaInvalid("d{fail,partial,success}")).toBe(false);
+    expect(isDamageFormulaInvalid("3d{fail,partial,success}")).toBe(false);
+    expect(isDamageFormulaInvalid("H[3d{1,2,4}]+1")).toBe(false);
+    expect(isDamageFormulaInvalid("Lowest[2d{fail,partial,success}]")).toBe(
+      false,
+    );
     expect(isDamageFormulaInvalid("fire breath")).toBe(true);
     expect(isDamageFormulaInvalid("0")).toBe(true);
     expect(isDamageFormulaInvalid("-8")).toBe(true);
     expect(isDamageFormulaInvalid("8.5")).toBe(true);
     expect(isDamageFormulaInvalid("d1")).toBe(true);
+    expect(isDamageFormulaInvalid("Highest[2d{one,two}")).toBe(true);
     expect(isDamageFormulaInvalid(normalizeDamageFormula("1001"))).toBe(true);
   });
 });

@@ -154,6 +154,23 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-07-30 — Choice dice support counts and selection aliases
+
+Choice dice accept an optional count, such as
+`3d{fail,partial,success}`. Bare counted choices sum their results when every
+selected value is numeric; otherwise they return the selected values in roll
+order. The selection operators `b`, `h`, and `highest` are case-insensitive
+aliases, as are `w`, `l`, and `lowest`.
+
+Highest and Lowest compare entirely numeric choice lists by numeric value.
+Lists containing any nonnumeric entry use their authored order, with the
+rightmost entry highest and the leftmost entry lowest. Selection operators
+return one retained scalar result.
+
+Reason: counted random tables need to work for both numerical dice and ordered
+narrative outcomes, while familiar Best/Worst and Highest/Lowest terminology
+should behave consistently.
+
 ### 2026-07-30 — Context-menu notes support Markdown and embedded rolls
 
 Moves and Treasure in the token context menu render a deliberately limited,

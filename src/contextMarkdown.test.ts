@@ -36,4 +36,13 @@ describe("context Markdown", () => {
     expect(markup).toContain("🎲 d8+1");
     expect(markup).toContain('data-roll-expression="d{fail,partial,success}"');
   });
+
+  it("links counted choices and long selection aliases as complete expressions", () => {
+    const markup = renderContextMarkdown(
+      "Try 3d{fail,partial,success}, then **Highest[2d{1,4,10}]**.",
+    );
+    expect(markup).toContain('data-roll-expression="3d{fail,partial,success}"');
+    expect(markup).toContain('data-roll-expression="Highest[2d{1,4,10}]"');
+    expect(markup.match(/data-roll-expression=/g)).toHaveLength(2);
+  });
 });

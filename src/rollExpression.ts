@@ -12,6 +12,12 @@ export type RollEvaluation =
       message: string;
     }
   | {
+      ok: true;
+      kind: "list";
+      value: Array<number | string>;
+      message: string;
+    }
+  | {
       ok: false;
       message: string;
     };
@@ -21,7 +27,12 @@ type DiceMode = "sum" | "best" | "worst";
 type Expression =
   | { kind: "number"; value: number }
   | { kind: "dice"; count: number; sides: number; mode: DiceMode }
-  | { kind: "choice"; values: Array<number | string> }
+  | {
+      kind: "choice";
+      count: number;
+      values: Array<number | string>;
+      mode: DiceMode;
+    }
   | { kind: "unary"; operator: "+" | "-"; operand: Expression }
   | {
       kind: "binary";
@@ -36,7 +47,7 @@ interface ParsedRollExpression {
 }
 
 interface EvaluatedValue {
-  value: number | string;
+  value: number | string | Array<number | string>;
   rolls: string[];
 }
 
@@ -105,48 +116,30 @@ class Parser {
     }
 
     return (
-      this.parseBestWorstDice() ??
-      this.parseChoice() ??
-      this.parseStandardDice() ??
-      this.parseNumber()
+      this.parseSelectedRoll() ?? this.parseRoll("sum") ?? this.parseNumber()
     );
   }
 
-  private parseBestWorstDice(): Expression | null {
+  private parseSelectedRoll(): Expression | null {
     const start = this.index;
-    const modeCharacter = this.source[this.index]?.toLowerCase();
-    if (
-      (modeCharacter !== "b" && modeCharacter !== "w") ||
-      this.source[this.index + 1] !== "["
-    )
-      return null;
-    this.index += 2;
-    const count = this.readInteger();
-    if (count === null || this.source[this.index]?.toLowerCase() !== "d") {
+    const match = this.source
+      .slice(this.index)
+      .match(/^(highest|lowest|[bhlw])\[/i);
+    if (!match) return null;
+    const alias = match[1].toLowerCase();
+    const mode: DiceMode =
+      alias === "b" || alias === "h" || alias === "highest" ? "best" : "worst";
+    this.index += match[0].length;
+    const roll = this.parseRoll(mode);
+    if (!roll || this.source[this.index] !== "]") {
       this.index = start;
       return null;
     }
     this.index += 1;
-    const sides = this.readInteger();
-    if (
-      sides === null ||
-      this.source[this.index] !== "]" ||
-      !validDice(count, sides)
-    ) {
-      this.index = start;
-      return null;
-    }
-    this.index += 1;
-    this.hasRoll = true;
-    return {
-      kind: "dice",
-      count,
-      sides,
-      mode: modeCharacter === "b" ? "best" : "worst",
-    };
+    return roll;
   }
 
-  private parseStandardDice(): Expression | null {
+  private parseRoll(mode: DiceMode): Expression | null {
     const start = this.index;
     const possibleCount = this.readInteger();
     if (this.source[this.index]?.toLowerCase() !== "d") {
@@ -154,6 +147,16 @@ class Parser {
       return null;
     }
     this.index += 1;
+    if (this.source[this.index] === "{") {
+      const values = this.parseChoiceValues();
+      const count = possibleCount ?? 1;
+      if (!values || !validCount(count)) {
+        this.index = start;
+        return null;
+      }
+      this.hasRoll = true;
+      return { kind: "choice", count, values, mode };
+    }
     const sides = this.readInteger();
     const count = possibleCount ?? 1;
     if (sides === null || !validDice(count, sides)) {
@@ -161,19 +164,14 @@ class Parser {
       return null;
     }
     this.hasRoll = true;
-    return { kind: "dice", count, sides, mode: "sum" };
+    return { kind: "dice", count, sides, mode };
   }
 
-  private parseChoice(): Expression | null {
-    if (
-      this.source[this.index]?.toLowerCase() !== "d" ||
-      this.source[this.index + 1] !== "{"
-    )
-      return null;
-    const close = this.source.indexOf("}", this.index + 2);
+  private parseChoiceValues(): Array<number | string> | null {
+    const close = this.source.indexOf("}", this.index + 1);
     if (close === -1) return null;
     const parts = this.source
-      .slice(this.index + 2, close)
+      .slice(this.index + 1, close)
       .split(",")
       .map((part) => part.trim());
     if (!parts.length || parts.some((part) => part === "")) return null;
@@ -182,8 +180,7 @@ class Parser {
       return isFiniteDecimal(part) && Number.isFinite(numeric) ? numeric : part;
     });
     this.index = close + 1;
-    this.hasRoll = true;
-    return { kind: "choice", values };
+    return values;
   }
 
   private parseNumber(): Expression | null {
@@ -212,13 +209,12 @@ class Parser {
 
 function validDice(count: number, sides: number): boolean {
   return (
-    Number.isInteger(count) &&
-    count >= 1 &&
-    count <= 100 &&
-    Number.isInteger(sides) &&
-    sides >= 2 &&
-    sides <= 1000
+    validCount(count) && Number.isInteger(sides) && sides >= 2 && sides <= 1000
   );
+}
+
+function validCount(count: number): boolean {
+  return Number.isInteger(count) && count >= 1 && count <= 100;
 }
 
 function isFiniteDecimal(value: string): boolean {
@@ -261,10 +257,52 @@ function evaluateNode(
     };
   }
   if (expression.kind === "choice") {
-    const index = Math.floor(random() * expression.values.length);
-    const value =
-      expression.values[Math.min(index, expression.values.length - 1)]!;
-    return { value, rolls: [`d{…} → ${String(value)}`] };
+    const selections = Array.from({ length: expression.count }, () => {
+      const index = Math.min(
+        Math.floor(random() * expression.values.length),
+        expression.values.length - 1,
+      );
+      return { index, value: expression.values[index]! };
+    });
+    const allChoicesNumeric = expression.values.every(
+      (value) => typeof value === "number",
+    );
+    let value: number | string | Array<number | string>;
+    if (expression.mode === "best" || expression.mode === "worst") {
+      const compare = allChoicesNumeric
+        ? (selection: (typeof selections)[number]) => selection.value as number
+        : (selection: (typeof selections)[number]) => selection.index;
+      value = selections.reduce((selected, candidate) =>
+        expression.mode === "best"
+          ? compare(candidate) > compare(selected)
+            ? candidate
+            : selected
+          : compare(candidate) < compare(selected)
+            ? candidate
+            : selected,
+      ).value;
+    } else if (
+      selections.every((selection) => typeof selection.value === "number")
+    ) {
+      value = selections.reduce(
+        (sum, selection) => sum + (selection.value as number),
+        0,
+      );
+    } else if (expression.count === 1) {
+      value = selections[0]!.value;
+    } else {
+      value = selections.map((selection) => selection.value);
+    }
+    const mode = expression.mode === "sum" ? "" : ` ${expression.mode}`;
+    const outcomes = selections.map((selection) => String(selection.value));
+    const retained =
+      expression.mode === "sum" ? "" : `; retained ${String(value)}`;
+    return {
+      value,
+      rolls: [
+        `${expression.count}d{…}${mode} [${outcomes.join(", ")}]${retained}`,
+      ],
+    };
   }
   if (expression.kind === "unary") {
     const operand = evaluateNode(expression.operand, random);
@@ -321,6 +359,17 @@ export function evaluateRollExpression(
       message: `${source}: ${evaluated.value}`,
     };
   }
+  if (Array.isArray(evaluated.value)) {
+    const details = evaluated.rolls.length
+      ? `${evaluated.rolls.join("; ")} = `
+      : "";
+    return {
+      ok: true,
+      kind: "list",
+      value: evaluated.value,
+      message: `${source}: ${details}[${evaluated.value.join(", ")}]`,
+    };
+  }
   const details = evaluated.rolls.length
     ? `${evaluated.rolls.join("; ")} = `
     : "";
@@ -346,7 +395,7 @@ export function findRollExpressions(text: string): RollExpressionMatch[] {
   const matches: RollExpressionMatch[] = [];
   for (let start = 0; start < text.length; start += 1) {
     if (!validBoundary(text[start - 1])) continue;
-    if (!/[0-9dDbBwW(+.-]/.test(text[start])) continue;
+    if (!/[0-9dDbBwWhHlL(+.-]/.test(text[start])) continue;
     let bestEnd = -1;
     const maximum = Math.min(text.length, start + 240);
     for (let end = start + 1; end <= maximum; end += 1) {
