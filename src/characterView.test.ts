@@ -76,7 +76,7 @@ describe("character manager view", () => {
       true,
     );
 
-    expect(markup).toContain("Characters");
+    expect(markup).toContain("Character maintenance");
     expect(markup).toContain("Raganah");
     expect(markup).toContain("HP 8/10");
     expect(markup).toContain("2 linked tokens in current scene");
@@ -87,6 +87,23 @@ describe("character manager view", () => {
     expect(markup).not.toContain("Room persistence");
     expect(markup).not.toContain("show-tombstones");
     expect(markup).not.toContain("Delete permanently");
+  });
+
+  it("labels Character maintenance and omits duplicate card-summary Load", () => {
+    const markup = buildCharacterManagerMarkup(
+      {
+        records: [activeRecord("raganah")],
+        counts: new Map([["raganah", 1]]),
+        role: "GM",
+        loading: false,
+        saving: false,
+      },
+      true,
+    );
+    expect(markup).toContain("Character maintenance");
+    expect(markup).toMatch(
+      /<summary class="character-card-summary">\s*<strong>Raganah<\/strong>\s*<\/summary>/,
+    );
   });
 
   it("shows a near-capacity warning", () => {

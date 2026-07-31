@@ -160,9 +160,15 @@ The GM-only **Encounter (Scene)** main-panel section lists Character-layer
 Image items that contain DWTools creature metadata. It provides compact armor,
 damage-roll, HP, Instinct, and Markdown Moves controls, while an independently
 collapsible Inactive subsection holds creatures temporarily removed from the
-encounter. Inactive membership is a versioned set of item IDs in scene
-metadata, shared by all GMs; it does not alter token visibility, locking,
-linking, creature data, or overlay rendering.
+encounter. Inactive membership and the manually arranged active-card order are
+versioned scene metadata shared by all GMs; neither alters token visibility,
+locking, linking, creature data, or overlay rendering. Newly eligible and
+reactivated creatures enter at the top. Active cards reorder only within the
+active list by dragging their header.
+
+Cards use a small source-image thumbnail and a locate action that recenters the
+GM viewport without changing zoom. Item Text remains the primary one-line
+identity; Item Name truncates first when space is constrained.
 
 Encounter defaults after Moves and collapsed. Its major-section placement and
 both disclosure states remain per-player layout preferences. Reason: the GM
@@ -383,8 +389,9 @@ stays on the authoritative room Character record; Creature token metadata
 continues to contain only the established character link and synchronized
 creature fields.
 
-The main-panel Characters section is available to GMs and players. GMs see all
-records and retain creation, deletion, and transfer controls. Players see and
+The main-panel **Character maintenance** section is available to GMs and
+players. GMs see all records and retain creation, deletion, and transfer
+controls. Players see and
 edit only records linked to Character-layer tokens they currently control
 under Owlbear's `CHARACTER_UPDATE`, `CHARACTER_OWNER_ONLY`, assigned owner, and
 lock rules. Access is recalculated before every mutation; no separate
@@ -395,7 +402,8 @@ collapsible Inventory subsection. Inventory rows use inline name and unit-weight
 editing, one count displayed between decrement/increment controls, row and total
 Load, inline item creation, and GM-only transfers. The token context menu shows
 the linked Character's Load for quick reference but leaves inventory management
-in the main panel.
+in the main panel. Load is not duplicated in each collapsed Character card's
+heading.
 
 This supersedes the prior GM-only Character Records presentation while
 preserving GM-only room-wide management and the existing controlled-token

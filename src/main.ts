@@ -51,6 +51,9 @@ import {
   buildEncounterMarkup,
   encounterItems,
   encounterStateFromMetadata,
+  partitionEncounterItems,
+  reconcileEncounterState,
+  setEncounterActiveOrder,
   setEncounterItemActive,
   type EncounterItem,
   type EncounterState,
@@ -300,10 +303,13 @@ let managerDraftCharacterId: string | undefined;
 let managerTransfer: CharacterManagerViewState["transfer"];
 let homeEncounterItems: EncounterItem[] = [];
 let homeEncounterState: EncounterState = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   inactiveItemIds: [],
+  activeItemIds: [],
 };
 const encounterBusyItemIds = new Set<string>();
+let encounterOrderSaving = false;
+let draggedEncounterItemId: string | undefined;
 let encounterRefreshGeneration = 0;
 const managerExpandedCharacters = new Set<string>();
 const managerExpandedInventories = new Set<string>();
@@ -529,6 +535,15 @@ function showEncounterRoll(source: string): void {
 }
 
 function bindEncounterControls(): void {
+  bindEncounterDragging();
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-encounter-locate]",
+  )) {
+    button.addEventListener("click", () => {
+      const itemId = button.dataset.encounterLocate;
+      if (itemId) void locateEncounterItem(itemId);
+    });
+  }
   for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-encounter-active]",
   )) {
@@ -569,6 +584,136 @@ function bindEncounterControls(): void {
   }
 }
 
+function clearEncounterDragStyles(): void {
+  document
+    .querySelectorAll(
+      ".encounter-dragging, .encounter-drop-before, .encounter-drop-after",
+    )
+    .forEach((element) =>
+      element.classList.remove(
+        "encounter-dragging",
+        "encounter-drop-before",
+        "encounter-drop-after",
+      ),
+    );
+}
+
+function clearEncounterDropStyles(): void {
+  document
+    .querySelectorAll(".encounter-drop-before, .encounter-drop-after")
+    .forEach((element) =>
+      element.classList.remove("encounter-drop-before", "encounter-drop-after"),
+    );
+}
+
+function bindEncounterDragging(): void {
+  if (encounterOrderSaving) return;
+  for (const handle of document.querySelectorAll<HTMLElement>(
+    "[data-encounter-drag]",
+  )) {
+    const card = handle.closest<HTMLElement>("[data-encounter-item]");
+    if (!card) continue;
+    handle.addEventListener("dragstart", (event) => {
+      if ((event.target as HTMLElement).closest("button")) {
+        event.preventDefault();
+        return;
+      }
+      draggedEncounterItemId = handle.dataset.encounterDrag;
+      card.classList.add("encounter-dragging");
+      if (event.dataTransfer && draggedEncounterItemId) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedEncounterItemId);
+      }
+    });
+    handle.addEventListener("dragend", () => {
+      draggedEncounterItemId = undefined;
+      clearEncounterDragStyles();
+    });
+    card.addEventListener("dragover", (event) => {
+      if (
+        !draggedEncounterItemId ||
+        draggedEncounterItemId === card.dataset.encounterItem
+      )
+        return;
+      event.preventDefault();
+      clearEncounterDropStyles();
+      card.classList.add(
+        event.clientY < card.getBoundingClientRect().top + card.offsetHeight / 2
+          ? "encounter-drop-before"
+          : "encounter-drop-after",
+      );
+    });
+    card.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const draggedId = draggedEncounterItemId;
+      const targetId = card.dataset.encounterItem;
+      const after = card.classList.contains("encounter-drop-after");
+      draggedEncounterItemId = undefined;
+      clearEncounterDragStyles();
+      if (draggedId && targetId && draggedId !== targetId) {
+        void reorderEncounterItem(draggedId, targetId, after);
+      }
+    });
+  }
+}
+
+async function reorderEncounterItem(
+  draggedId: string,
+  targetId: string,
+  after: boolean,
+): Promise<void> {
+  if (homeRole !== "GM" || encounterOrderSaving) return;
+  const activeIds = partitionEncounterItems(
+    homeEncounterItems,
+    homeEncounterState,
+  ).active.map((item) => item.id);
+  const next = activeIds.filter((id) => id !== draggedId);
+  const targetIndex = next.indexOf(targetId);
+  if (targetIndex < 0 || !activeIds.includes(draggedId)) return;
+  next.splice(targetIndex + (after ? 1 : 0), 0, draggedId);
+  if (next.join("\0") === activeIds.join("\0")) return;
+  encounterOrderSaving = true;
+  renderHome();
+  try {
+    homeEncounterState = await setEncounterActiveOrder(
+      encounterMetadataStore(),
+      homeEncounterItems,
+      next,
+    );
+  } catch (error) {
+    console.error("DWTools could not reorder the encounter", error);
+    notify(
+      messageFrom(error, "DWTools could not save the encounter order."),
+      "ERROR",
+    );
+  } finally {
+    encounterOrderSaving = false;
+    renderHome();
+  }
+}
+
+async function locateEncounterItem(itemId: string): Promise<void> {
+  if (homeRole !== "GM") return;
+  try {
+    const [bounds, scale] = await Promise.all([
+      OBR.scene.items.getItemBounds([itemId]),
+      OBR.viewport.getScale(),
+    ]);
+    await OBR.viewport.animateTo({ position: bounds.center, scale });
+  } catch (error) {
+    console.error("DWTools could not locate the encounter item", error);
+    notify("That item is no longer available in the scene.", "ERROR");
+  }
+}
+
+function encounterMetadataStore() {
+  return {
+    getMetadata: () => OBR.scene.getMetadata(),
+    setMetadata: (update: Parameters<typeof OBR.scene.setMetadata>[0]) =>
+      OBR.scene.setMetadata(update),
+  };
+}
+
 async function changeEncounterActivity(
   itemId: string,
   active: boolean,
@@ -578,11 +723,8 @@ async function changeEncounterActivity(
   renderHome();
   try {
     homeEncounterState = await setEncounterItemActive(
-      {
-        getMetadata: () => OBR.scene.getMetadata(),
-        setMetadata: (update) => OBR.scene.setMetadata(update),
-      },
-      homeEncounterItems.map((item) => item.id),
+      encounterMetadataStore(),
+      homeEncounterItems,
       itemId,
       active,
     );
@@ -635,7 +777,11 @@ async function refreshEncounter(items?: Item[]): Promise<void> {
   if (homeRole !== "GM" || !(await OBR.scene.isReady())) {
     if (generation !== encounterRefreshGeneration) return;
     homeEncounterItems = [];
-    homeEncounterState = { schemaVersion: 1, inactiveItemIds: [] };
+    homeEncounterState = {
+      schemaVersion: 2,
+      inactiveItemIds: [],
+      activeItemIds: [],
+    };
     return;
   }
   const [sceneItems, metadata] = await Promise.all([
@@ -644,7 +790,16 @@ async function refreshEncounter(items?: Item[]): Promise<void> {
   ]);
   if (generation !== encounterRefreshGeneration) return;
   homeEncounterItems = encounterItems(sceneItems);
-  homeEncounterState = encounterStateFromMetadata(metadata);
+  const storedState = encounterStateFromMetadata(metadata);
+  homeEncounterState = storedState;
+  try {
+    homeEncounterState = await reconcileEncounterState(
+      encounterMetadataStore(),
+      homeEncounterItems,
+    );
+  } catch (error) {
+    console.error("DWTools could not reconcile the encounter order", error);
+  }
 }
 
 function bindManagerControls(): void {
@@ -1188,9 +1343,7 @@ async function startHome(): Promise<void> {
       void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
     }),
     OBR.scene.items.onChange((items) => {
-      encounterRefreshGeneration += 1;
-      homeEncounterItems = homeRole === "GM" ? encounterItems(items) : [];
-      renderHome();
+      void refreshEncounter(items).then(renderHome);
       void refreshManager(homeRole === "PLAYER" || !managerEditing);
     }),
     OBR.scene.onMetadataChange((metadata) => {

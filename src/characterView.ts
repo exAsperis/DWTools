@@ -285,7 +285,6 @@ function characterCardMarkup(
     <details class="character-card" data-character-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
       <summary class="character-card-summary">
         <strong>${escapeHtml(record.fields.name)}</strong>
-        <span>${formatLoad(record.inventory, record.fields.maxLoad)}</span>
       </summary>
       <div class="character-card-body">
         <span>HP ${numberValue(record.fields.hpCurrent) || "—"}/${numberValue(record.fields.hpMax) || "—"} · ARM ${numberValue(record.fields.armor) || "—"} · DMG ${escapeHtml(record.fields.damage ?? "—")}</span>
@@ -322,7 +321,7 @@ export function buildCharacterManagerMarkup(
     <section class="character-manager" data-home-section="characters">
       <div class="section-heading major-section-heading" draggable="true" data-drag-section="characters">
         <button class="section-toggle" type="button" data-toggle-section="characters" aria-expanded="${expanded}">
-          <span class="section-arrow" aria-hidden="true">&#9656;</span><span>Characters</span>
+          <span class="section-arrow" aria-hidden="true">&#9656;</span><span>Character maintenance</span>
         </button>
       </div>
       ${

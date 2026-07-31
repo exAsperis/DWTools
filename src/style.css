@@ -50,11 +50,20 @@ button:disabled { cursor: wait; opacity: .55; }
 .default-visibility-icon { display: block; width: 20px; height: 20px; }
 .encounter-list { display: grid; gap: 8px; }
 .encounter-card { display: grid; gap: 6px; min-width: 0; padding: 8px; border: 1px solid var(--dw-border); border-radius: 8px; background: var(--dw-surface); font-size: 11px; line-height: 1.3; }
+.encounter-card.encounter-dragging { opacity: .5; }
+.encounter-card.encounter-drop-before { box-shadow: 0 -3px 0 var(--dw-primary); }
+.encounter-card.encounter-drop-after { box-shadow: 0 3px 0 var(--dw-primary); }
 .encounter-identity, .encounter-inactive-row { display: flex; align-items: center; min-width: 0; gap: 3px; }
-.encounter-item-text { overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-.encounter-item-name { overflow: hidden; color: var(--dw-text-disabled); text-overflow: ellipsis; white-space: nowrap; }
-.encounter-activity { display: grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; margin-left: auto; border: 0; padding: 2px; color: var(--dw-primary); background: transparent; cursor: pointer; }
-.encounter-activity .dw-icon { width: 19px; height: 19px; }
+.encounter-drag-handle { cursor: grab; }
+.encounter-drag-handle:active { cursor: grabbing; }
+.encounter-thumbnail { flex: 0 0 22px; width: 22px; height: 22px; border: 1px solid var(--dw-border); border-radius: 4px; object-fit: cover; }
+.encounter-thumbnail-empty { background: var(--dw-control); }
+.encounter-identity-copy { display: flex; flex: 1 1 auto; align-items: baseline; min-width: 0; gap: 3px; overflow: hidden; white-space: nowrap; }
+.encounter-item-text { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.encounter-item-name { flex: 0 100000 auto; min-width: 0; overflow: hidden; color: var(--dw-text-disabled); text-overflow: ellipsis; white-space: nowrap; }
+.encounter-actions { display: flex; flex: 0 0 auto; margin-left: auto; }
+.encounter-activity, .encounter-locate { display: grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border: 0; padding: 2px; color: var(--dw-primary); background: transparent; cursor: pointer; }
+.encounter-activity .dw-icon, .encounter-locate .dw-icon { width: 19px; height: 19px; }
 .encounter-combat { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 5px; min-width: 0; }
 .encounter-armor { position: relative; display: grid; place-items: center; width: 28px; height: 28px; }
 .encounter-armor .dw-icon { position: absolute; width: 27px; height: 27px; color: var(--dw-text-secondary); }

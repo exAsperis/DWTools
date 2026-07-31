@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import { CREATURE_KEY, ENCOUNTER_STATE_KEY } from "./constants";
 import {
   buildEncounterMarkup,
+  currentEncounterState,
   encounterItems,
   hpPresentation,
   parseEncounterState,
+  partitionEncounterItems,
+  setEncounterActiveOrder,
   setEncounterItemActive,
   type EncounterMetadataStore,
 } from "./encounter";
@@ -24,6 +27,13 @@ function item(
     layer,
     name,
     text: { plainText: text, richText: [], style: {} },
+    image: {
+      url: `https://images.example/${id}.png`,
+      width: 100,
+      height: 100,
+      mime: "image/png",
+    },
+    lastModified: `2026-07-${id === "new" ? "31" : "01"}T00:00:00.000Z`,
     metadata: { [CREATURE_KEY]: data },
   } as unknown as Item;
 }
@@ -51,6 +61,41 @@ describe("encounter model", () => {
         inactiveItemIds: ["b", "a", "b", 3, ""],
       }).inactiveItemIds,
     ).toEqual(["a", "b"]);
+    expect(
+      parseEncounterState({
+        schemaVersion: 2,
+        inactiveItemIds: ["b"],
+        activeItemIds: ["a", "a", "b", "c"],
+      }),
+    ).toEqual({
+      schemaVersion: 2,
+      inactiveItemIds: ["b"],
+      activeItemIds: ["a", "c"],
+    });
+  });
+
+  it("migrates schema 1 in alphabetical order and prepends newly eligible items", () => {
+    const existing = encounterItems([
+      item("b", "Bugbear", "B", {}),
+      item("a", "Ankheg", "A", {}),
+    ]);
+    expect(
+      currentEncounterState(existing, { schemaVersion: 1, inactiveItemIds: [] })
+        .activeItemIds,
+    ).toEqual(["a", "b"]);
+    const withNew = encounterItems([
+      ...existing.map((entry) =>
+        item(entry.id, entry.itemText, entry.itemName),
+      ),
+      item("new", "New", "N"),
+    ]);
+    expect(
+      partitionEncounterItems(withNew, {
+        schemaVersion: 2,
+        inactiveItemIds: [],
+        activeItemIds: ["a", "b"],
+      }).active.map((entry) => entry.id),
+    ).toEqual(["new", "a", "b"]);
   });
 
   it("prunes stale IDs and preserves unrelated scene metadata", async () => {
@@ -69,11 +114,12 @@ describe("encounter model", () => {
     };
     const result = await setEncounterItemActive(
       store,
-      ["one", "two"],
+      encounterItems([item("one", "One", "One"), item("two", "Two", "Two")]),
       "two",
       false,
     );
     expect(result.inactiveItemIds).toEqual(["one", "two"]);
+    expect(result.activeItemIds).toEqual([]);
     expect(metadata.other).toEqual({ preserved: true });
   });
 
@@ -87,20 +133,51 @@ describe("encounter model", () => {
         metadata = { ...metadata, ...update };
         if (writes === 1) {
           metadata[ENCOUNTER_STATE_KEY] = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             inactiveItemIds: ["other"],
+            activeItemIds: ["one"],
           };
         }
       },
     };
     const result = await setEncounterItemActive(
       store,
-      ["one", "other"],
+      encounterItems([
+        item("one", "One", "One"),
+        item("other", "Other", "Other"),
+      ]),
       "one",
       false,
     );
     expect(writes).toBe(2);
     expect(result.inactiveItemIds).toEqual(["one", "other"]);
+  });
+
+  it("saves active order and puts restored creatures at the top", async () => {
+    let metadata: Metadata = {
+      [ENCOUNTER_STATE_KEY]: {
+        schemaVersion: 2,
+        inactiveItemIds: ["b"],
+        activeItemIds: ["a", "c"],
+      },
+    };
+    const store: EncounterMetadataStore = {
+      getMetadata: async () => ({ ...metadata }),
+      setMetadata: async (update) => {
+        metadata = { ...metadata, ...update };
+      },
+    };
+    const items = encounterItems([
+      item("a", "A", "A"),
+      item("b", "B", "B"),
+      item("c", "C", "C"),
+    ]);
+    expect(
+      (await setEncounterActiveOrder(store, items, ["c", "a"])).activeItemIds,
+    ).toEqual(["c", "a"]);
+    expect(
+      (await setEncounterItemActive(store, items, "b", true)).activeItemIds,
+    ).toEqual(["b", "c", "a"]);
   });
 
   it("computes HP text, percentage, and over-maximum state", () => {
@@ -133,12 +210,19 @@ describe("encounter view", () => {
   it("renders active combat controls, escaped details, Markdown, and roll hooks", () => {
     const markup = buildEncounterMarkup(
       entries,
-      { schemaVersion: 1, inactiveItemIds: [] },
+      {
+        schemaVersion: 2,
+        inactiveItemIds: [],
+        activeItemIds: ["goblin", "orc"],
+      },
       false,
     );
     expect(markup).toContain("Goblin Scout");
     expect(markup).toContain("(Goblin)");
     expect(markup).toContain('aria-label="Move to Inactive"');
+    expect(markup).toContain('aria-label="Locate on scene"');
+    expect(markup).toContain('class="encounter-thumbnail"');
+    expect(markup).toContain('data-encounter-drag="goblin"');
     expect(markup).toContain('data-encounter-damage="d6+1"');
     expect(markup).toContain("(Spear)");
     expect(markup).toContain("Close, Reach");
@@ -154,7 +238,7 @@ describe("encounter view", () => {
   it("renders compact inactive rows with restore controls", () => {
     const markup = buildEncounterMarkup(
       entries,
-      { schemaVersion: 1, inactiveItemIds: ["goblin"] },
+      { schemaVersion: 2, inactiveItemIds: ["goblin"], activeItemIds: ["orc"] },
       true,
     );
     expect(markup).toContain("Inactive (1)");
