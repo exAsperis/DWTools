@@ -133,6 +133,12 @@ button {
   cursor: pointer;
 }
 
+.inline-roll {
+  max-width: 100%;
+  text-align: inherit;
+  vertical-align: top;
+}
+
 .damage:hover,
 .inline-roll:hover {
   text-decoration: underline;
