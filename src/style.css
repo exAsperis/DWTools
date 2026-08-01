@@ -38,6 +38,7 @@ button:disabled { cursor: wait; opacity: .55; }
 .home-section.drag-over, .character-manager.drag-over { border-top-color: var(--dw-primary); }
 .section-toggle:hover, .move-link:hover { filter: brightness(1.18); }
 .agenda-list { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--dw-text-secondary); font-size: 13px; line-height: 1.4; }
+.principles-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; margin: 0; padding-left: 20px; color: var(--dw-text-secondary); font-size: 13px; line-height: 1.4; }
 .move-subsection { display: grid; gap: 9px; }
 .move-subheading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .move-subheading .section-toggle { font-size: 14px; }

@@ -14,6 +14,9 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain('alt="DWTools logo"');
     expect(markup).toContain("Agenda");
     expect(markup).toContain("Portray a fantastic world");
+    expect(markup).toContain("Principles");
+    expect(markup).toContain("Draw maps, leave blanks");
+    expect(markup).toContain("Think offscreen, too");
     expect(markup).toContain("Moves");
     expect(markup).toContain("Basic Moves");
     expect(markup).toContain("Hack and Slash");
@@ -53,6 +56,7 @@ describe("buildHomeMarkup", () => {
     expect(markup).not.toContain("Default character overlay:");
     expect(markup).not.toContain('id="default-visibility"');
     expect(markup).not.toContain("Agenda");
+    expect(markup).not.toContain("Principles");
     expect(markup).not.toContain("Encounter (Scene)");
     expect(markup).toContain("Character Records");
     expect(markup).toContain("Moves");
@@ -66,6 +70,9 @@ describe("buildHomeMarkup", () => {
     );
     expect(markup).toContain(
       'data-toggle-section="moves" aria-expanded="true"',
+    );
+    expect(markup).toContain(
+      'data-toggle-section="principles" aria-expanded="true"',
     );
     expect(markup).toContain(
       'data-toggle-section="basicMoves" aria-expanded="true"',
@@ -90,13 +97,31 @@ describe("buildHomeMarkup", () => {
   it("normalizes persisted major-section order", () => {
     expect(
       normalizeHomeSectionOrder(["characters", "moves", "moves", "bad"]),
-    ).toEqual(["characters", "moves", "encounter", "agenda", "settings"]);
+    ).toEqual([
+      "characters",
+      "moves",
+      "encounter",
+      "agenda",
+      "principles",
+      "settings",
+    ]);
     expect(normalizeHomeSectionOrder(undefined)).toEqual([
       "agenda",
+      "principles",
       "moves",
       "encounter",
       "settings",
       "characters",
+    ]);
+    expect(
+      normalizeHomeSectionOrder(["characters", "agenda", "moves"]),
+    ).toEqual([
+      "characters",
+      "agenda",
+      "principles",
+      "moves",
+      "encounter",
+      "settings",
     ]);
   });
 

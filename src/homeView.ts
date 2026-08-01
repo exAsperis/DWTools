@@ -3,6 +3,7 @@ import { iconMarkup } from "./icons";
 export type HomeRole = "GM" | "PLAYER";
 export type HomeSection =
   | "agenda"
+  | "principles"
   | "moves"
   | "basicMoves"
   | "specialMoves"
@@ -11,10 +12,16 @@ export type HomeSection =
   | "settings"
   | "characters";
 export type HomeMajorSection =
-  "agenda" | "moves" | "encounter" | "settings" | "characters";
+  | "agenda"
+  | "principles"
+  | "moves"
+  | "encounter"
+  | "settings"
+  | "characters";
 
 export interface HomeSectionState {
   agenda: boolean;
+  principles: boolean;
   moves: boolean;
   basicMoves: boolean;
   specialMoves: boolean;
@@ -32,6 +39,7 @@ export interface MoveDefinition {
 
 export const DEFAULT_HOME_SECTIONS: HomeSectionState = {
   agenda: true,
+  principles: true,
   moves: true,
   basicMoves: true,
   specialMoves: false,
@@ -43,6 +51,7 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionState = {
 
 export const DEFAULT_HOME_SECTION_ORDER: HomeMajorSection[] = [
   "agenda",
+  "principles",
   "moves",
   "encounter",
   "settings",
@@ -59,9 +68,21 @@ export function normalizeHomeSectionOrder(value: unknown): HomeMajorSection[] {
     : [];
   const normalized = [...new Set(stored)];
   for (const section of DEFAULT_HOME_SECTION_ORDER) {
-    if (section !== "encounter" && !normalized.includes(section)) {
+    if (
+      section !== "encounter" &&
+      section !== "principles" &&
+      !normalized.includes(section)
+    ) {
       normalized.push(section);
     }
+  }
+  if (!normalized.includes("principles")) {
+    const agendaIndex = normalized.indexOf("agenda");
+    normalized.splice(
+      agendaIndex >= 0 ? agendaIndex + 1 : 0,
+      0,
+      "principles",
+    );
   }
   if (!normalized.includes("encounter")) {
     const movesIndex = normalized.indexOf("moves");
@@ -252,6 +273,31 @@ export function buildHomeMarkup(
           <li>Portray a fantastic world</li>
           <li>Fill the characters’ lives with adventure</li>
           <li>Play to find out what happens</li>
+        </ul>`
+            : ""
+        }
+      </section>`
+          : ""
+      }
+      ${
+        role === "GM"
+          ? `<section class="home-section" data-home-section="principles">
+        ${sectionHeading("Principles", "principles", sections.principles)}
+        ${
+          sections.principles
+            ? `<ul class="principles-list">
+          <li>Draw maps, leave blanks</li>
+          <li>Address the characters, not the players</li>
+          <li>Embrace the fantastic</li>
+          <li>Make a move that follows</li>
+          <li>Never speak the name of your move</li>
+          <li>Give every monster life</li>
+          <li>Name every person</li>
+          <li>Ask questions and use the answers</li>
+          <li>Be a fan of the characters</li>
+          <li>Think dangerous</li>
+          <li>Begin and end with the fiction</li>
+          <li>Think offscreen, too</li>
         </ul>`
             : ""
         }

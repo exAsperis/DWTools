@@ -154,6 +154,18 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-08-01 — Principles follows Agenda as a compact GM reference
+
+The GM-only **Principles** major section is expanded by default and follows
+Agenda in the default main-panel order. Its twelve Dungeon World principles
+use a compact two-column list. Like the other major sections, it can be
+collapsed and reordered as a per-player layout preference; existing saved
+layouts receive it immediately after Agenda without losing their established
+order.
+
+Reason: the GM principles are an at-the-table reference alongside Agenda, and
+two columns keep the complete list scannable within the panel's limited height.
+
 ### 2026-07-31 — Encounter state is shared per scene
 
 The GM-only **Encounter (Scene)** main-panel section lists Character-layer

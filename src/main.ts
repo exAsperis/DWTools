@@ -324,6 +324,10 @@ function loadLegacyHomeSections(): HomeSectionState {
         typeof stored.agenda === "boolean"
           ? stored.agenda
           : DEFAULT_HOME_SECTIONS.agenda,
+      principles:
+        typeof stored.principles === "boolean"
+          ? stored.principles
+          : DEFAULT_HOME_SECTIONS.principles,
       moves:
         typeof stored.moves === "boolean"
           ? stored.moves
