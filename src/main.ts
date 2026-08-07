@@ -300,6 +300,7 @@ let managerSaving = false;
 let managerError: string | undefined;
 let managerLegacyCleanupComplete = false;
 let managerEditing: CharacterManagerViewState["editing"];
+const managerExpandedStats = new Set<string>();
 let managerDraftCharacterId: string | undefined;
 let managerTransfer: CharacterManagerViewState["transfer"];
 let homeEncounterItems: EncounterItem[] = [];
@@ -419,6 +420,7 @@ function managerState(): CharacterManagerViewState {
     error: managerError,
     editing: managerEditing,
     expandedCharacters: managerExpandedCharacters,
+    expandedStats: managerExpandedStats,
     expandedInventories: managerExpandedInventories,
     draftCharacterId: managerDraftCharacterId,
     transfer: managerTransfer,
@@ -850,6 +852,8 @@ function bindManagerControls(): void {
         id: record.id,
         fields: record.fields,
       };
+      managerExpandedCharacters.add(record.id);
+      managerExpandedStats.add(record.id);
       renderHome();
     });
   }
@@ -881,6 +885,16 @@ function bindManagerControls(): void {
       if (!id) return;
       if (details.open) managerExpandedCharacters.add(id);
       else managerExpandedCharacters.delete(id);
+    });
+  }
+  for (const details of document.querySelectorAll<HTMLDetailsElement>(
+    "[data-stats-details]",
+  )) {
+    details.addEventListener("toggle", () => {
+      const id = details.dataset.statsDetails;
+      if (!id) return;
+      if (details.open) managerExpandedStats.add(id);
+      else managerExpandedStats.delete(id);
     });
   }
   for (const details of document.querySelectorAll<HTMLDetailsElement>(

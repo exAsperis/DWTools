@@ -1,5 +1,5 @@
 export const EXTENSION_ID = "com.ex-asperis.dwtools";
-export const EXTENSION_VERSION = "1.3.12";
+export const EXTENSION_VERSION = "1.3.13";
 export const LEGACY_EXTENSION_ID = "com.bryan.dungeon-world-creatures";
 
 export const CREATURE_KEY = `${EXTENSION_ID}/creature`;

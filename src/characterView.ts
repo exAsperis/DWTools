@@ -145,6 +145,7 @@ export interface CharacterManagerViewState {
   error?: string;
   editing?: { kind: "create" | "edit"; fields: CreatureFields; id?: string };
   expandedCharacters?: Set<string>;
+  expandedStats?: Set<string>;
   expandedInventories?: Set<string>;
   draftCharacterId?: string;
   transfer?: {
@@ -275,6 +276,36 @@ function inventoryMarkup(
     </details>`;
 }
 
+function statsMarkup(
+  record: CharacterRecord,
+  state: CharacterManagerViewState,
+): string {
+  const editing =
+    state.editing?.kind === "edit" && state.editing.id === record.id;
+  const expanded = editing || (state.expandedStats?.has(record.id) ?? false);
+  return `
+    <details class="stats-section" data-stats-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
+      <summary><strong>Stats</strong></summary>
+      <div class="stats-editor">
+        ${
+          editing
+            ? `${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
+              <form id="character-manager-form" class="manager-form">
+                ${buildCreatureFieldsMarkup(state.editing!.fields, "manager-", "character")}
+                <div class="manager-actions">
+                  <button type="button" class="secondary" id="manager-cancel">Cancel</button>
+                  <button type="submit" class="primary" ${state.saving ? "disabled" : ""}>${state.saving ? "Saving…" : "Save record"}</button>
+                </div>
+              </form>`
+            : `<div class="card-actions">
+                <button type="button" class="secondary compact" data-edit-character="${escapeHtml(record.id)}">Edit Character</button>
+                ${state.role === "GM" ? `<button type="button" class="danger compact" data-delete-character="${escapeHtml(record.id)}">Delete</button>` : ""}
+              </div>`
+        }
+      </div>
+    </details>`;
+}
+
 function characterCardMarkup(
   record: CharacterRecord,
   state: CharacterManagerViewState,
@@ -289,10 +320,7 @@ function characterCardMarkup(
       <div class="character-card-body">
         <span>HP ${numberValue(record.fields.hpCurrent) || "—"}/${numberValue(record.fields.hpMax) || "—"} · ARM ${numberValue(record.fields.armor) || "—"} · DMG ${escapeHtml(record.fields.damage ?? "—")}</span>
         <span>${count} linked token${count === 1 ? "" : "s"} in current scene · Updated ${escapeHtml(new Date(record.updatedAt).toLocaleString())}</span>
-        <div class="card-actions">
-          <button type="button" class="secondary compact" data-edit-character="${escapeHtml(record.id)}">Edit Character</button>
-          ${state.role === "GM" ? `<button type="button" class="danger compact" data-delete-character="${escapeHtml(record.id)}">Delete</button>` : ""}
-        </div>
+        ${statsMarkup(record, state)}
         ${inventoryMarkup(record, state)}
       </div>
     </details>`;
@@ -302,7 +330,7 @@ export function buildCharacterManagerMarkup(
   state: CharacterManagerViewState,
   expanded = false,
 ): string {
-  if (state.editing) {
+  if (state.editing?.kind === "create") {
     return `
       <section class="character-manager">
         <div class="manager-heading"><h2>${state.editing.kind === "create" ? "New character record" : `Edit ${escapeHtml(state.editing.fields.name)}`}</h2></div>

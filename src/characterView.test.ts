@@ -81,12 +81,37 @@ describe("character manager view", () => {
     expect(markup).toContain("HP 8/10");
     expect(markup).toContain("2 linked tokens in current scene");
     expect(markup).toContain("Updated");
+    expect(markup).toMatch(
+      /HP 8\/10[\s\S]*linked tokens[\s\S]*<strong>Stats<\/strong>[\s\S]*<strong>Inventory<\/strong>/,
+    );
     expect(markup).toContain("Room metadata: approximately 4.0 KiB");
     expect(markup).toContain('id="manager-create"');
     expect(markup).not.toContain("manager-search");
     expect(markup).not.toContain("Room persistence");
     expect(markup).not.toContain("show-tombstones");
     expect(markup).not.toContain("Delete permanently");
+  });
+
+  it("edits a Character inline inside its expanded Stats subsection", () => {
+    const record = activeRecord("raganah");
+    const markup = buildCharacterManagerMarkup(
+      {
+        records: [record],
+        counts: new Map([[record.id, 1]]),
+        role: "GM",
+        loading: false,
+        saving: false,
+        expandedCharacters: new Set([record.id]),
+        editing: { kind: "edit", id: record.id, fields: record.fields },
+      },
+      true,
+    );
+
+    expect(markup).toContain('data-character-details="raganah" open');
+    expect(markup).toContain('data-stats-details="raganah" open');
+    expect(markup).toContain('id="character-manager-form"');
+    expect(markup).toContain('data-inventory-details="raganah"');
+    expect(markup).not.toContain("<h2>Edit Raganah</h2>");
   });
 
   it("labels Character maintenance and omits duplicate card-summary Load", () => {

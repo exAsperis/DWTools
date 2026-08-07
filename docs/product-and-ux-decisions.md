@@ -154,6 +154,18 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-08-06 — Character Stats edit in place
+
+Each expanded Character card keeps its compact HP, ARM, DMG, and linked-token
+summary immediately beneath the Character name. An independently expandable
+**Stats** subsection follows that summary and precedes **Inventory**. Editing an
+existing Character happens inside Stats instead of replacing the Character
+maintenance panel with a top-level editor, preserving the user's location in
+the list. New Character creation retains its dedicated form.
+
+Reason: at-table edits should be spatially stable and follow the established
+Inventory interaction instead of making the GM lose their place in the panel.
+
 ### 2026-08-01 — Principles follows Agenda as a compact GM reference
 
 The GM-only **Principles** major section is expanded by default and follows

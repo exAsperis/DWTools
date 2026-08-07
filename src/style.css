@@ -102,15 +102,16 @@ button:disabled { cursor: wait; opacity: .55; }
 .manager-status { margin: 0; color: var(--dw-text-disabled); font-size: 12px; text-align: center; }
 .character-list { display: grid; gap: 9px; }
 .character-card { padding: 11px; border: 1px solid var(--dw-border); border-radius: 8px; background: var(--dw-surface); }
-.character-card-summary, .inventory-section > summary { cursor: pointer; }
+.character-card-summary, .stats-section > summary, .inventory-section > summary { cursor: pointer; }
 .character-card-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .character-card-summary::marker { color: var(--dw-primary); }
 .character-card-body { display: grid; gap: 9px; padding-top: 10px; }
 .character-card strong { overflow-wrap: anywhere; }
 .character-card span { color: var(--dw-text-disabled); font-size: 11px; overflow-wrap: anywhere; }
-.inventory-section { border-top: 1px solid var(--dw-border); padding-top: 9px; }
-.inventory-section > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; list-style-position: inside; }
-.inventory-section > summary::marker { color: var(--dw-primary); }
+.stats-section, .inventory-section { border-top: 1px solid var(--dw-border); padding-top: 9px; }
+.stats-section > summary, .inventory-section > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; list-style-position: inside; }
+.stats-section > summary::marker, .inventory-section > summary::marker { color: var(--dw-primary); }
+.stats-editor { display: grid; gap: 9px; padding-top: 10px; }
 .inventory-summary { margin-left: auto; text-align: right; }
 .inventory-section.overloaded { border-color: #ef4444; }
 .inventory-section .load-warning { color: #fca5a5; font-weight: 800; }
