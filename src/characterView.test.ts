@@ -61,6 +61,23 @@ describe("character manager view", () => {
       {
         records: [record],
         counts: new Map([[record.id, 2]]),
+        linkedTokens: new Map([
+          [
+            record.id,
+            [
+              {
+                id: "one",
+                name: "Raganah one",
+                imageUrl: "https://example.com/one.png",
+              },
+              {
+                id: "two",
+                name: "Raganah two",
+                imageUrl: "https://example.com/two.png",
+              },
+            ],
+          ],
+        ]),
         role: "GM",
         usage: {
           bytes: 4_096,
@@ -80,6 +97,9 @@ describe("character manager view", () => {
     expect(markup).toContain("Raganah");
     expect(markup).toContain("HP 8/10");
     expect(markup).toContain("2 linked tokens in current scene");
+    expect(markup).toContain('class="linked-token-thumbnails"');
+    expect(markup).toContain('src="https://example.com/one.png"');
+    expect(markup).toMatch(/linked-token-thumbnails[\s\S]*2 linked tokens/);
     expect(markup).toContain("Updated");
     expect(markup).toMatch(
       /HP 8\/10[\s\S]*linked tokens[\s\S]*<strong>Stats<\/strong>[\s\S]*<strong>Inventory<\/strong>/,

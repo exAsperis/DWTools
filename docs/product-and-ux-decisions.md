@@ -167,6 +167,12 @@ list. New Character creation retains its dedicated form.
 Reason: at-table edits should be spatially stable and follow the established
 Inventory interaction instead of making the GM lose their place in the panel.
 
+Linked-token status includes a left-aligned strip of the linked tokens' scene
+thumbnails, no taller than two lines of status text, with the existing count
+and update text flowing to its right. Creating a Character immediately adds an
+Untitled Character card, expands its Stats subsection, and focuses its Name
+field; creation no longer opens a separate editor.
+
 ### 2026-08-01 — Principles follows Agenda as a compact GM reference
 
 The GM-only **Principles** major section is expanded by default and follows

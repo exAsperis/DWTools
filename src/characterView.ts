@@ -2,6 +2,7 @@ import type {
   CharacterRecord,
   CharacterStorageUsage,
 } from "./characterRepository";
+import type { LinkedTokenPreview } from "./characterService";
 import type { CreatureFields } from "./constants";
 import {
   formatLoad,
@@ -138,12 +139,12 @@ export function buildCharacterDeleteConfirmation(name: string): string {
 export interface CharacterManagerViewState {
   records: CharacterRecord[];
   counts: Map<string, number>;
+  linkedTokens?: Map<string, LinkedTokenPreview[]>;
   role: "GM" | "PLAYER";
   usage?: CharacterStorageUsage;
   loading: boolean;
   saving: boolean;
   error?: string;
-  editing?: { kind: "create"; fields: CreatureFields };
   expandedCharacters?: Set<string>;
   expandedStats?: Set<string>;
   expandedInventories?: Set<string>;
@@ -298,7 +299,15 @@ function characterCardMarkup(
   state: CharacterManagerViewState,
 ): string {
   const expanded = state.expandedCharacters?.has(record.id) ?? false;
-  const count = state.counts.get(record.id) ?? 0;
+  const linkedTokens = state.linkedTokens?.get(record.id) ?? [];
+  const count = linkedTokens.length || state.counts.get(record.id) || 0;
+  const thumbnails = linkedTokens
+    .filter((token) => token.imageUrl)
+    .map(
+      (token) =>
+        `<img class="linked-token-thumbnail" src="${escapeHtml(token.imageUrl)}" alt="${escapeHtml(token.name)}" title="${escapeHtml(token.name)}">`,
+    )
+    .join("");
   return `
     <details class="character-card" data-character-details="${escapeHtml(record.id)}" ${expanded ? "open" : ""}>
       <summary class="character-card-summary">
@@ -306,7 +315,10 @@ function characterCardMarkup(
       </summary>
       <div class="character-card-body">
         <span>HP ${numberValue(record.fields.hpCurrent) || "—"}/${numberValue(record.fields.hpMax) || "—"} · ARM ${numberValue(record.fields.armor) || "—"} · DMG ${escapeHtml(record.fields.damage ?? "—")}</span>
-        <span>${count} linked token${count === 1 ? "" : "s"} in current scene · Updated ${escapeHtml(new Date(record.updatedAt).toLocaleString())}</span>
+        <div class="linked-token-line">
+          ${thumbnails ? `<span class="linked-token-thumbnails" aria-label="Linked tokens">${thumbnails}</span>` : ""}
+          <span>${count} linked token${count === 1 ? "" : "s"} in current scene · Updated ${escapeHtml(new Date(record.updatedAt).toLocaleString())}</span>
+        </div>
         ${statsMarkup(record, state)}
         ${inventoryMarkup(record, state)}
       </div>
@@ -317,21 +329,6 @@ export function buildCharacterManagerMarkup(
   state: CharacterManagerViewState,
   expanded = false,
 ): string {
-  if (state.editing) {
-    return `
-      <section class="character-manager">
-        <div class="manager-heading"><h2>New character record</h2></div>
-        ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
-        <form id="character-manager-form" class="manager-form">
-          ${buildCreatureFieldsMarkup(state.editing.fields, "manager-", "character")}
-          <div class="manager-actions">
-            <button type="button" class="secondary" id="manager-cancel">Cancel</button>
-            <button type="submit" class="primary" ${state.saving ? "disabled" : ""}>${state.saving ? "Saving…" : "Save record"}</button>
-          </div>
-        </form>
-      </section>`;
-  }
-
   return `
     <section class="character-manager" data-home-section="characters">
       <div class="section-heading major-section-heading" draggable="true" data-drag-section="characters">

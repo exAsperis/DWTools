@@ -9,7 +9,8 @@ import {
 import {
   CharacterManagerService,
   CreatureService,
-  currentSceneLinkedTokenCounts,
+  currentSceneLinkedTokenPreviews,
+  type LinkedTokenPreview,
 } from "./characterService";
 import {
   buildCharacterDeleteConfirmation,
@@ -294,12 +295,12 @@ let homeCreatureService: CreatureService | undefined;
 let homeManagerService: CharacterManagerService | undefined;
 let managerRecords: CharacterRecord[] = [];
 let managerCounts = new Map<string, number>();
+let managerLinkedTokens = new Map<string, LinkedTokenPreview[]>();
 let managerUsage: CharacterStorageUsage | undefined;
 let managerLoading = false;
 let managerSaving = false;
 let managerError: string | undefined;
 let managerLegacyCleanupComplete = false;
-let managerEditing: CharacterManagerViewState["editing"];
 const managerExpandedStats = new Set<string>();
 const managerStatsSaveChains = new Map<string, Promise<void>>();
 let managerDraftCharacterId: string | undefined;
@@ -414,12 +415,12 @@ function managerState(): CharacterManagerViewState {
   return {
     records: managerRecords,
     counts: managerCounts,
+    linkedTokens: managerLinkedTokens,
     role: homeRole,
     usage: managerUsage,
     loading: managerLoading,
     saving: managerSaving,
     error: managerError,
-    editing: managerEditing,
     expandedCharacters: managerExpandedCharacters,
     expandedStats: managerExpandedStats,
     expandedInventories: managerExpandedInventories,
@@ -432,7 +433,7 @@ function renderHome(): void {
   const defaultVisibleToPlayers = getDefaultOverlayVisibility(homeMetadata);
   const managerMarkup = buildCharacterManagerMarkup(
     managerState(),
-    homeSections.characters || Boolean(managerEditing),
+    homeSections.characters,
   );
   const encounterMarkup = buildEncounterMarkup(
     homeEncounterItems,
@@ -825,19 +826,7 @@ async function refreshEncounter(items?: Item[]): Promise<void> {
 
 function bindManagerControls(): void {
   document.querySelector("#manager-create")?.addEventListener("click", () => {
-    managerError = undefined;
-    managerEditing = {
-      kind: "create",
-      fields: { name: "Untitled character", visibleToPlayers: true },
-    };
-    homeSections.characters = true;
-    void persistHomeLayout();
-    renderHome();
-  });
-  document.querySelector("#manager-cancel")?.addEventListener("click", () => {
-    managerEditing = undefined;
-    managerError = undefined;
-    renderHome();
+    void createManagedCharacterInline();
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-delete-character]",
@@ -847,18 +836,6 @@ function bindManagerControls(): void {
       () => void deleteManagedCharacter(button.dataset.deleteCharacter),
     );
   }
-  const form = document.querySelector<HTMLFormElement>(
-    "#character-manager-form",
-  );
-  if (form) {
-    attachDamageFeedback(form);
-    attachPlayerStatFeedback(form);
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      void saveManagedCharacter(form);
-    });
-  }
-
   for (const details of document.querySelectorAll<HTMLDetailsElement>(
     "[data-character-details]",
   )) {
@@ -891,6 +868,41 @@ function bindManagerControls(): void {
   }
   bindStatsControls();
   bindInventoryControls();
+}
+
+async function createManagedCharacterInline(): Promise<void> {
+  if (!homeManagerService || managerSaving) return;
+  managerSaving = true;
+  managerError = undefined;
+  renderHome();
+  let createdId: string | undefined;
+  try {
+    const record = await homeManagerService.create({
+      name: "Untitled character",
+      visibleToPlayers: true,
+    });
+    createdId = record.id;
+    await refreshManager(false);
+    managerExpandedCharacters.add(record.id);
+    managerExpandedStats.add(record.id);
+  } catch (error) {
+    managerError = messageFrom(
+      error,
+      "DWTools could not create the Character.",
+    );
+  } finally {
+    managerSaving = false;
+    renderHome();
+    if (createdId) {
+      window.requestAnimationFrame(() => {
+        const card = document.querySelector<HTMLElement>(
+          `[data-character-details="${CSS.escape(createdId!)}"]`,
+        );
+        card?.scrollIntoView({ block: "nearest" });
+        card?.querySelector<HTMLInputElement>('[name="name"]')?.focus();
+      });
+    }
+  }
 }
 
 function bindStatsControls(): void {
@@ -1254,7 +1266,7 @@ async function refreshManager(render = true): Promise<void> {
   }
   managerLoading = true;
   managerError = undefined;
-  if (render && !managerEditing) renderHome();
+  if (render) renderHome();
   try {
     if (homeRole === "GM" && !managerLegacyCleanupComplete) {
       const cleaned = await homeManagerService.cleanupLegacyTombstones();
@@ -1266,13 +1278,19 @@ async function refreshManager(render = true): Promise<void> {
         );
       }
     }
-    [managerRecords, managerCounts, managerUsage] = await Promise.all([
+    [managerRecords, managerLinkedTokens, managerUsage] = await Promise.all([
       homeManagerService.listAccessible(),
-      currentSceneLinkedTokenCounts(homeCreatureService.scene),
+      currentSceneLinkedTokenPreviews(homeCreatureService.scene),
       homeRole === "GM"
         ? homeRepository.estimateUsage()
         : Promise.resolve(undefined),
     ]);
+    managerCounts = new Map(
+      [...managerLinkedTokens].map(([characterId, tokens]) => [
+        characterId,
+        tokens.length,
+      ]),
+    );
   } catch (error) {
     managerError = messageFrom(
       error,
@@ -1280,36 +1298,7 @@ async function refreshManager(render = true): Promise<void> {
     );
   } finally {
     managerLoading = false;
-    if (render && !managerEditing) renderHome();
-  }
-}
-
-async function saveManagedCharacter(form: HTMLFormElement): Promise<void> {
-  if (!managerEditing || !homeManagerService || managerSaving) return;
-  if (!validateDamageInput(form) || !form.reportValidity()) {
-    managerError = "Correct the highlighted character fields before saving.";
-    renderHome();
-    return;
-  }
-  managerSaving = true;
-  managerError = undefined;
-  renderHome();
-  try {
-    const fields = normalizeCreatureFields(
-      readCreatureFieldsForm(new FormData(form), managerEditing.fields, false),
-    );
-    await homeManagerService.create(fields);
-    notify("Character record created.", "SUCCESS");
-    managerEditing = undefined;
-    await refreshManager(false);
-    if (managerUsage?.nearLimit) {
-      notify("Room metadata is approaching Owlbear's size limit.", "WARNING");
-    }
-  } catch (error) {
-    managerError = messageFrom(error, "DWTools could not save the record.");
-  } finally {
-    managerSaving = false;
-    renderHome();
+    if (render) renderHome();
   }
 }
 
@@ -1405,20 +1394,19 @@ async function startHome(): Promise<void> {
       }
       void refreshManager(
         managerStatsSaveChains.size === 0 &&
-          (homeRole === "PLAYER" || !managerEditing),
+          (homeRole === "PLAYER" || !managerSaving),
       );
     }),
     OBR.player.onChange((player) => {
       homeRole = player.role;
       loadHomeLayout(player.metadata);
-      managerEditing = undefined;
       managerDraftCharacterId = undefined;
       managerTransfer = undefined;
       void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
     }),
     OBR.scene.items.onChange((items) => {
       void refreshEncounter(items).then(renderHome);
-      void refreshManager(homeRole === "PLAYER" || !managerEditing);
+      void refreshManager(homeRole === "PLAYER" || !managerSaving);
     }),
     OBR.scene.onMetadataChange((metadata) => {
       homeEncounterState = encounterStateFromMetadata(metadata);
@@ -1428,7 +1416,7 @@ async function startHome(): Promise<void> {
       void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
     }),
     OBR.room.onPermissionsChange(
-      () => void refreshManager(homeRole === "PLAYER" || !managerEditing),
+      () => void refreshManager(homeRole === "PLAYER" || !managerSaving),
     ),
     OBR.theme.onChange(applyTheme),
   ];
@@ -2086,6 +2074,23 @@ if (preview === "home") {
     },
   ];
   managerCounts = new Map([["preview-active", 2]]);
+  managerLinkedTokens = new Map([
+    [
+      "preview-active",
+      [
+        {
+          id: "preview-token-1",
+          name: "Raganah one",
+          imageUrl: "/DWTools/icon.svg",
+        },
+        {
+          id: "preview-token-2",
+          name: "Raganah two",
+          imageUrl: "/DWTools/icon.svg",
+        },
+      ],
+    ],
+  ]);
   managerUsage = {
     bytes: 7_168,
     limitBytes: 16_384,

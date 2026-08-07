@@ -1,6 +1,6 @@
 {
   "name": "DWTools",
-  "version": "1.3.14",
+  "version": "1.3.15",
   "manifest_version": 1,
   "description": "Persistent Dungeon World creatures and characters with player stats, inventory, Load, HP, armor, damage, and GM details.",
   "author": "ex Asperis",
@@ -8,9 +8,9 @@
   "action": {
     "title": "DWTools",
     "icon": "/DWTools/icon.svg",
-    "popover": "/DWTools/?v=1.3.14",
+    "popover": "/DWTools/?v=1.3.15",
     "height": 760,
     "width": 390
   },
-  "background_url": "/DWTools/background.html?v=1.3.14"
+  "background_url": "/DWTools/background.html?v=1.3.15"
 }

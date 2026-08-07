@@ -6,6 +6,7 @@ import {
 import {
   CharacterManagerService,
   CreatureService,
+  currentSceneLinkedTokenPreviews,
   syncAllLinkedCharactersInCurrentScene,
 } from "./characterService";
 import {
@@ -41,6 +42,34 @@ function setup(
 }
 
 describe("CreatureService linking and mutation", () => {
+  it("collects linked token image previews by Character", async () => {
+    const linked = token(
+      "one",
+      "Raganah token",
+      { hpCurrent: 3 },
+      { schemaVersion: 1, characterId: "raganah" },
+    );
+    Object.assign(linked, {
+      image: {
+        url: "https://example.com/raganah.png",
+        width: 100,
+        height: 100,
+      },
+    });
+
+    const previews = await currentSceneLinkedTokenPreviews(
+      new FakeSceneItemStore([linked]),
+    );
+
+    expect(previews.get("raganah")).toEqual([
+      {
+        id: "one",
+        name: "Raganah token",
+        imageUrl: "https://example.com/raganah.png",
+      },
+    ]);
+  });
+
   it("creates a record from an existing creature and adds only the link", async () => {
     const existing = token("one", "Goblin", {
       hpCurrent: 3,

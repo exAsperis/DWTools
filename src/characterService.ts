@@ -1,4 +1,4 @@
-import type { Item } from "@owlbear-rodeo/sdk";
+import { isImage, type Item } from "@owlbear-rodeo/sdk";
 import {
   type CharacterRecord,
   type CharacterRepository,
@@ -67,6 +67,30 @@ export async function currentSceneLinkedTokenCounts(
     counts.set(link.characterId, (counts.get(link.characterId) ?? 0) + 1);
   }
   return counts;
+}
+
+export interface LinkedTokenPreview {
+  id: string;
+  name: string;
+  imageUrl: string;
+}
+
+export async function currentSceneLinkedTokenPreviews(
+  scene: SceneItemStore,
+): Promise<Map<string, LinkedTokenPreview[]>> {
+  const previews = new Map<string, LinkedTokenPreview[]>();
+  for (const item of await scene.getItems()) {
+    const link = getCharacterLink(item);
+    if (!link) continue;
+    const linked = previews.get(link.characterId) ?? [];
+    linked.push({
+      id: item.id,
+      name: item.name.trim() || "Linked token",
+      imageUrl: isImage(item) ? item.image.url : "",
+    });
+    previews.set(link.characterId, linked);
+  }
+  return previews;
 }
 
 export async function syncCharacterToCurrentScene(

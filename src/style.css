@@ -108,6 +108,10 @@ button:disabled { cursor: wait; opacity: .55; }
 .character-card-body { display: grid; gap: 9px; padding-top: 10px; }
 .character-card strong { overflow-wrap: anywhere; }
 .character-card span { color: var(--dw-text-disabled); font-size: 11px; overflow-wrap: anywhere; }
+.linked-token-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.linked-token-thumbnails { display: flex; flex: 0 0 auto; align-items: center; height: 26px; }
+.linked-token-thumbnail { width: 26px; height: 26px; border: 1px solid var(--dw-border); border-radius: 4px; object-fit: cover; }
+.linked-token-thumbnail + .linked-token-thumbnail { margin-left: -6px; }
 .stats-section, .inventory-section { border-top: 1px solid var(--dw-border); padding-top: 9px; }
 .stats-section > summary, .inventory-section > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; list-style-position: inside; }
 .stats-section > summary::marker, .inventory-section > summary::marker { color: var(--dw-primary); }
