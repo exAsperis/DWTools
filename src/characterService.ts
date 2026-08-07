@@ -429,6 +429,20 @@ export class CharacterManagerService {
     return record;
   }
 
+  async patch(
+    characterId: string,
+    patch: CreatureFieldPatch,
+  ): Promise<CharacterRecord> {
+    await this.requireCharacterAccess(characterId);
+    const record = await this.repository.patch(characterId, patch);
+    await syncCharacterToCurrentScene(
+      this.repository,
+      this.creatures.scene,
+      characterId,
+    );
+    return record;
+  }
+
   async addInventoryItem(
     characterId: string,
     item: InventoryItem,

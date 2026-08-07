@@ -301,6 +301,7 @@ let managerError: string | undefined;
 let managerLegacyCleanupComplete = false;
 let managerEditing: CharacterManagerViewState["editing"];
 const managerExpandedStats = new Set<string>();
+const managerStatsSaveChains = new Map<string, Promise<void>>();
 let managerDraftCharacterId: string | undefined;
 let managerTransfer: CharacterManagerViewState["transfer"];
 let homeEncounterItems: EncounterItem[] = [];
@@ -839,25 +840,6 @@ function bindManagerControls(): void {
     renderHome();
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>(
-    "[data-edit-character]",
-  )) {
-    button.addEventListener("click", () => {
-      const record = managerRecords.find(
-        (entry) => entry.id === button.dataset.editCharacter,
-      );
-      if (!record) return;
-      managerError = undefined;
-      managerEditing = {
-        kind: "edit",
-        id: record.id,
-        fields: record.fields,
-      };
-      managerExpandedCharacters.add(record.id);
-      managerExpandedStats.add(record.id);
-      renderHome();
-    });
-  }
-  for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-delete-character]",
   )) {
     button.addEventListener(
@@ -907,7 +889,78 @@ function bindManagerControls(): void {
       else managerExpandedInventories.delete(id);
     });
   }
+  bindStatsControls();
   bindInventoryControls();
+}
+
+function bindStatsControls(): void {
+  for (const form of document.querySelectorAll<HTMLFormElement>(
+    "[data-character-stats]",
+  )) {
+    const characterId = form.dataset.characterStats;
+    if (!characterId) continue;
+    attachDamageFeedback(form);
+    attachPlayerStatFeedback(form);
+    form.addEventListener("submit", (event) => event.preventDefault());
+    const commit = () => queueStatsSave(characterId, form);
+    for (const control of form.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >("input, textarea, select")) {
+      if (
+        control instanceof HTMLInputElement &&
+        (control.type === "checkbox" || control.type === "radio")
+      ) {
+        control.addEventListener("change", commit);
+      } else if (control instanceof HTMLSelectElement) {
+        control.addEventListener("change", commit);
+      } else {
+        control.addEventListener("blur", commit);
+      }
+    }
+  }
+}
+
+function queueStatsSave(characterId: string, form: HTMLFormElement): void {
+  const record = managerRecords.find((entry) => entry.id === characterId);
+  if (!record || !homeManagerService) return;
+  if (!validateDamageInput(form) || !form.checkValidity()) return;
+  const fields = normalizeCreatureFields(
+    readCreatureFieldsForm(new FormData(form), record.fields, false),
+  );
+  const patch = fieldPatch(record.fields, fields, false);
+  if (!Object.keys(patch).length) return;
+
+  const previous = managerStatsSaveChains.get(characterId) ?? Promise.resolve();
+  const save = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const current = managerRecords.find((entry) => entry.id === characterId);
+      if (!current || !homeManagerService) return;
+      const currentPatch = fieldPatch(current.fields, fields, false);
+      if (!Object.keys(currentPatch).length) return;
+      try {
+        const saved = await homeManagerService.patch(characterId, currentPatch);
+        managerRecords = managerRecords.map((entry) =>
+          entry.id === characterId ? saved : entry,
+        );
+        managerError = undefined;
+      } catch (error) {
+        managerError = messageFrom(
+          error,
+          "DWTools could not update these Character stats.",
+        );
+        notify(managerError, "ERROR");
+      }
+    })
+    .finally(() => {
+      if (managerStatsSaveChains.get(characterId) !== save) return;
+      managerStatsSaveChains.delete(characterId);
+      const currentForm = document.querySelector<HTMLFormElement>(
+        `[data-character-stats="${CSS.escape(characterId)}"]`,
+      );
+      if (!currentForm?.contains(document.activeElement)) renderHome();
+    });
+  managerStatsSaveChains.set(characterId, save);
 }
 
 function recordForControl(element: Element): CharacterRecord | undefined {
@@ -1220,15 +1273,6 @@ async function refreshManager(render = true): Promise<void> {
         ? homeRepository.estimateUsage()
         : Promise.resolve(undefined),
     ]);
-    if (
-      homeRole === "PLAYER" &&
-      managerEditing?.kind === "edit" &&
-      !managerRecords.some((record) => record.id === managerEditing?.id)
-    ) {
-      managerEditing = undefined;
-      managerError =
-        "You no longer control a token linked to the Character being edited.";
-    }
   } catch (error) {
     managerError = messageFrom(
       error,
@@ -1254,13 +1298,8 @@ async function saveManagedCharacter(form: HTMLFormElement): Promise<void> {
     const fields = normalizeCreatureFields(
       readCreatureFieldsForm(new FormData(form), managerEditing.fields, false),
     );
-    if (managerEditing.kind === "create") {
-      await homeManagerService.create(fields);
-      notify("Character record created.", "SUCCESS");
-    } else {
-      await homeManagerService.save(managerEditing.id!, fields);
-      notify("Character record saved.", "SUCCESS");
-    }
+    await homeManagerService.create(fields);
+    notify("Character record created.", "SUCCESS");
     managerEditing = undefined;
     await refreshManager(false);
     if (managerUsage?.nearLimit) {
@@ -1364,7 +1403,10 @@ async function startHome(): Promise<void> {
       if (changes.some((change) => change.lookup.status === "deleted")) {
         managerLegacyCleanupComplete = false;
       }
-      void refreshManager(homeRole === "PLAYER" || !managerEditing);
+      void refreshManager(
+        managerStatsSaveChains.size === 0 &&
+          (homeRole === "PLAYER" || !managerEditing),
+      );
     }),
     OBR.player.onChange((player) => {
       homeRole = player.role;

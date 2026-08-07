@@ -158,10 +158,11 @@ client-local, single-writer renderer architecture.
 
 Each expanded Character card keeps its compact HP, ARM, DMG, and linked-token
 summary immediately beneath the Character name. An independently expandable
-**Stats** subsection follows that summary and precedes **Inventory**. Editing an
-existing Character happens inside Stats instead of replacing the Character
-maintenance panel with a top-level editor, preserving the user's location in
-the list. New Character creation retains its dedicated form.
+**Stats** subsection follows that summary and precedes **Inventory**. Stats
+fields are always present while the subsection is expanded and save
+automatically on change, without Edit, Cancel, or Save controls. This matches
+Inventory's direct-edit workflow and preserves the user's location in the
+list. New Character creation retains its dedicated form.
 
 Reason: at-table edits should be spatially stable and follow the established
 Inventory interaction instead of making the GM lose their place in the panel.

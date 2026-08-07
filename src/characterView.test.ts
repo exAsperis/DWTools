@@ -92,7 +92,7 @@ describe("character manager view", () => {
     expect(markup).not.toContain("Delete permanently");
   });
 
-  it("edits a Character inline inside its expanded Stats subsection", () => {
+  it("renders automatically editable fields inside the expanded Stats subsection", () => {
     const record = activeRecord("raganah");
     const markup = buildCharacterManagerMarkup(
       {
@@ -102,16 +102,18 @@ describe("character manager view", () => {
         loading: false,
         saving: false,
         expandedCharacters: new Set([record.id]),
-        editing: { kind: "edit", id: record.id, fields: record.fields },
+        expandedStats: new Set([record.id]),
       },
       true,
     );
 
     expect(markup).toContain('data-character-details="raganah" open');
     expect(markup).toContain('data-stats-details="raganah" open');
-    expect(markup).toContain('id="character-manager-form"');
+    expect(markup).toContain('data-character-stats="raganah"');
     expect(markup).toContain('data-inventory-details="raganah"');
-    expect(markup).not.toContain("<h2>Edit Raganah</h2>");
+    expect(markup).not.toContain("Edit Character");
+    expect(markup).not.toContain("Save record");
+    expect(markup).not.toContain(">Cancel</button>");
   });
 
   it("labels Character maintenance and omits duplicate card-summary Load", () => {

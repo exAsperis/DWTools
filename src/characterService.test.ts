@@ -357,6 +357,27 @@ describe("CharacterManagerService", () => {
     expect((linked.metadata[CREATURE_KEY] as { armor: number }).armor).toBe(4);
   });
 
+  it("patches one auto-saved field without replacing other Character stats", async () => {
+    const record = activeRecord("raganah");
+    const linked = token("one", "Raganah", record.fields, {
+      schemaVersion: 1,
+      characterId: record.id,
+    });
+    const { manager, repository } = setup([linked], {
+      [characterMetadataKey(record.id)]: record,
+    });
+
+    await manager.patch(record.id, { armor: 5 });
+    const saved = await repository.read(record.id);
+
+    expect(saved && !saved.deleted && saved.fields).toMatchObject({
+      name: record.fields.name,
+      armor: 5,
+      hpCurrent: record.fields.hpCurrent,
+    });
+    expect((linked.metadata[CREATURE_KEY] as { armor: number }).armor).toBe(5);
+  });
+
   it("rechecks GM authorization for GM-only manager mutations", async () => {
     const record = activeRecord("raganah");
     const { manager } = setup(
