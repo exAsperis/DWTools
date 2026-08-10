@@ -154,6 +154,19 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-08-09 — External token updates preserve main-panel position
+
+Scene-item updates, including movement of Character-linked tokens, do not
+reset the main panel's scroll position or collapse open Character, Stats, or
+Inventory sections. Position-only changes do not rerender the panel because
+they do not alter any panel-visible information. Updates that do change visible
+Encounter or linked-token summaries still rerender while preserving the
+user's scroll and disclosure state.
+
+Reason: linked tokens move and synchronize frequently during play, and those
+background events must not interrupt an in-progress Character or inventory
+workflow.
+
 ### 2026-08-06 — Character Stats edit in place
 
 Each expanded Character card keeps its compact HP, ARM, DMG, and linked-token

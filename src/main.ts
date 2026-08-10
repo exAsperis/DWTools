@@ -97,6 +97,12 @@ import {
   getOverwriteLabelOnLink,
   persistOverwriteLabelOnLink,
 } from "./overwriteLabel";
+import {
+  encounterPanelSignature,
+  linkedTokenPanelSignature,
+  scenePanelSignatures,
+  updateDisclosureState,
+} from "./mainPanelUpdates";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const params = new URLSearchParams(window.location.search);
@@ -429,7 +435,27 @@ function managerState(): CharacterManagerViewState {
   };
 }
 
+function syncManagerDisclosureState(): void {
+  const sync = (selector: string, expanded: Set<string>): void => {
+    for (const details of app.querySelectorAll<HTMLDetailsElement>(selector)) {
+      const id =
+        details.dataset.characterDetails ??
+        details.dataset.statsDetails ??
+        details.dataset.inventoryDetails;
+      if (!id) continue;
+      if (details.open) expanded.add(id);
+      else expanded.delete(id);
+    }
+  };
+  sync("[data-character-details]", managerExpandedCharacters);
+  sync("[data-stats-details]", managerExpandedStats);
+  sync("[data-inventory-details]", managerExpandedInventories);
+}
+
 function renderHome(): void {
+  syncManagerDisclosureState();
+  const scrollLeft = document.scrollingElement?.scrollLeft ?? window.scrollX;
+  const scrollTop = document.scrollingElement?.scrollTop ?? window.scrollY;
   const defaultVisibleToPlayers = getDefaultOverlayVisibility(homeMetadata);
   const managerMarkup = buildCharacterManagerMarkup(
     managerState(),
@@ -536,6 +562,7 @@ function renderHome(): void {
     );
   bindEncounterControls();
   bindManagerControls();
+  window.scrollTo(scrollLeft, scrollTop);
 }
 
 function showEncounterRoll(source: string): void {
@@ -840,30 +867,36 @@ function bindManagerControls(): void {
     "[data-character-details]",
   )) {
     details.addEventListener("toggle", () => {
-      const id = details.dataset.characterDetails;
-      if (!id) return;
-      if (details.open) managerExpandedCharacters.add(id);
-      else managerExpandedCharacters.delete(id);
+      updateDisclosureState(
+        managerExpandedCharacters,
+        details.dataset.characterDetails,
+        details.open,
+        details.isConnected,
+      );
     });
   }
   for (const details of document.querySelectorAll<HTMLDetailsElement>(
     "[data-stats-details]",
   )) {
     details.addEventListener("toggle", () => {
-      const id = details.dataset.statsDetails;
-      if (!id) return;
-      if (details.open) managerExpandedStats.add(id);
-      else managerExpandedStats.delete(id);
+      updateDisclosureState(
+        managerExpandedStats,
+        details.dataset.statsDetails,
+        details.open,
+        details.isConnected,
+      );
     });
   }
   for (const details of document.querySelectorAll<HTMLDetailsElement>(
     "[data-inventory-details]",
   )) {
     details.addEventListener("toggle", () => {
-      const id = details.dataset.inventoryDetails;
-      if (!id) return;
-      if (details.open) managerExpandedInventories.add(id);
-      else managerExpandedInventories.delete(id);
+      updateDisclosureState(
+        managerExpandedInventories,
+        details.dataset.inventoryDetails,
+        details.open,
+        details.isConnected,
+      );
     });
   }
   bindStatsControls();
@@ -1405,8 +1438,16 @@ async function startHome(): Promise<void> {
       void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
     }),
     OBR.scene.items.onChange((items) => {
-      void refreshEncounter(items).then(renderHome);
-      void refreshManager(homeRole === "PLAYER" || !managerSaving);
+      const next = scenePanelSignatures(items);
+      const encounterChanged =
+        next.encounter !== encounterPanelSignature(homeEncounterItems);
+      const linkedTokensChanged =
+        next.linkedTokens !== linkedTokenPanelSignature(managerLinkedTokens);
+      if (!encounterChanged && !linkedTokensChanged) return;
+      void Promise.all([
+        encounterChanged ? refreshEncounter(items) : Promise.resolve(),
+        linkedTokensChanged ? refreshManager(false) : Promise.resolve(),
+      ]).then(renderHome);
     }),
     OBR.scene.onMetadataChange((metadata) => {
       homeEncounterState = encounterStateFromMetadata(metadata);
