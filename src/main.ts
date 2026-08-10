@@ -2122,12 +2122,12 @@ if (preview === "home") {
         {
           id: "preview-token-1",
           name: "Raganah one",
-          imageUrl: "/DWTools/icon.svg",
+          imageUrl: "/icon.svg",
         },
         {
           id: "preview-token-2",
           name: "Raganah two",
-          imageUrl: "/DWTools/icon.svg",
+          imageUrl: "/icon.svg",
         },
       ],
     ],

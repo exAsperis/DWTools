@@ -2,12 +2,12 @@
 title: DWTools
 description: Persistent Dungeon World characters, inventories, Load tracking, creature stats, and damage rolls for Owlbear Rodeo.
 author: Bryan
-image: https://raw.githubusercontent.com/exAsperis/DWTools/main/public/icon.svg
-icon: https://exasperis.github.io/DWTools/icon.svg
+image: https://dwtools.ex-asperis.com/icon.svg
+icon: https://dwtools.ex-asperis.com/icon.svg
 tags:
   - combat
   - tool
-manifest: https://exasperis.github.io/DWTools/manifest.json
+manifest: https://dwtools.ex-asperis.com/manifest.json
 learn-more: https://github.com/exAsperis/DWTools
 ---
 
@@ -35,7 +35,7 @@ map.
 ## Using DWTools
 
 1. Install the extension using its
-   [public manifest](https://exasperis.github.io/DWTools/manifest.json).
+   [public manifest](https://dwtools.ex-asperis.com/manifest.json).
 2. As the GM, right-click a character token and select **DWTools**.
 3. Enter the creature's details and save.
 4. Reopen the token menu to adjust HP, roll damage, or edit its details.

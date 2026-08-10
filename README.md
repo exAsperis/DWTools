@@ -98,7 +98,7 @@ Until the project owner explicitly revokes this standing directive:
 1. complete internal QC with the formatter, linter, type checker, tests, and
    production build;
 2. push the reviewed changes to GitHub;
-3. allow GitHub Pages to update the hosted extension automatically; and
+3. allow Azure Static Web Apps to update the hosted extension automatically; and
 4. perform Owlbear integration and manual testing in that live pre-production
    environment.
 
@@ -107,7 +107,7 @@ Until the project owner explicitly revokes this standing directive:
 Run `npm run build`. The static extension is written to `dist/`; host that folder and install its public `manifest.json` URL in Owlbear Rodeo.
 
 The production extension is hosted at
-`https://exasperis.github.io/DWTools/manifest.json`. Store submission content
+`https://dwtools.ex-asperis.com/manifest.json`. Store submission content
 is maintained in [`docs/store.md`](docs/store.md).
 
 Creature data is stored in scene-item metadata, while character records and

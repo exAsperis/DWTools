@@ -406,9 +406,8 @@ Never delete a computed or unverified broad path.
 - Review source and generated diffs.
 - Keep manifest, popover/background cache-busters, context-menu URL, and Vite
   asset version in sync.
-- GitHub Pages has occasionally returned `startup_failure` before any job
-  starts. A rerun may fix it, but rerunning a workflow is an external action and
-  requires the user's permission unless already granted for that exact run.
+- Azure Static Web Apps deploys the generated `dist/` directory from `main`
+  through the Azure-generated GitHub Actions workflow.
 - Verify the deployed public manifest with a cache-busting query.
 
 ### Browser testing

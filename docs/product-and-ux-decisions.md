@@ -154,6 +154,17 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-08-10 — Production hosting moves to Azure Static Web Apps
+
+DWTools is served from `https://dwtools.ex-asperis.com` at the domain root.
+The GitHub Actions release build publishes the generated `dist/` directory to
+Azure Static Web Apps, and all extension resources use root-relative paths.
+The former GitHub Pages `/DWTools/` base path and public manifest URL are
+retired.
+
+Reason: the custom hostname provides a stable, provider-independent public URL
+while Azure Static Web Apps continues to deploy releases from the repository.
+
 ### 2026-08-09 — External token updates preserve main-panel position
 
 Scene-item updates, including movement of Character-linked tokens, do not

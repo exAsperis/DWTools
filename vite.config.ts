@@ -1,10 +1,10 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
-const buildVersion = "1.3.15";
+const buildVersion = "1.3.16";
 
 export default defineConfig({
-  base: "/DWTools/",
+  base: "/",
   test: {
     setupFiles: ["./src/testSetup.ts"],
   },
