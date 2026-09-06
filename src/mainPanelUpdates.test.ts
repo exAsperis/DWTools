@@ -8,6 +8,7 @@ import {
 import {
   scenePanelSignatures,
   updateDisclosureState,
+  visibleRefreshLoadingState,
 } from "./mainPanelUpdates";
 
 function token(
@@ -83,5 +84,14 @@ describe("main-panel disclosure state", () => {
 
     updateDisclosureState(expanded, "hero", false, true);
     expect(expanded).toEqual(new Set());
+  });
+});
+
+describe("main-panel Character refresh state", () => {
+  it("does not expose a silent refresh as a loading state", () => {
+    expect(visibleRefreshLoadingState(false, false, true)).toBe(false);
+    expect(visibleRefreshLoadingState(true, false, false)).toBe(true);
+    expect(visibleRefreshLoadingState(false, true, true)).toBe(true);
+    expect(visibleRefreshLoadingState(true, true, false)).toBe(false);
   });
 });

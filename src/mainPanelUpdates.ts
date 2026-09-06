@@ -14,6 +14,14 @@ export function updateDisclosureState(
   else expanded.delete(id);
 }
 
+export function visibleRefreshLoadingState(
+  current: boolean,
+  render: boolean,
+  loading: boolean,
+): boolean {
+  return render ? loading : current;
+}
+
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableSerialize).join(",")}]`;

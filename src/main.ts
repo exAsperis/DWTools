@@ -102,6 +102,7 @@ import {
   linkedTokenPanelSignature,
   scenePanelSignatures,
   updateDisclosureState,
+  visibleRefreshLoadingState,
 } from "./mainPanelUpdates";
 
 const app = document.querySelector<HTMLElement>("#app")!;
@@ -1297,7 +1298,7 @@ async function refreshManager(render = true): Promise<void> {
   if (!homeRepository || !homeCreatureService || !homeManagerService) {
     return;
   }
-  managerLoading = true;
+  managerLoading = visibleRefreshLoadingState(managerLoading, render, true);
   managerError = undefined;
   if (render) renderHome();
   try {
@@ -1330,7 +1331,7 @@ async function refreshManager(render = true): Promise<void> {
       "DWTools could not load character records.",
     );
   } finally {
-    managerLoading = false;
+    managerLoading = visibleRefreshLoadingState(managerLoading, render, false);
     if (render) renderHome();
   }
 }
