@@ -1,6 +1,6 @@
 import type { CharacterRecord } from "./characterRepository";
 import type { CreatureData } from "./constants";
-import { renderContextMarkdown } from "./contextMarkdown";
+import { renderContextMarkdown, topLevelListItems } from "./contextMarkdown";
 import { iconMarkup } from "./icons";
 import { encumbranceText, formatLoad, totalLoad } from "./inventory";
 import {
@@ -9,6 +9,7 @@ import {
   effectiveAbilityModifier,
   formatModifier,
 } from "./playerStats";
+import { formatTags } from "./tags";
 
 export function escapeHtml(value: string): string {
   return value.replace(
@@ -57,7 +58,8 @@ export function buildContextSummary(
   record?: CharacterRecord,
 ): string {
   const description = data.damageDescription?.trim();
-  const damageTags = data.damageTags?.trim();
+  const damageTags = formatTags(data.damageTags);
+  const armorTags = formatTags(data.armorTags);
   const hasDamage = Boolean(data.damage?.trim() || description || damageTags);
   const hasHp = data.hpCurrent !== undefined || data.hpMax !== undefined;
   const hpText =
@@ -65,8 +67,8 @@ export function buildContextSummary(
       ? `HP ${data.hpCurrent}${data.hpMax !== undefined ? `/${data.hpMax}` : ""}`
       : `Maximum HP ${data.hpMax}`;
   const combatFields = [
-    data.armor !== undefined
-      ? `<span class="stat-group armor-stat">${iconMarkup("shield")}<span>${data.armor}</span></span>`
+    data.armor !== undefined || armorTags
+      ? `<span class="stat-group armor-stat">${iconMarkup("shield")}<span>${data.armor ?? "—"}${armorTags ? ` <em>${escapeHtml(armorTags)}</em>` : ""}</span></span>`
       : "",
     hasHp
       ? `<span class="hp-group">
@@ -94,6 +96,8 @@ export function buildContextSummary(
   ].filter(Boolean);
   const moves = data.moves?.trim();
   const treasure = data.treasure?.trim();
+  const treasureListItems = treasure ? topLevelListItems(treasure) : [];
+  const treasureChoices = escapeHtml(JSON.stringify(treasureListItems));
   const currentLoad = record ? totalLoad(record.inventory) : undefined;
   const encumbrance =
     record && currentLoad !== undefined
@@ -128,7 +132,8 @@ export function buildContextSummary(
         : ""
     }
     ${progressionFields.length ? `<div class="summary-row progression-summary-row">${progressionFields.join("")}</div>` : ""}
-    ${detailRow("Tags", data.tags)}
+    ${detailRow("Tags", formatTags(data.tags))}
+    ${detailRow("Special qualities", data.specialQualities)}
     ${detailRow("Instinct", data.instinct)}
     ${
       moves
@@ -141,7 +146,7 @@ export function buildContextSummary(
     ${
       treasure
         ? `<div class="summary-row detail-row">
-          <span class="label">Treasure:</span>
+          ${treasureListItems.length ? `<button class="treasure-roll" type="button" data-treasure-choices="${treasureChoices}" aria-label="Roll Treasure"><span class="label">Treasure:</span> 🎲</button>` : '<span class="label">Treasure:</span>'}
           <div class="markdown-content">${renderContextMarkdown(treasure)}</div>
         </div>`
         : ""

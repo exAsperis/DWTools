@@ -119,7 +119,7 @@ describe("CreatureService linking and mutation", () => {
     const existing = token("one", "Goblin", {
       hpCurrent: 3,
       armor: 0,
-      tags: "Old",
+      tags: ["Old"],
     });
     const { creatures } = setup([existing], {
       [characterMetadataKey(record.id)]: record,
@@ -145,7 +145,7 @@ describe("CreatureService linking and mutation", () => {
     const existing = token("one", "Custom label", {
       hpCurrent: 3,
       armor: 0,
-      tags: "Old",
+      tags: ["Old"],
     });
     const { creatures } = setup([existing], {
       [characterMetadataKey(record.id)]: record,
@@ -198,7 +198,7 @@ describe("CreatureService linking and mutation", () => {
     const existing = token("one", "Custom label", {
       hpCurrent: 3,
       armor: 2,
-      tags: "Remove me",
+      tags: ["Remove me"],
     });
     existing.metadata["com.other/data"] = { retained: true };
     const { creatures } = setup([existing]);

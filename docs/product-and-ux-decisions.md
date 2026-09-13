@@ -154,6 +154,24 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-09-12 — Tag fields are structured and token names preserve labels
+
+General, Armor, and Damage tags are stored as case-insensitively unique arrays
+and edited through wrapping, comma-separated tag controls. Legacy comma-separated
+metadata is normalized when read. Each field offers current-scene,
+field-specific prefix completion without mixing tag categories.
+
+GM Character fields place **Special qualities** after Tags and before Instinct;
+the same ordering is used in the token quick-reference details.
+
+Ordinary DWTools Name edits update the Owlbear item name without changing its
+visible text label. The explicit **Overwrite label** option remains the only
+DWTools workflow that changes both during Character linking.
+
+Reason: tags need predictable reuse and deletion without fragile string parsing,
+while a token's visible label is presentation chosen independently from its
+internal DWTools identity.
+
 ### 2026-08-10 — Production hosting moves to Azure Static Web Apps
 
 DWTools is served from `https://dwtools.ex-asperis.com` at the domain root.
@@ -296,6 +314,12 @@ selected text result is an error.
 Reason: creature notes often mix structured prose with random tables, and the
 context menu should preserve that structure while making embedded game
 mechanics immediately usable without enabling arbitrary HTML.
+
+When Treasure contains ordered or unordered Markdown list items at the top
+level, its **Treasure: 🎲** heading becomes a roll control equivalent to
+`1d{list items}`. It selects and reports one complete top-level item rather
+than a numerical index; indented items are excluded. The structured choice
+payload preserves punctuation such as commas inside an item.
 
 ### 2026-07-30 — Context-menu encumbrance matches the token overlay
 

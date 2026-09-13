@@ -13,9 +13,35 @@ function escapeHtml(value: string): string {
       })[character]!,
   );
 }
-function rollButton(source: string): string {
+export function renderRollButton(source: string): string {
   const escaped = escapeHtml(source);
   return `<button class="inline-roll" type="button" data-roll-expression="${escaped}" aria-label="Roll ${escaped}">🎲 ${escaped}</button>`;
+}
+
+export function countTopLevelListItems(source: string): number {
+  return topLevelListItems(source).length;
+}
+
+export function topLevelListItems(source: string): string[] {
+  return source
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .flatMap((line) => {
+      const match = line.match(/^(?:[-*+]\s+|\d+[.)]\s+)(\S.*)$/);
+      return match ? [match[1].trim()] : [];
+    });
+}
+
+export function rollListChoice(
+  choices: readonly string[],
+  random: () => number = Math.random,
+): string | undefined {
+  if (!choices.length) return undefined;
+  const index = Math.min(
+    Math.floor(random() * choices.length),
+    choices.length - 1,
+  );
+  return choices[index];
 }
 
 function linkify(text: string): string {
@@ -25,7 +51,7 @@ function linkify(text: string): string {
   let offset = 0;
   for (const match of matches) {
     output += escapeHtml(text.slice(offset, match.start));
-    output += rollButton(match.source);
+    output += renderRollButton(match.source);
     offset = match.end;
   }
   return output + escapeHtml(text.slice(offset));

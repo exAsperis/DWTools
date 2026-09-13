@@ -1,5 +1,5 @@
 export const EXTENSION_ID = "com.ex-asperis.dwtools";
-export const EXTENSION_VERSION = "1.3.16";
+export const EXTENSION_VERSION = "1.3.17";
 export const LEGACY_EXTENSION_ID = "com.bryan.dungeon-world-creatures";
 
 export const CREATURE_KEY = `${EXTENSION_ID}/creature`;
@@ -35,16 +35,18 @@ export type ConditionName =
 export type Conditions = Partial<Record<ConditionName, -1>>;
 
 export interface CreatureData {
-  tags?: string;
+  tags?: string[];
+  specialQualities?: string;
   hpCurrent?: number;
   hpMax?: number;
   hpBase?: number;
   maxLoad?: number;
   loadBase?: number;
   armor?: number;
+  armorTags?: string[];
   damage?: string;
   damageDescription?: string;
-  damageTags?: string;
+  damageTags?: string[];
   instinct?: string;
   moves?: string;
   treasure?: string;

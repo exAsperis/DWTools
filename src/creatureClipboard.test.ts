@@ -40,7 +40,7 @@ describe("creature clipboard", () => {
       schemaVersion: 1,
       sourceName: "Goblin",
       copiedAt: "2026-07-30T18:00:00.000Z",
-      data: { hpCurrent: 4, tags: "Small" },
+      data: { hpCurrent: 4, tags: ["Small"] },
     });
   });
 

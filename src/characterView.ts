@@ -4,6 +4,7 @@ import type {
 } from "./characterRepository";
 import type { LinkedTokenPreview } from "./characterService";
 import type { CreatureFields } from "./constants";
+import { tagEditorMarkup } from "./tagEditor";
 import {
   formatLoad,
   formatLoadValue,
@@ -87,11 +88,12 @@ export function buildCreatureFieldsMarkup(
           <span class="calculated-hint" data-calculated-hp>Calculated: ${suggestedHp ?? "—"}</span>
         </label>
       </div>
+      ${tagEditorMarkup("Armor tags", "armorTags", fields.armorTags, id("armorTags"))}
       <div class="damage-fields">
         <label>Damage die<input id="${id("damage")}" name="damage" type="text" maxlength="40" placeholder="b[2d6]+1" value="${escapeHtml(fields.damage ?? "")}"></label>
         <label>Damage description<input id="${id("damageDescription")}" name="damageDescription" type="text" maxlength="80" placeholder="Claws" value="${escapeHtml(fields.damageDescription ?? "")}"></label>
       </div>
-      <label>Damage tags<input id="${id("damageTags")}" name="damageTags" type="text" maxlength="160" placeholder="Close, Reach, Messy, Forceful" value="${escapeHtml(fields.damageTags ?? "")}"></label>
+      ${tagEditorMarkup("Damage tags", "damageTags", fields.damageTags, id("damageTags"))}
       <label class="visibility">
         <input id="${id("visibleToPlayers")}" name="visibleToPlayers" type="checkbox" ${fields.visibleToPlayers === false ? "" : "checked"}>
         Show the token overlay to players
@@ -100,7 +102,8 @@ export function buildCreatureFieldsMarkup(
     <details class="editor-section expandable-fields" ${editorKind === "creature" ? "open" : ""}>
       <summary><strong>GM Character</strong></summary>
       <div class="editor-section-body">
-        <label>Tags<input id="${id("tags")}" name="tags" type="text" maxlength="160" placeholder="Solitary, Small, Intelligent, Stealthy, Devious" value="${escapeHtml(fields.tags ?? "")}"></label>
+        ${tagEditorMarkup("Tags", "tags", fields.tags, id("tags"))}
+        <label>Special qualities<textarea id="${id("specialQualities")}" name="specialQualities" rows="2">${escapeHtml(fields.specialQualities ?? "")}</textarea></label>
         <label>Instinct<textarea id="${id("instinct")}" name="instinct" rows="2">${escapeHtml(fields.instinct ?? "")}</textarea></label>
         <label>Moves<textarea id="${id("moves")}" name="moves" rows="4" placeholder="One move per line">${escapeHtml(fields.moves ?? "")}</textarea></label>
         <label>Treasure<textarea id="${id("treasure")}" name="treasure" rows="3">${escapeHtml(fields.treasure ?? "")}</textarea></label>

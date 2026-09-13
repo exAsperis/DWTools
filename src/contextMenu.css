@@ -75,6 +75,7 @@ button {
   gap: 4px;
   font-weight: 800;
 }
+.armor-stat em { color: var(--dw-text-secondary); font-size: 11px; font-weight: 500; }
 .hp-group,
 .xp-group {
   display: inline-flex;
@@ -86,6 +87,8 @@ button {
   color: var(--dw-text-secondary);
   font-style: italic;
 }
+.treasure-roll { border: 0; padding: 0; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.treasure-roll:hover .label, .treasure-roll:focus-visible .label { text-decoration: underline; }
 .damage-description {
   white-space: normal;
 }

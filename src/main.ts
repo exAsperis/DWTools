@@ -45,6 +45,8 @@ import {
   type CreatureClipboardPayload,
 } from "./creatureClipboard";
 import { maximumHpAutofill, readCreatureFieldsForm } from "./creatureForm";
+import { attachTagEditors, type TagVocabularies } from "./tagEditor";
+import { buildTagVocabularies, formatTags } from "./tags";
 import { isDamageFormulaInvalid, normalizeDamageFormula } from "./damage";
 import { adjustedHp } from "./hp";
 import { evaluateRollExpression } from "./rollExpression";
@@ -264,12 +266,14 @@ function fieldPatch(
     : [
         "name",
         "tags",
+        "specialQualities",
         "hpCurrent",
         "hpMax",
         "hpBase",
         "maxLoad",
         "loadBase",
         "armor",
+        "armorTags",
         "damage",
         "damageDescription",
         "damageTags",
@@ -313,6 +317,7 @@ const managerStatsSaveChains = new Map<string, Promise<void>>();
 let managerDraftCharacterId: string | undefined;
 let managerTransfer: CharacterManagerViewState["transfer"];
 let homeEncounterItems: EncounterItem[] = [];
+let homeTagVocabularies: TagVocabularies = buildTagVocabularies([]);
 let homeEncounterState: EncounterState = {
   schemaVersion: 2,
   inactiveItemIds: [],
@@ -824,9 +829,10 @@ async function adjustEncounterHp(
 
 async function refreshEncounter(items?: Item[]): Promise<void> {
   const generation = ++encounterRefreshGeneration;
-  if (homeRole !== "GM" || !(await OBR.scene.isReady())) {
+  if (!(await OBR.scene.isReady())) {
     if (generation !== encounterRefreshGeneration) return;
     homeEncounterItems = [];
+    homeTagVocabularies = buildTagVocabularies([]);
     homeEncounterState = {
       schemaVersion: 2,
       inactiveItemIds: [],
@@ -834,10 +840,22 @@ async function refreshEncounter(items?: Item[]): Promise<void> {
     };
     return;
   }
-  const [sceneItems, metadata] = await Promise.all([
-    items ? Promise.resolve(items) : OBR.scene.items.getItems(),
-    OBR.scene.getMetadata(),
-  ]);
+  const sceneItems = items ?? (await OBR.scene.items.getItems());
+  if (generation !== encounterRefreshGeneration) return;
+  homeTagVocabularies = buildTagVocabularies(
+    sceneItems.flatMap((item) => {
+      try {
+        return [normalizeCreatureData(item.metadata[CREATURE_KEY])];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  if (homeRole !== "GM") {
+    homeEncounterItems = [];
+    return;
+  }
+  const metadata = await OBR.scene.getMetadata();
   if (generation !== encounterRefreshGeneration) return;
   homeEncounterItems = encounterItems(sceneItems);
   const storedState = encounterStateFromMetadata(metadata);
@@ -945,6 +963,7 @@ function bindStatsControls(): void {
   )) {
     const characterId = form.dataset.characterStats;
     if (!characterId) continue;
+    attachTagEditors(form, homeTagVocabularies);
     attachDamageFeedback(form);
     attachPlayerStatFeedback(form);
     form.addEventListener("submit", (event) => event.preventDefault());
@@ -954,7 +973,9 @@ function bindStatsControls(): void {
     >("input, textarea, select")) {
       if (
         control instanceof HTMLInputElement &&
-        (control.type === "checkbox" || control.type === "radio")
+        (control.type === "checkbox" ||
+          control.type === "radio" ||
+          control.type === "hidden")
       ) {
         control.addEventListener("change", commit);
       } else if (control instanceof HTMLSelectElement) {
@@ -1488,6 +1509,7 @@ let editorError: string | undefined;
 let editorHadCreatureData = false;
 let editorClipboard: CreatureClipboardPayload | undefined;
 let editorStagedClipboard: CreatureClipboardPayload | undefined;
+let editorTagVocabularies: TagVocabularies = buildTagVocabularies([]);
 
 function buildCharacterRecordSection(token: Item): string {
   const link = getCharacterLink(token);
@@ -1521,7 +1543,7 @@ function buildCharacterRecordSection(token: Item): string {
     ? editorLinkRecords.filter(
         (record) =>
           record.fields.name.toLocaleLowerCase().includes(query) ||
-          record.fields.tags?.toLocaleLowerCase().includes(query),
+          formatTags(record.fields.tags).toLocaleLowerCase().includes(query),
       )
     : editorLinkRecords;
   const picker = editorLinking
@@ -1535,7 +1557,7 @@ function buildCharacterRecordSection(token: Item): string {
               ? records
                   .map(
                     (record) => `
-                <button type="button" data-link-record="${escapeHtml(record.id)}" data-link-search="${escapeHtml(`${record.fields.name} ${record.fields.tags ?? ""}`.toLocaleLowerCase())}">
+                <button type="button" data-link-record="${escapeHtml(record.id)}" data-link-search="${escapeHtml(`${record.fields.name} ${formatTags(record.fields.tags)}`.toLocaleLowerCase())}">
                   ${buildCharacterSummary(record)}
                 </button>`,
                   )
@@ -1626,6 +1648,7 @@ function renderEditor(): void {
   });
   attachDamageFeedback(form);
   attachPlayerStatFeedback(form);
+  attachTagEditors(form, editorTagVocabularies);
   for (const button of form.querySelectorAll<HTMLButtonElement>("[data-hp]")) {
     button.addEventListener("click", () => {
       hpInput.value = String(
@@ -2018,14 +2041,24 @@ async function startEditor(): Promise<void> {
   editorRepository = createObrCharacterRepository();
   editorService = createObrCreatureService(editorRepository);
   editorClipboard = readCreatureClipboard(window.localStorage);
-  const [token, roomMetadata] = await Promise.all([
+  const [token, roomMetadata, sceneItems] = await Promise.all([
     editorService.getItem(itemId),
     OBR.room.getMetadata().catch((error) => {
       console.warn("DWTools could not load room visibility settings", error);
       return {};
     }),
+    OBR.scene.items.getItems(),
     OBR.theme.getTheme().then(applyTheme),
   ]);
+  editorTagVocabularies = buildTagVocabularies(
+    sceneItems.flatMap((item) => {
+      try {
+        return [normalizeCreatureData(item.metadata[CREATURE_KEY])];
+      } catch {
+        return [];
+      }
+    }),
+  );
   if (!token) {
     app.innerHTML =
       '<p class="error">That token is no longer in the scene.</p>';
@@ -2105,7 +2138,7 @@ if (preview === "home") {
         hpMax: 10,
         armor: 1,
         damage: "d8+2",
-        tags: "Cautious, Loyal",
+        tags: ["Cautious", "Loyal"],
       },
       revision: 3,
       createdAt: "2026-07-25T15:00:00.000Z",
@@ -2154,11 +2187,12 @@ if (preview === "home") {
     name: "Frogman",
     hpCurrent: 7,
     hpMax: 10,
-    tags: "Solitary, Small, Intelligent, Stealthy, Devious",
+    tags: ["Solitary", "Small", "Intelligent", "Stealthy", "Devious"],
+    specialQualities: "Amphibious",
     armor: 1,
     damage: "b[2d6]+1",
     damageDescription: "Claws",
-    damageTags: "Close, Messy",
+    damageTags: ["Close", "Messy"],
     instinct: "To defend the drowned temple",
     moves: "Strike from beneath the water\nCall the marsh to its aid",
     treasure: "A waterlogged purse and a silver idol",

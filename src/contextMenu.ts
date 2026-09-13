@@ -19,6 +19,7 @@ import type {
   CharacterRepository,
 } from "./characterRepository";
 import { getCharacterLink } from "./creatureFields";
+import { rollListChoice } from "./contextMarkdown";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
@@ -77,6 +78,11 @@ function render() {
     "[data-roll-expression]",
   )) {
     button.addEventListener("click", () => rollExpression(button));
+  }
+  for (const button of app.querySelectorAll<HTMLButtonElement>(
+    "[data-treasure-choices]",
+  )) {
+    button.addEventListener("click", () => rollTreasure(button));
   }
   app.querySelector("#damage")?.addEventListener("click", rollTokenDamage);
   app
@@ -142,6 +148,21 @@ function rollExpression(button: HTMLButtonElement) {
   showRollResult(source);
 }
 
+function rollTreasure(button: HTMLButtonElement) {
+  try {
+    const choices = JSON.parse(button.dataset.treasureChoices ?? "[]");
+    if (
+      !Array.isArray(choices) ||
+      choices.some((choice) => typeof choice !== "string")
+    )
+      return;
+    const result = rollListChoice(choices);
+    if (result) void OBR.notification.show(result, "SUCCESS");
+  } catch {
+    // Ignore malformed DOM state; saved creature data is not affected.
+  }
+}
+
 function showRollResult(source: string) {
   const result = evaluateRollExpression(source);
   if (!result.ok) {
@@ -197,13 +218,13 @@ if (preview === "context") {
     name: "Frogman",
     metadata: {
       [CREATURE_KEY]: {
-        tags: "Solitary, Small, Intelligent, Stealthy, Devious",
+        tags: ["Solitary", "Small", "Intelligent", "Stealthy", "Devious"],
         armor: 1,
         hpCurrent: 7,
         hpMax: 10,
         damage: "b[2d6]+1",
         damageDescription: "Claws",
-        damageTags: "Close, Messy",
+        damageTags: ["Close", "Messy"],
         level: 3,
         xp: 10,
         scores: [16, 13, 10, 8, 11, 7],

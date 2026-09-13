@@ -17,16 +17,18 @@ import { token } from "./characterTestHelpers";
 describe("canonical creature field mapping", () => {
   it("maps every persistent field between a token and character fields", () => {
     const item = token("one", "Goblin", {
-      tags: "Small",
+      tags: ["Small"],
+      specialQualities: "Sees in darkness",
       hpCurrent: 3,
       hpMax: 6,
       hpBase: 8,
       maxLoad: 12,
       loadBase: 11,
       armor: 1,
+      armorTags: ["Natural"],
       damage: "d6",
       damageDescription: "Knife",
-      damageTags: "Close",
+      damageTags: ["Close"],
       instinct: "To steal",
       moves: "Hide",
       treasure: "Coins",
@@ -40,16 +42,18 @@ describe("canonical creature field mapping", () => {
     const fields = extractCreatureFields(item);
     expect(fields).toEqual({
       name: "Goblin",
-      tags: "Small",
+      tags: ["Small"],
+      specialQualities: "Sees in darkness",
       hpCurrent: 3,
       hpMax: 6,
       hpBase: 8,
       maxLoad: 12,
       loadBase: 11,
       armor: 1,
+      armorTags: ["Natural"],
       damage: "d6",
       damageDescription: "Knife",
-      damageTags: "Close",
+      damageTags: ["Close"],
       instinct: "To steal",
       moves: "Hide",
       treasure: "Coins",
@@ -70,26 +74,23 @@ describe("canonical creature field mapping", () => {
     expect(item.name).toBe("Goblin Chief");
     expect(
       (item as unknown as { text: { plainText: string } }).text.plainText,
-    ).toBe("Goblin Chief");
+    ).toBe("Goblin");
     expect(
       (item as unknown as { text: { richText: unknown } }).text.richText,
-    ).toEqual([
-      {
-        type: "paragraph",
-        children: [{ text: "Goblin Chief" }],
-      },
-    ]);
+    ).toEqual([{ type: "paragraph", children: [{ text: "Goblin" }] }]);
     expect(item.metadata[CREATURE_KEY]).toEqual({
-      tags: "Small",
+      tags: ["Small"],
+      specialQualities: "Sees in darkness",
       hpCurrent: 9,
       hpMax: 6,
       hpBase: 8,
       maxLoad: 12,
       loadBase: 11,
       armor: 1,
+      armorTags: ["Natural"],
       damage: "d6",
       damageDescription: "Knife",
-      damageTags: "Close",
+      damageTags: ["Close"],
       instinct: "To steal",
       moves: "Hide",
       treasure: "Coins",
@@ -102,12 +103,39 @@ describe("canonical creature field mapping", () => {
     });
 
     item.name = "Custom token label";
-    applyCreatureFieldsToItem(item, { ...replacement, hpCurrent: 7 }, false);
+    applyCreatureFieldsToItem(item, { ...replacement, hpCurrent: 7 }, {});
     expect(item.name).toBe("Custom token label");
     expect(
       (item as unknown as { text: { plainText: string } }).text.plainText,
-    ).toBe("Goblin Chief");
+    ).toBe("Goblin");
     expect(item.metadata[CREATURE_KEY]).toMatchObject({ hpCurrent: 7 });
+  });
+
+  it("changes the visible label only when explicitly requested", () => {
+    const item = token("one", "Goblin", { hpCurrent: 3 });
+    applyCreatureFieldsToItem(
+      item,
+      { name: "Goblin Chief", hpCurrent: 3 },
+      { overwriteItemName: true, overwriteTextLabel: true },
+    );
+    expect(item.name).toBe("Goblin Chief");
+    expect(
+      (item as unknown as { text: { plainText: string } }).text.plainText,
+    ).toBe("Goblin Chief");
+  });
+
+  it("converts legacy comma-separated tag strings to arrays", () => {
+    expect(
+      normalizeCreatureData({
+        tags: " Small, Intelligent, small ",
+        armorTags: "Natural",
+        damageTags: "Close, Messy",
+      }),
+    ).toEqual({
+      tags: ["Small", "Intelligent"],
+      armorTags: ["Natural"],
+      damageTags: ["Close", "Messy"],
+    });
   });
 
   it("sets and removes only versioned link metadata", () => {

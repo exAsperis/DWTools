@@ -10,6 +10,7 @@ import {
   CONDITION_NAMES,
   emptyScores,
 } from "./playerStats";
+import { normalizeTags } from "./tags";
 
 export function maximumHpAutofill(
   currentValue: string,
@@ -49,14 +50,16 @@ export function readCreatureForm(
   next.hpMax = optionalNumber(form, "hpMax");
   if (hpOnly) return next;
 
-  next.tags = optionalText(form, "tags");
+  next.tags = normalizeTags(optionalText(form, "tags"));
+  next.specialQualities = optionalText(form, "specialQualities");
   next.hpBase = optionalNumber(form, "hpBase");
   next.maxLoad = optionalFiniteNumber(form, "maxLoad");
   next.loadBase = optionalNumber(form, "loadBase");
   next.armor = optionalNumber(form, "armor");
+  next.armorTags = normalizeTags(optionalText(form, "armorTags"));
   next.damage = optionalText(form, "damage");
   next.damageDescription = optionalText(form, "damageDescription");
-  next.damageTags = optionalText(form, "damageTags");
+  next.damageTags = normalizeTags(optionalText(form, "damageTags"));
   next.instinct = optionalText(form, "instinct");
   next.moves = optionalText(form, "moves");
   next.treasure = optionalText(form, "treasure");

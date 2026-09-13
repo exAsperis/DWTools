@@ -47,6 +47,13 @@ describe("character manager view", () => {
     expect(characterMarkup).toContain("Calculated: 22");
     expect(characterMarkup).toContain("Calculated: 14");
     expect(characterMarkup).toContain("calculation-mismatch");
+    expect(characterMarkup).toContain('data-tag-editor="armorTags"');
+    expect(characterMarkup).toContain('data-tag-editor="damageTags"');
+    expect(characterMarkup).toContain('data-tag-editor="tags"');
+    expect(characterMarkup).not.toMatch(/class="tag-input"[^>]*placeholder=/);
+    expect(characterMarkup).toMatch(
+      /data-tag-editor="tags"[\s\S]*Special qualities[\s\S]*Instinct/,
+    );
     expect(characterMarkup).toMatch(
       /<div class="progression-row">[\s\S]*Level[\s\S]*XP[\s\S]*Alignment[\s\S]*<\/div>/,
     );

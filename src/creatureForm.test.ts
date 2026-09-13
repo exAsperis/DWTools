@@ -20,7 +20,9 @@ describe("readCreatureForm", () => {
   it("trims and saves all full-editor creature fields", () => {
     const form = new FormData();
     form.set("tags", "  Solitary, Intelligent  ");
+    form.set("specialQualities", " Sees in darkness ");
     form.set("armor", " 2 ");
+    form.set("armorTags", " Natural, natural, Arcane ");
     form.set("hpCurrent", " 7 ");
     form.set("hpMax", " 10 ");
     form.set("hpBase", "8");
@@ -41,8 +43,10 @@ describe("readCreatureForm", () => {
     form.set("visibleToPlayers", "on");
 
     expect(readCreatureForm(form, {}, false)).toEqual({
-      tags: "Solitary, Intelligent",
+      tags: ["Solitary", "Intelligent"],
+      specialQualities: "Sees in darkness",
       armor: 2,
+      armorTags: ["Natural", "Arcane"],
       hpCurrent: 7,
       hpMax: 10,
       hpBase: 8,
@@ -50,7 +54,7 @@ describe("readCreatureForm", () => {
       loadBase: 12,
       damage: "d8+1",
       damageDescription: "Claws",
-      damageTags: "Close, Messy",
+      damageTags: ["Close", "Messy"],
       instinct: "To defend",
       moves: "Strike\nHide",
       treasure: "Silver idol",
@@ -71,7 +75,9 @@ describe("readCreatureForm", () => {
 
     expect(readCreatureForm(form, {}, false)).toEqual({
       tags: undefined,
+      specialQualities: undefined,
       armor: undefined,
+      armorTags: undefined,
       hpCurrent: undefined,
       hpMax: undefined,
       hpBase: undefined,
@@ -94,9 +100,9 @@ describe("readCreatureForm", () => {
 
   it("preserves full creature data in the HP-only editor", () => {
     const current = {
-      tags: "Solitary",
+      tags: ["Solitary"],
       damageDescription: "Claws",
-      damageTags: "Close",
+      damageTags: ["Close"],
       hpCurrent: 4,
       hpMax: 8,
     };

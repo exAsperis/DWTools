@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { renderContextMarkdown } from "./contextMarkdown";
+import {
+  countTopLevelListItems,
+  renderContextMarkdown,
+  rollListChoice,
+  topLevelListItems,
+} from "./contextMarkdown";
 
 describe("context Markdown", () => {
   it("renders paragraphs, preserved line breaks, emphasis, and strong text", () => {
@@ -19,6 +24,26 @@ describe("context Markdown", () => {
     expect(renderContextMarkdown("1. One\n2. Two")).toBe(
       "<ol><li>One</li><li>Two</li></ol>",
     );
+  });
+
+  it("counts ordered and unordered level-one list items only", () => {
+    expect(
+      countTopLevelListItems(
+        "- One\n  - Nested\n* Two\n1. Three\n  1. Nested\n2) Four\nParagraph",
+      ),
+    ).toBe(4);
+    expect(countTopLevelListItems("Plain treasure text")).toBe(0);
+    expect(
+      topLevelListItems("- Coins, gems, and a map\n  - Nested\n2) Ring"),
+    ).toEqual(["Coins, gems, and a map", "Ring"]);
+  });
+
+  it("selects one authored list item uniformly", () => {
+    const choices = ["Coins", "Ring", "Map"];
+    expect(rollListChoice(choices, () => 0)).toBe("Coins");
+    expect(rollListChoice(choices, () => 0.5)).toBe("Ring");
+    expect(rollListChoice(choices, () => 0.999)).toBe("Map");
+    expect(rollListChoice([], () => 0)).toBeUndefined();
   });
 
   it("escapes raw HTML instead of executing it", () => {

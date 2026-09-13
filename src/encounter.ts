@@ -6,6 +6,7 @@ import {
   type CreatureData,
 } from "./constants";
 import { renderContextMarkdown } from "./contextMarkdown";
+import { formatTags } from "./tags";
 import { iconMarkup } from "./icons";
 
 export const ENCOUNTER_STATE_SCHEMA_VERSION = 2;
@@ -348,14 +349,15 @@ function activeCardMarkup(
   const hp = hpPresentation(data);
   const damage = data.damage?.trim();
   const description = data.damageDescription?.trim();
-  const damageTags = data.damageTags?.trim();
+  const damageTags = formatTags(data.damageTags);
+  const armorTags = formatTags(data.armorTags);
   const instinct = data.instinct?.trim();
   const moves = data.moves?.trim();
   const busy = busyItemIds.has(item.id);
   return `<article class="encounter-card" data-encounter-item="${escapeHtml(item.id)}">
     <div class="encounter-identity encounter-drag-handle" draggable="${busy ? "false" : "true"}" data-encounter-drag="${escapeHtml(item.id)}">${thumbnailMarkup(item)}<span class="encounter-identity-copy">${identityMarkup(item)}</span>${actionMarkup(item, true, busy)}</div>
     <div class="encounter-combat">
-      <span class="encounter-armor" title="Armor">${iconMarkup("shield")}<strong>${data.armor ?? "—"}</strong></span>
+      <span class="encounter-armor" title="Armor">${iconMarkup("shield")}<span><strong>${data.armor ?? "—"}</strong>${armorTags ? `<em>${escapeHtml(armorTags)}</em>` : ""}</span></span>
       <span class="encounter-damage">${iconMarkup("sword")}<span class="encounter-damage-copy">${damage ? `<button type="button" data-encounter-damage="${escapeHtml(damage)}">🎲 ${escapeHtml(damage)}</button>` : "—"}${description ? `<span> (${escapeHtml(description)})</span>` : ""}${damageTags ? `<em>${escapeHtml(damageTags)}</em>` : ""}</span></span>
       <span class="encounter-hp"><button type="button" data-encounter-hp="-1" data-item-id="${escapeHtml(item.id)}" aria-label="Decrease HP" ${!hp.adjustable || busy ? "disabled" : ""}>−</button><span class="encounter-hp-bar hp-${hp.color}"><span class="encounter-hp-fill" style="width:${hp.percent}%"></span><strong>${hp.text}</strong></span><button type="button" data-encounter-hp="1" data-item-id="${escapeHtml(item.id)}" aria-label="Increase HP" ${!hp.adjustable || busy ? "disabled" : ""}>+</button></span>
     </div>

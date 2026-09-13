@@ -209,7 +209,8 @@ describe("encounter view", () => {
       armor: 1,
       damage: "d6+1",
       damageDescription: "Spear",
-      damageTags: "Close, Reach",
+      armorTags: ["Natural"],
+      damageTags: ["Close", "Reach"],
       hpCurrent: 4,
       hpMax: 6,
       instinct: "To multiply & consume",
@@ -233,6 +234,7 @@ describe("encounter view", () => {
     expect(markup).toContain('aria-label="Move to Inactive"');
     expect(markup).toContain('aria-label="Locate on scene"');
     expect(markup).toContain('class="encounter-thumbnail"');
+    expect(markup).toContain("Natural");
     expect(markup).toContain('data-encounter-drag="goblin"');
     expect(markup).toContain('data-encounter-damage="d6+1"');
     expect(markup).toContain("(Spear)");

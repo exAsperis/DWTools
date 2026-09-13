@@ -1,0 +1,16 @@
+{
+  "name": "DWTools (Local)",
+  "version": "1.3.17",
+  "manifest_version": 1,
+  "description": "Local development build of DWTools for Owlbear Rodeo.",
+  "author": "ex Asperis",
+  "icon": "http://localhost:5173/icon.svg",
+  "action": {
+    "title": "DWTools (Local)",
+    "icon": "http://localhost:5173/icon.svg",
+    "popover": "http://localhost:5173/?v=dev",
+    "height": 760,
+    "width": 390
+  },
+  "background_url": "http://localhost:5173/background.html?v=dev"
+}

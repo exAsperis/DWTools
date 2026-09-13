@@ -124,7 +124,7 @@ export async function syncCharacterToCurrentScene(
       if (lookup.status === "deleted") {
         removeCharacterLink(draft);
       } else {
-        applyCreatureFieldsToItem(draft, lookup.record.fields, false);
+        applyCreatureFieldsToItem(draft, lookup.record.fields, {});
       }
     }
   });
@@ -176,7 +176,7 @@ export async function syncAllLinkedCharactersInCurrentScene(
       if (lookup.status === "deleted") {
         removeCharacterLink(draft);
       } else if (lookup.status === "active") {
-        applyCreatureFieldsToItem(draft, lookup.record.fields, false);
+        applyCreatureFieldsToItem(draft, lookup.record.fields, {});
       }
     }
   });
@@ -321,7 +321,9 @@ export class CreatureService {
         applyCreatureFieldsToItem(
           drafts[0],
           lookup.record.fields,
-          overwriteLabel,
+          overwriteLabel
+            ? { overwriteItemName: true, overwriteTextLabel: true }
+            : {},
         );
         setCharacterLink(drafts[0], characterId);
       });

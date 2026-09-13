@@ -5,13 +5,15 @@ import { buildContextSummary } from "./contextMenuView";
 describe("buildContextSummary", () => {
   it("renders requested rows, effective modifiers, progression, and details in order", () => {
     const markup = buildContextSummary({
-      tags: "Solitary, Small",
+      tags: ["Solitary", "Small"],
+      specialQualities: "Sees in darkness",
       armor: 1,
+      armorTags: ["Natural", "Arcane"],
       hpCurrent: 6,
       hpMax: 6,
       damage: "b[2d10]+1",
       damageDescription: "Claws",
-      damageTags: "Close, Messy",
+      damageTags: ["Close", "Messy"],
       scores: [16, 13, 10, 8, 11, 7],
       conditions: { weak: -1 },
       level: 3,
@@ -22,7 +24,10 @@ describe("buildContextSummary", () => {
     });
 
     expect(markup).toContain("Solitary, Small");
+    expect(markup).toContain("Special qualities:");
+    expect(markup).toContain("Sees in darkness");
     expect(markup).toContain('class="stat-group armor-stat"');
+    expect(markup).toContain("Natural, Arcane");
     expect(markup).toContain("HP 6/6");
     expect(markup).toContain("b[2d10]+1");
     expect(markup).toContain("(Claws)");
@@ -52,11 +57,17 @@ describe("buildContextSummary", () => {
     expect(markup.indexOf("progression-summary-row")).toBeLessThan(
       markup.indexOf("Tags:"),
     );
+    expect(markup.indexOf("Tags:")).toBeLessThan(
+      markup.indexOf("Special qualities:"),
+    );
+    expect(markup.indexOf("Special qualities:")).toBeLessThan(
+      markup.indexOf("Instinct:"),
+    );
   });
 
   it("renders safe Markdown and dice links only in Moves and Treasure", () => {
     const markup = buildContextSummary({
-      tags: "A d6 tag",
+      tags: ["A d6 tag"],
       instinct: "Roll d8",
       moves: "- **Strike** for d6+1\n- _Retreat_",
       treasure: "Coins\n\n1. d{1,2,4}\n2. d{fail,success}",
@@ -69,10 +80,20 @@ describe("buildContextSummary", () => {
     expect(markup).toContain("Coins</p><ol>");
     expect(markup).toContain('data-roll-expression="d6+1"');
     expect(markup).toContain('data-roll-expression="d{fail,success}"');
+    expect(markup).toContain('class="treasure-roll"');
+    expect(markup).toContain('aria-label="Roll Treasure"');
+    expect(markup).toContain("Treasure:</span> 🎲");
+    expect(markup).toContain("fail,success");
     expect(markup).toContain('id="damage" title="Roll damage">🎲 d10');
     expect(markup).toContain("A d6 tag");
     expect(markup).toContain("Roll d8");
     expect(markup.match(/data-roll-expression=/g)).toHaveLength(3);
+  });
+
+  it("does not add a treasure-table roll for prose-only treasure", () => {
+    const markup = buildContextSummary({ treasure: "A bright stone" });
+
+    expect(markup).not.toContain("treasure-roll");
   });
 
   it("omits missing fields instead of rendering placeholders", () => {
@@ -88,10 +109,10 @@ describe("buildContextSummary", () => {
 
   it("escapes field content while preserving long wrapping text", () => {
     const markup = buildContextSummary({
-      tags: '<script>alert("tag")</script>',
+      tags: ['<script>alert("tag")</script>'],
       damage: "d8",
       damageDescription: "<Claws>",
-      damageTags: "Close & Messy",
+      damageTags: ["Close & Messy"],
     });
 
     expect(markup).not.toContain("<script>");

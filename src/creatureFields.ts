@@ -15,6 +15,7 @@ import {
   compactScores,
   CONDITION_NAMES,
 } from "./playerStats";
+import { normalizeTags } from "./tags";
 
 export const CHARACTER_LINK_SCHEMA_VERSION = 1;
 
@@ -37,10 +38,9 @@ export class CreatureFieldValidationError extends Error {
 
 const TEXT_LIMITS = {
   name: 120,
-  tags: 160,
+  specialQualities: 2_000,
   damage: 40,
   damageDescription: 80,
-  damageTags: 160,
   instinct: 2_000,
   moves: 6_000,
   treasure: 2_000,
@@ -186,19 +186,24 @@ export function normalizeCreatureData(value: unknown): CreatureData {
   }
 
   return compactCreatureData({
-    tags: normalizeOptionalText(source.tags, "tags"),
+    tags: normalizeTagField(source.tags, "tags"),
+    specialQualities: normalizeOptionalText(
+      source.specialQualities,
+      "specialQualities",
+    ),
     hpCurrent: normalizeOptionalInteger(source.hpCurrent, "hpCurrent"),
     hpMax: normalizeOptionalInteger(source.hpMax, "hpMax"),
     hpBase: normalizeOptionalInteger(source.hpBase, "hpBase"),
     maxLoad: normalizeOptionalMaxLoad(source.maxLoad),
     loadBase: normalizeOptionalInteger(source.loadBase, "loadBase"),
     armor: normalizeOptionalInteger(source.armor, "armor"),
+    armorTags: normalizeTagField(source.armorTags, "armorTags"),
     damage: normalizedDamage,
     damageDescription: normalizeOptionalText(
       source.damageDescription,
       "damageDescription",
     ),
-    damageTags: normalizeOptionalText(source.damageTags, "damageTags"),
+    damageTags: normalizeTagField(source.damageTags, "damageTags"),
     instinct: normalizeOptionalText(source.instinct, "instinct"),
     moves: normalizeOptionalText(source.moves, "moves"),
     treasure: normalizeOptionalText(source.treasure, "treasure"),
@@ -209,6 +214,20 @@ export function normalizeCreatureData(value: unknown): CreatureData {
     alignment: normalizeOptionalText(source.alignment, "alignment"),
     visibleToPlayers: source.visibleToPlayers,
   });
+}
+
+function normalizeTagField(
+  value: unknown,
+  field: "tags" | "armorTags" | "damageTags",
+): string[] | undefined {
+  try {
+    return normalizeTags(value);
+  } catch (error) {
+    throw new CreatureFieldValidationError(
+      error instanceof Error ? error.message : "Tags are invalid.",
+      field,
+    );
+  }
 }
 
 function compactCreatureData(data: CreatureData): CreatureData {
@@ -266,20 +285,22 @@ export function extractCreatureFields(item: Item): CreatureFields {
 export function applyCreatureFieldsToItem(
   draftItem: Item,
   fields: CreatureFields,
-  overwriteName = true,
+  options: { overwriteItemName?: boolean; overwriteTextLabel?: boolean } = {
+    overwriteItemName: true,
+  },
 ): void {
   const normalized = normalizeCreatureFields(fields);
-  if (overwriteName) {
+  if (options.overwriteItemName) {
     draftItem.name = normalized.name;
-    if (isImage(draftItem)) {
-      draftItem.text.plainText = normalized.name;
-      draftItem.text.richText = [
-        {
-          type: "paragraph",
-          children: [{ text: normalized.name }],
-        },
-      ];
-    }
+  }
+  if (options.overwriteTextLabel && isImage(draftItem)) {
+    draftItem.text.plainText = normalized.name;
+    draftItem.text.richText = [
+      {
+        type: "paragraph",
+        children: [{ text: normalized.name }],
+      },
+    ];
   }
   draftItem.metadata[CREATURE_KEY] = normalizeCreatureData(normalized);
 }

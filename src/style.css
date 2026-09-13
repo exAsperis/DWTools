@@ -65,10 +65,12 @@ button:disabled { cursor: wait; opacity: .55; }
 .encounter-actions { display: flex; flex: 0 0 auto; margin-left: auto; }
 .encounter-activity, .encounter-locate { display: grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border: 0; padding: 2px; color: var(--dw-primary); background: transparent; cursor: pointer; }
 .encounter-activity .dw-icon, .encounter-locate .dw-icon { width: 19px; height: 19px; }
-.encounter-combat { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 5px; min-width: 0; }
-.encounter-armor { position: relative; display: grid; place-items: center; width: 28px; height: 28px; }
+.encounter-combat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; min-width: 0; }
+.encounter-armor { position: relative; display: flex; align-items: center; min-width: 28px; min-height: 28px; padding-left: 7px; }
 .encounter-armor .dw-icon { position: absolute; width: 27px; height: 27px; color: var(--dw-text-secondary); }
-.encounter-armor strong { position: relative; padding-top: 1px; font-size: 10px; }
+.encounter-armor > span { display: flex; align-items: baseline; gap: 3px; }
+.encounter-armor strong { position: relative; min-width: 14px; padding-top: 1px; text-align: center; font-size: 10px; }
+.encounter-armor em { color: var(--dw-text-disabled); font-size: 10px; }
 .encounter-damage { display: flex; align-items: flex-start; min-width: 0; gap: 3px; }
 .encounter-damage > .dw-icon { flex: 0 0 auto; width: 17px; height: 17px; }
 .encounter-damage-copy { display: flex; align-items: baseline; flex-wrap: wrap; min-width: 0; gap: 1px 3px; overflow-wrap: anywhere; }
@@ -186,6 +188,18 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 label { display: grid; gap: 6px; color: var(--dw-text-secondary); font-size: 12px; font-weight: 700; }
 input, textarea, select { width: 100%; border: 1px solid var(--dw-border); border-radius: 7px; padding: 9px 10px; color: var(--dw-text); background: var(--dw-control); outline: none; }
 input:focus, textarea:focus { border-color: var(--dw-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dw-primary) 25%, transparent); }
+.tag-editor { display: flex; align-items: center; align-content: center; flex-wrap: wrap; min-height: 36px; border: 1px solid var(--dw-border); border-radius: 7px; padding: 5px 9px; color: var(--dw-text); background: var(--dw-control); font-size: 13px; font-weight: 400; cursor: text; }
+.tag-editor:focus-within { border-color: var(--dw-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dw-primary) 25%, transparent); }
+.tag-values { display: contents; }
+.tag-value { position: relative; display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 2px; line-height: 1.2; white-space: nowrap; }
+.tag-value:hover, .tag-value:focus-within { z-index: 1; padding-right: 21px; background: color-mix(in srgb, var(--dw-primary) 26%, var(--dw-control)); }
+.tag-value button { display: none; position: absolute; right: 3px; width: 17px; height: 17px; border: 0; border-radius: 50%; padding: 0; color: var(--dw-text); background: transparent; font: inherit; line-height: 1; cursor: pointer; }
+.tag-value:hover button, .tag-value:focus-within button { display: inline-grid; place-items: center; }
+.tag-separator { white-space: pre; }
+.tag-entry { position: relative; flex: 1 1 90px; min-width: 70px; }
+input.tag-input { position: relative; z-index: 1; min-width: 70px; border: 0; padding: 3px 2px; background: transparent; box-shadow: none; }
+input.tag-input:focus { border: 0; box-shadow: none; }
+.tag-suggestion { position: absolute; z-index: 0; inset: 3px 2px; overflow: hidden; color: var(--dw-text-disabled); font: inherit; line-height: normal; white-space: pre; pointer-events: none; }
 input.field-invalid, input.field-invalid:focus { border-color: #ef4444; box-shadow: 0 0 0 2px #ef444433; }
 textarea { resize: vertical; line-height: 1.4; }
 .hp-row { display: grid; grid-template-columns: 1fr 18px 1fr; align-items: end; gap: 6px; }
