@@ -7,7 +7,12 @@ import {
   type CreatureData,
 } from "./constants";
 import type { CreatureService } from "./characterService";
-import { rollWithSelectedExtension } from "./diceExtension";
+import {
+  rollWithSelectedExtension,
+  selectedDiceExtension,
+  symbolicChoiceExpression,
+  symbolicChoiceIndex,
+} from "./diceExtension";
 import { adjustedHp } from "./hp";
 import { buildContextSummary } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
@@ -157,11 +162,31 @@ function rollTreasure(button: HTMLButtonElement) {
       void OBR.notification.show(choices[0], "SUCCESS");
       return;
     }
-    void rollWithSelectedExtension(`d${choices.length}`).then((result) => {
-      if (typeof result !== "number") return;
-      const choice = choices[result - 1];
-      if (choice) void OBR.notification.show(choice, "SUCCESS");
-    });
+    void OBR.room
+      .getMetadata()
+      .then((metadata) => {
+        const noDice = selectedDiceExtension(metadata) === "no-dice";
+        const expression = noDice
+          ? symbolicChoiceExpression(choices.length)
+          : `d${choices.length}`;
+        void rollWithSelectedExtension(expression).then((result) => {
+          const index = noDice
+            ? typeof result === "string"
+              ? symbolicChoiceIndex(result, choices.length)
+              : -1
+            : typeof result === "number"
+              ? result - 1
+              : -1;
+          const choice = choices[index];
+          if (choice) void OBR.notification.show(choice, "SUCCESS");
+        });
+      })
+      .catch((error: unknown) => {
+        void OBR.notification.show(
+          error instanceof Error ? error.message : "Could not roll treasure.",
+          "ERROR",
+        );
+      });
   } catch {
     // Ignore malformed DOM state; saved creature data is not affected.
   }

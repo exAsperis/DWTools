@@ -18,6 +18,29 @@ export function toNoDiceExpression(source: string): string {
     .replace(/\b(?:worst|lowest|w|l)\s*\[/gi, "L[");
 }
 
+function optionSymbol(index: number): string {
+  let value = index + 1;
+  let letters = "";
+  while (value > 0) {
+    value -= 1;
+    letters = String.fromCharCode(65 + (value % 26)) + letters;
+    value = Math.floor(value / 26);
+  }
+  return `Option${letters}`;
+}
+
+export function symbolicChoiceExpression(count: number): string {
+  if (!Number.isInteger(count) || count < 2 || count > 1000)
+    throw new Error("Treasure tables must have between 2 and 1,000 choices.");
+  return `d{${Array.from({ length: count }, (_, index) => optionSymbol(index)).join(",")}}`;
+}
+
+export function symbolicChoiceIndex(result: string, count: number): number {
+  return Array.from({ length: count }, (_, index) =>
+    optionSymbol(index),
+  ).indexOf(result);
+}
+
 export async function rollWithSelectedExtension(
   source: string,
 ): Promise<number | string | undefined> {
