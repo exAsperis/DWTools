@@ -49,7 +49,11 @@ import { attachTagEditors, type TagVocabularies } from "./tagEditor";
 import { buildTagVocabularies, formatTags } from "./tags";
 import { isDamageFormulaInvalid, normalizeDamageFormula } from "./damage";
 import { adjustedHp } from "./hp";
-import { evaluateRollExpression } from "./rollExpression";
+import {
+  DICE_EXTENSION_KEY,
+  rollWithSelectedExtension,
+  selectedDiceExtension,
+} from "./diceExtension";
 import {
   buildEncounterMarkup,
   centeredViewportPosition,
@@ -481,7 +485,24 @@ function renderHome(): void {
     managerMarkup,
     encounterMarkup,
     EXTENSION_VERSION,
+    selectedDiceExtension(homeMetadata),
   );
+  document
+    .querySelector<HTMLSelectElement>("#dice-extension")
+    ?.addEventListener("change", (event) => {
+      const selected = (event.currentTarget as HTMLSelectElement).value;
+      if (selected !== "dwtools" && selected !== "no-dice") return;
+      void OBR.room
+        .setMetadata({ [DICE_EXTENSION_KEY]: selected })
+        .then(() => {
+          homeMetadata = { ...homeMetadata, [DICE_EXTENSION_KEY]: selected };
+          renderHome();
+        })
+        .catch((error: unknown) => {
+          console.error("DWTools could not save the dice extension", error);
+          notify("Could not save the dice extension.", "ERROR");
+        });
+    });
   const home = document.querySelector<HTMLElement>(".home");
   const insertionPoint = document.querySelector<HTMLElement>(
     ".extension-version, #move-dialog",
@@ -572,8 +593,7 @@ function renderHome(): void {
 }
 
 function showEncounterRoll(source: string): void {
-  const result = evaluateRollExpression(source);
-  notify(result.message, result.ok ? "SUCCESS" : "ERROR");
+  void rollWithSelectedExtension(source);
 }
 
 function bindEncounterControls(): void {

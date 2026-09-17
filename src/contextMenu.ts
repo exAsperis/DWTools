@@ -7,8 +7,7 @@ import {
   type CreatureData,
 } from "./constants";
 import type { CreatureService } from "./characterService";
-import { rollDamageFormula } from "./damage";
-import { evaluateRollExpression } from "./rollExpression";
+import { rollWithSelectedExtension } from "./diceExtension";
 import { adjustedHp } from "./hp";
 import { buildContextSummary } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
@@ -19,7 +18,6 @@ import type {
   CharacterRepository,
 } from "./characterRepository";
 import { getCharacterLink } from "./creatureFields";
-import { rollListChoice } from "./contextMarkdown";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
 const extensionUrl = new URL("./", window.location.href);
@@ -138,8 +136,7 @@ function showModifierRoll(button: HTMLButtonElement) {
   const modifier = Number(button.dataset.modifier);
   if (!Number.isFinite(modifier)) return;
   const sign = modifier >= 0 ? "+" : "";
-  const result = rollDamageFormula(`2d6${sign}${modifier}`);
-  if (result) void OBR.notification.show(result, "SUCCESS");
+  void rollWithSelectedExtension(`2d6${sign}${modifier}`);
 }
 
 function rollExpression(button: HTMLButtonElement) {
@@ -156,20 +153,22 @@ function rollTreasure(button: HTMLButtonElement) {
       choices.some((choice) => typeof choice !== "string")
     )
       return;
-    const result = rollListChoice(choices);
-    if (result) void OBR.notification.show(result, "SUCCESS");
+    if (choices.length === 1) {
+      void OBR.notification.show(choices[0], "SUCCESS");
+      return;
+    }
+    void rollWithSelectedExtension(`d${choices.length}`).then((result) => {
+      if (typeof result !== "number") return;
+      const choice = choices[result - 1];
+      if (choice) void OBR.notification.show(choice, "SUCCESS");
+    });
   } catch {
     // Ignore malformed DOM state; saved creature data is not affected.
   }
 }
 
 function showRollResult(source: string) {
-  const result = evaluateRollExpression(source);
-  if (!result.ok) {
-    void OBR.notification.show(result.message, "ERROR");
-    return;
-  }
-  void OBR.notification.show(result.message, "SUCCESS");
+  void rollWithSelectedExtension(source);
 }
 
 function rollTokenDamage() {

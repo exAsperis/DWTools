@@ -154,6 +154,21 @@ client-local, single-writer renderer architecture.
 
 ## Decision history
 
+### 2026-09-16 — Dice rolls can use No Dice
+
+The GM chooses the room's dice rolling extension in Settings. Existing rooms
+default to DWTools' local roller; No Dice uses its version 1 local broadcast
+API and records the result there. All click-to-roll controls, including
+treasure table selection, use the selected roller. DWTools translates its
+Best/Worst aliases to No Dice's Highest/Lowest syntax. Treasure tables roll a
+numeric index and display the selected text. Future extensions that cannot
+roll symbolic dice should receive a numeric expression representing the
+available options; their adapter must retain the mapping to display the
+selected text.
+
+Reason: one room-wide selection keeps GM and player rolls together while
+allowing No Dice to handle symbolic outcomes directly.
+
 ### 2026-09-12 — Tag fields are structured and token names preserve labels
 
 General, Armor, and Damage tags are stored as case-insensitively unique arrays

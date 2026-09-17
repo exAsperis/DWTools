@@ -12,12 +12,7 @@ export type HomeSection =
   | "settings"
   | "characters";
 export type HomeMajorSection =
-  | "agenda"
-  | "principles"
-  | "moves"
-  | "encounter"
-  | "settings"
-  | "characters";
+  "agenda" | "principles" | "moves" | "encounter" | "settings" | "characters";
 
 export interface HomeSectionState {
   agenda: boolean;
@@ -78,11 +73,7 @@ export function normalizeHomeSectionOrder(value: unknown): HomeMajorSection[] {
   }
   if (!normalized.includes("principles")) {
     const agendaIndex = normalized.indexOf("agenda");
-    normalized.splice(
-      agendaIndex >= 0 ? agendaIndex + 1 : 0,
-      0,
-      "principles",
-    );
+    normalized.splice(agendaIndex >= 0 ? agendaIndex + 1 : 0, 0, "principles");
   }
   if (!normalized.includes("encounter")) {
     const movesIndex = normalized.indexOf("moves");
@@ -253,6 +244,7 @@ export function buildHomeMarkup(
   characterManagerMarkup = "",
   encounterMarkup = "",
   version = "",
+  diceExtension: "dwtools" | "no-dice" = "dwtools",
 ): string {
   const stateLabel = defaultVisibleToPlayers
     ? "Default: visible to players"
@@ -332,7 +324,13 @@ export function buildHomeMarkup(
           <button class="default-visibility-toggle" type="button" id="default-visibility" aria-label="${stateLabel}" title="${stateLabel}" ${saving ? "disabled" : ""}>
             ${iconMarkup(defaultVisibleToPlayers ? "eye" : "eye-off", "default-visibility-icon")}
           </button>
-        </div>`
+        </div>
+        <label class="dice-extension-setting" for="dice-extension">Dice rolling extension
+          <select id="dice-extension">
+            <option value="dwtools" ${diceExtension === "dwtools" ? "selected" : ""}>DWTools</option>
+            <option value="no-dice" ${diceExtension === "no-dice" ? "selected" : ""}>No Dice</option>
+          </select>
+        </label>`
             : ""
         }
       </section>`
