@@ -160,8 +160,11 @@ The GM chooses the room's dice rolling extension in Settings. Existing rooms
 default to DWTools' local roller; No Dice uses its version 1 local broadcast
 API and records the result there. All click-to-roll controls, including
 treasure table selection, use the selected roller. DWTools translates its
-Best/Worst aliases to No Dice's Highest/Lowest syntax. Treasure tables use
-symbolic option faces with No Dice and display the mapped entry. Future
+Best/Worst aliases to No Dice's Highest/Lowest syntax. Treasure tables send
+their authored entries as symbolic faces to No Dice, which presents and records
+the result. DWTools does not show a second success notification for No Dice.
+Entries that cannot be expressed as No Dice facets produce an error rather than
+a placeholder result. Future
 extensions that cannot roll symbolic dice should receive a numeric expression
 representing the available options; their adapter must retain the mapping to display the
 selected text.

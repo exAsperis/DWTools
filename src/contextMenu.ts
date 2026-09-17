@@ -11,7 +11,6 @@ import {
   rollWithSelectedExtension,
   selectedDiceExtension,
   symbolicChoiceExpression,
-  symbolicChoiceIndex,
 } from "./diceExtension";
 import { adjustedHp } from "./hp";
 import { buildContextSummary } from "./contextMenuView";
@@ -158,26 +157,21 @@ function rollTreasure(button: HTMLButtonElement) {
       choices.some((choice) => typeof choice !== "string")
     )
       return;
-    if (choices.length === 1) {
-      void OBR.notification.show(choices[0], "SUCCESS");
-      return;
-    }
     void OBR.room
       .getMetadata()
       .then((metadata) => {
         const noDice = selectedDiceExtension(metadata) === "no-dice";
-        const expression = noDice
-          ? symbolicChoiceExpression(choices.length)
-          : `d${choices.length}`;
-        void rollWithSelectedExtension(expression).then((result) => {
-          const index = noDice
-            ? typeof result === "string"
-              ? symbolicChoiceIndex(result, choices.length)
-              : -1
-            : typeof result === "number"
-              ? result - 1
-              : -1;
-          const choice = choices[index];
+        if (noDice) {
+          void rollWithSelectedExtension(symbolicChoiceExpression(choices));
+          return;
+        }
+        if (choices.length === 1) {
+          void OBR.notification.show(choices[0], "SUCCESS");
+          return;
+        }
+        void rollWithSelectedExtension(`d${choices.length}`).then((result) => {
+          const choice =
+            typeof result === "number" ? choices[result - 1] : undefined;
           if (choice) void OBR.notification.show(choice, "SUCCESS");
         });
       })
