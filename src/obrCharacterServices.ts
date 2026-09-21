@@ -10,6 +10,14 @@ import {
 } from "./characterService";
 import type { RoomMetadata } from "./defaultVisibility";
 import type { CharacterAccessProvider } from "./characterAccess";
+import type { CharacterRepositoryContract } from "./characterRepositoryContract";
+import {
+  bootstrapCharacterPersistenceAuthority,
+  type CharacterPersistenceAuthority,
+} from "./characterPersistenceBootstrap";
+import { createBrowserCharacterLocalStore } from "./characterLocalStore";
+import { createBrowserCharacterMutationLock } from "./characterMutationLock";
+import { createBrowserCharacterTransferJournalStore } from "./characterTransferJournal";
 
 export const obrRoomMetadataStore: CharacterMetadataStore = {
   getMetadata: () => OBR.room.getMetadata(),
@@ -39,7 +47,7 @@ export function createObrCharacterRepository(): CharacterRepository {
 }
 
 export function createObrCreatureService(
-  repository = createObrCharacterRepository(),
+  repository: CharacterRepositoryContract,
 ): CreatureService {
   return new CreatureService(
     repository,
@@ -49,7 +57,7 @@ export function createObrCreatureService(
 }
 
 export function createObrCharacterManagerService(
-  repository = createObrCharacterRepository(),
+  repository: CharacterRepositoryContract,
   creatures = new CreatureService(repository, obrSceneItemStore),
 ): CharacterManagerService {
   return new CharacterManagerService(
@@ -57,4 +65,20 @@ export function createObrCharacterManagerService(
     creatures,
     obrCharacterAccessProvider,
   );
+}
+
+export async function createObrCharacterPersistenceAuthority(): Promise<CharacterPersistenceAuthority> {
+  const localStore = createBrowserCharacterLocalStore(OBR.room.id);
+  try {
+    return await bootstrapCharacterPersistenceAuthority({
+      localStore,
+      transferJournal: createBrowserCharacterTransferJournalStore(OBR.room.id),
+      roomStore: obrRoomMetadataStore,
+      mutationLock: createBrowserCharacterMutationLock(),
+      getActorId: () => OBR.player.getId(),
+    });
+  } catch (error) {
+    localStore.close();
+    throw error;
+  }
 }

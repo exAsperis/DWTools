@@ -9,6 +9,7 @@ import {
   LOCAL_CHARACTER_ENTRY_FORMAT_VERSION,
   type CharacterLocalEntry,
   type CharacterLocalStoreScan,
+  type CharacterLocalChange,
 } from "./characterLocalStore";
 import type { CharacterMutationLock } from "./characterMutationLock";
 import {
@@ -38,6 +39,7 @@ export interface CharacterLocalMutationStore {
   get(characterId: string): CharacterLocalEntry | undefined;
   scan(): CharacterLocalStoreScan;
   put(entry: CharacterLocalEntry): CharacterLocalEntry;
+  subscribe?(callback: (change: CharacterLocalChange) => void): () => void;
 }
 
 export interface CharacterLocalRepositoryOptions {
@@ -95,9 +97,16 @@ export class CharacterLocalRepository {
   }
 
   async list(): Promise<CharacterRecord[]> {
-    return this.store
-      .scan()
-      .entries.flatMap((entry) => {
+    const scan = this.store.scan();
+    if (scan.issues.length) {
+      throw new CharacterRepositoryError(
+        "MALFORMED",
+        "Local Character storage contains malformed entries.",
+        { issues: scan.issues },
+      );
+    }
+    return scan.entries
+      .flatMap((entry) => {
         const lookup = activeLookup(entry);
         return lookup.status === "active" ? [lookup.record] : [];
       })
@@ -205,6 +214,47 @@ export class CharacterLocalRepository {
         ...current,
         fields: { ...current.fields, hpCurrent: adjustedHp(hp, amount) },
       };
+    });
+  }
+
+  async adjustXp(
+    characterId: string,
+    amount: number,
+  ): Promise<CharacterRecord> {
+    if (!Number.isInteger(amount) || amount === 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "XP adjustment must be a non-zero whole number.",
+      );
+    }
+    return this.mutateActive(characterId, (current) => ({
+      ...current,
+      fields: {
+        ...current.fields,
+        xp: Math.max(0, (current.fields.xp ?? 0) + amount),
+      },
+    }));
+  }
+
+  subscribe(
+    callback: (
+      changes: import("./characterRepositoryContract").CharacterRepositoryChange[],
+    ) => void,
+  ): () => void {
+    if (!this.store.subscribe) return () => undefined;
+    return this.store.subscribe((change) => {
+      void this.inspect(change.characterId)
+        .then((lookup) =>
+          callback([{ characterId: change.characterId, lookup }]),
+        )
+        .catch((error) =>
+          callback([
+            {
+              characterId: change.characterId,
+              lookup: { status: "malformed", value: error },
+            },
+          ]),
+        );
     });
   }
 

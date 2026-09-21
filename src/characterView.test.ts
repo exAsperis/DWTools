@@ -111,7 +111,7 @@ describe("character manager view", () => {
     expect(markup).toMatch(
       /HP 8\/10[\s\S]*linked tokens[\s\S]*<strong>Stats<\/strong>[\s\S]*<strong>Inventory<\/strong>/,
     );
-    expect(markup).toContain("Room metadata: approximately 4.0 KiB");
+    expect(markup).not.toContain("Room metadata:");
     expect(markup).toContain('id="manager-create"');
     expect(markup).not.toContain("manager-search");
     expect(markup).not.toContain("Room persistence");
@@ -180,7 +180,7 @@ describe("character manager view", () => {
       true,
     );
 
-    expect(markup).toContain("approaching Owlbear's limit");
+    expect(markup).not.toContain("approaching Owlbear's limit");
   });
 
   it("is collapsed by default", () => {
@@ -202,7 +202,7 @@ describe("character manager view", () => {
   it("warns that deletion orphans linked copies in other scenes", () => {
     const confirmation = buildCharacterDeleteConfirmation("Raganah");
 
-    expect(confirmation).toContain('record "Raganah"');
+    expect(confirmation).toContain('Character "Raganah"');
     expect(confirmation).toContain(
       "Linked copies in other scenes will become orphaned",
     );

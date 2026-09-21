@@ -13,6 +13,8 @@ import {
 } from "./characterReconciliationCoordinator";
 import type { CharacterReconciliationOptions } from "./characterReconciliation";
 import type { CharacterStorageExecutionResult } from "./characterStorageExecutor";
+import { executeCharacterReconciliation } from "./characterStorageExecutor";
+import type { CharacterMutationLock } from "./characterMutationLock";
 
 export interface CharacterShadowRoomStore {
   getMetadata(): Promise<RoomMetadata>;
@@ -21,6 +23,7 @@ export interface CharacterShadowRoomStore {
 
 export interface CharacterShadowPersistenceOptions {
   reconciliation: CharacterReconciliationOptions;
+  mutationLock: CharacterMutationLock;
   /** Optional test injection. */
   executor?: CharacterReconciliationExecutor;
   onImportResult?(result: CharacterRoomImportResult): void;
@@ -37,6 +40,7 @@ export class CharacterShadowPersistence {
   private unsubscribeRoom: (() => void) | undefined;
   private sceneCoordinator: CharacterReconciliationCoordinator | undefined;
   private active = false;
+  private importChain = Promise.resolve();
 
   constructor(
     private readonly localStore: CharacterCoordinatorLocalStore &
@@ -51,7 +55,7 @@ export class CharacterShadowPersistence {
 
     try {
       this.unsubscribeRoom = this.roomStore.subscribe((metadata) => {
-        if (this.active) this.importMetadata(metadata);
+        if (this.active) void this.queueImport(metadata);
       });
     } catch (error) {
       this.reportError(error);
@@ -59,7 +63,7 @@ export class CharacterShadowPersistence {
 
     try {
       const metadata = await this.roomStore.getMetadata();
-      if (this.active) this.importMetadata(metadata);
+      if (this.active) await this.queueImport(metadata);
     } catch (error) {
       this.reportError(error);
     }
@@ -83,7 +87,10 @@ export class CharacterShadowPersistence {
         onResult: (result) => this.reportResult(result),
         onIssue: (issue) => this.reportIssue(issue),
         onError: (error) => this.reportError(error),
-        ...(this.options.executor ? { executor: this.options.executor } : {}),
+        executor: (...args) =>
+          this.options.mutationLock.runExclusive(this.localStore.roomId, () =>
+            (this.options.executor ?? executeCharacterReconciliation)(...args),
+          ),
       },
     );
 
@@ -119,6 +126,7 @@ export class CharacterShadowPersistence {
   }
 
   async whenSceneIdle(): Promise<void> {
+    await this.importChain;
     const coordinator = this.sceneCoordinator;
     if (coordinator) await coordinator.whenIdle();
   }
@@ -131,14 +139,18 @@ export class CharacterShadowPersistence {
     this.stopScene();
   }
 
-  private importMetadata(metadata: RoomMetadata): void {
-    try {
-      this.reportImportResult(
-        importRoomCharacterMetadataToLocal(metadata, this.localStore),
+  private queueImport(metadata: RoomMetadata): Promise<void> {
+    const task = this.importChain.then(async () => {
+      if (!this.active) return;
+      const result = await this.options.mutationLock.runExclusive(
+        this.localStore.roomId,
+        async () =>
+          importRoomCharacterMetadataToLocal(metadata, this.localStore),
       );
-    } catch (error) {
-      this.reportError(error);
-    }
+      this.reportImportResult(result);
+    });
+    this.importChain = task.catch((error) => this.reportError(error));
+    return this.importChain;
   }
 
   private reportImportResult(result: CharacterRoomImportResult): void {

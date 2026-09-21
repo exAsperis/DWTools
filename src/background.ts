@@ -1,9 +1,5 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import { automaticCharacterReconciliationOptions } from "./characterAutomaticMerge";
-import {
-  createBrowserCharacterLocalStore,
-  type CharacterLocalStore,
-} from "./characterLocalStore";
 import { createObrCharacterSceneStore } from "./characterSceneStore";
 import { CharacterShadowPersistence } from "./characterShadowPersistence";
 import { CharacterSyncCoordinator } from "./characterSync";
@@ -18,9 +14,10 @@ import {
 } from "./display";
 import { LatestTaskQueue } from "./latestTaskQueue";
 import {
-  createObrCharacterRepository,
+  createObrCharacterPersistenceAuthority,
   obrSceneItemStore,
 } from "./obrCharacterServices";
+import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import {
   getOverlaySourceSignatures,
@@ -57,7 +54,7 @@ async function setupContextMenus(): Promise<void> {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.3.18"),
+      url: assetUrl("context-menu.html?v=1.3.19"),
       height: 360,
     },
   });
@@ -86,7 +83,7 @@ let lastSourceSignatures = new Map<string, string>();
 let unsubscribeItems: (() => void) | undefined;
 let unsubscribeGrid: (() => void) | undefined;
 let characterShadowPersistence: CharacterShadowPersistence | undefined;
-let characterShadowLocalStore: CharacterLocalStore | undefined;
+let characterAuthority: CharacterPersistenceAuthority | undefined;
 const pendingLegacyIds = new Set<string>();
 let legacyCleanupRunning = false;
 
@@ -207,6 +204,7 @@ async function startSceneSync(requestedGeneration: number) {
     requestedGeneration,
     (generation) => generation === sceneGeneration,
   );
+  await characterShadowPersistence?.whenSceneIdle();
 
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
@@ -248,7 +246,8 @@ async function initializeBackground(): Promise<void> {
   }
 
   try {
-    const localStore = createBrowserCharacterLocalStore(OBR.room.id);
+    const authority = await createObrCharacterPersistenceAuthority();
+    const localStore = authority.localStore;
     const shadow = new CharacterShadowPersistence(
       localStore,
       {
@@ -257,9 +256,10 @@ async function initializeBackground(): Promise<void> {
       },
       {
         reconciliation: automaticCharacterReconciliationOptions,
+        mutationLock: authority.mutationLock,
         onImportResult: (result) => {
           if (result.importedCharacterIds.length > 0) {
-            console.debug("DWTools shadow Character import", {
+            console.debug("DWTools migration Character import", {
               imported: result.importedCharacterIds,
               unchanged: result.unchangedCharacterIds,
             });
@@ -268,7 +268,7 @@ async function initializeBackground(): Promise<void> {
             result.issues.length > 0 ||
             result.blockedCharacterIds.length > 0
           ) {
-            console.warn("DWTools shadow Character import issues", result);
+            console.warn("DWTools migration Character import issues", result);
           }
         },
         onResult: (result) => {
@@ -277,34 +277,36 @@ async function initializeBackground(): Promise<void> {
             result.status === "retry" ||
             result.status === "failed"
           ) {
-            console.warn("DWTools shadow Character synchronization", result);
+            console.warn("DWTools Character synchronization", result);
           }
         },
         onIssue: (issue) => {
-          console.warn("DWTools shadow Character storage issue", issue);
+          console.warn("DWTools Character storage issue", issue);
         },
         onError: (error) => {
-          console.error("DWTools shadow Character persistence failed", error);
+          console.error("DWTools Character persistence failed", error);
         },
       },
     );
 
-    characterShadowLocalStore = localStore;
+    characterAuthority = authority;
     characterShadowPersistence = shadow;
     await shadow.start();
   } catch (error) {
-    console.error(
-      "DWTools could not start shadow Character persistence",
-      error,
-    );
+    console.error("DWTools could not start Character persistence", error);
     characterShadowPersistence?.stop();
     characterShadowPersistence = undefined;
-    characterShadowLocalStore?.close();
-    characterShadowLocalStore = undefined;
+    characterAuthority?.close();
+    characterAuthority = undefined;
+    await OBR.notification.show(
+      "DWTools could not safely open Character storage. Reload Owlbear and try again.",
+      "ERROR",
+    );
+    return;
   }
 
-  const characterRepository = createObrCharacterRepository();
-  const overlayCharacterRepository = createObrCharacterRepository();
+  const characterRepository = characterAuthority.repository;
+  const overlayCharacterRepository = characterRepository;
   const characterSync = new CharacterSyncCoordinator(
     characterRepository,
     obrSceneItemStore,
@@ -313,7 +315,7 @@ async function initializeBackground(): Promise<void> {
       onReadyChange: (callback) => OBR.scene.onReadyChange(callback),
     },
     (error) => console.error("DWTools character synchronization failed", error),
-    ensureMetadataNamespaceMigrated,
+    async () => characterShadowPersistence?.whenSceneIdle(),
   );
   characterSync.start();
   const refreshOverlayLoadStates = async () => {
@@ -343,8 +345,8 @@ async function initializeBackground(): Promise<void> {
     () => {
       characterShadowPersistence?.stop();
       characterShadowPersistence = undefined;
-      characterShadowLocalStore?.close();
-      characterShadowLocalStore = undefined;
+      characterAuthority?.close();
+      characterAuthority = undefined;
       characterSync.stop();
       unsubscribeOverlayCharacters();
     },

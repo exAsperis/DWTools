@@ -22,7 +22,7 @@ The extension should:
 
 The overlay is a presentation of token metadata, not the source of truth.
 For unlinked creatures, creature data belongs on the token. For linked
-creatures, a persistent room character record is authoritative and the token
+creatures, the local/scene synchronized Character history is authoritative and the token
 contains a synchronized scene-local copy. Each client independently derives
 the visual overlay appropriate to that player's role from the token copy.
 

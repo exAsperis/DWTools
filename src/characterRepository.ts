@@ -16,6 +16,7 @@ import {
   type InventoryItem,
   type InventorySelection,
 } from "./inventory";
+import { adjustedHp } from "./hp";
 
 export const CHARACTER_RECORD_SCHEMA_VERSION = 4;
 export const OWLBEAR_ROOM_METADATA_LIMIT_BYTES = 16 * 1024;
@@ -483,6 +484,53 @@ export class CharacterRepository {
       "Another client kept changing this character. Reload it and try again.",
       { characterId, attempts: this.patchRetries },
     );
+  }
+
+  async adjustHp(
+    characterId: string,
+    amount: number,
+  ): Promise<CharacterRecord> {
+    if (!Number.isInteger(amount) || amount === 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "HP adjustment must be a non-zero whole number.",
+      );
+    }
+    return this.mutateRecord(characterId, (current) => {
+      if (current.fields.hpCurrent === undefined) {
+        throw new CharacterRepositoryError(
+          "VALIDATION",
+          "This Character does not have a current HP value.",
+          { characterId },
+        );
+      }
+      return {
+        ...current,
+        fields: {
+          ...current.fields,
+          hpCurrent: adjustedHp(current.fields.hpCurrent, amount),
+        },
+      };
+    });
+  }
+
+  async adjustXp(
+    characterId: string,
+    amount: number,
+  ): Promise<CharacterRecord> {
+    if (!Number.isInteger(amount) || amount === 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "XP adjustment must be a non-zero whole number.",
+      );
+    }
+    return this.mutateRecord(characterId, (current) => ({
+      ...current,
+      fields: {
+        ...current.fields,
+        xp: Math.max(0, (current.fields.xp ?? 0) + amount),
+      },
+    }));
   }
 
   async addInventoryItem(

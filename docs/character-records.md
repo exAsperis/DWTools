@@ -3,19 +3,23 @@
 Last updated: 2026-09-21
 
 This document records the architecture and operational limits of persistent
-room-level character records.
+Character records.
 
 ## Data ownership
 
-The authoritative character record lives in Owlbear room metadata under one
-independent key per record:
+The authoritative Character history lives in browser local storage and is
+synchronized through Owlbear scene metadata. Owlbear room metadata under the
+following prefixes is frozen, read-only migration input:
 
 ```text
 com.ex-asperis.dwtools/character/<character-id>
 ```
 
-The manifest is discovered by scanning that prefix. There is no monolithic
-record map and no separate index.
+Production code never writes or deletes these room keys. At bootstrap, under
+the room-wide Character mutation lock, DWTools recovers any inventory-transfer
+journal, imports both legacy room namespaces, and validates local storage. Any
+unsafe collision, malformed source, malformed local entry, or failed recovery
+blocks Character startup; there is no room-authoritative fallback.
 
 Each linked scene token stores a versioned relationship under:
 
@@ -29,7 +33,7 @@ layer, or selection. An explicit link can optionally copy the Character name
 to the native token label according to the room-wide **Overwrite label**
 preference, which defaults to enabled.
 
-The room record is authoritative. A linked token retains a synchronized
+The local/scene revision history is authoritative. A linked token retains a synchronized
 scene-local copy of the persistent creature data so existing overlays and UI
 continue to read the established creature metadata. The Character name remains
 part of the record, but the token's native label is overwritten only during an
@@ -85,9 +89,9 @@ empty parent list while preserving their existing Character ID, revision
 number, write ID, timestamps, fields, and inventory. The first subsequent
 mutation descends from that preserved legacy write ID.
 
-This schema change is preparatory for the local-first Character persistence
-architecture. At this stage, room metadata remains the authoritative live
-Character store.
+Room records using older schemas are normalized to schema 4 with no parents
+before insertion into a Character history. Revisions embedded in histories
+must already use schema 4.
 
 The pure helpers in `creatureFields.ts` are the canonical mapping between an
 Owlbear item and a character record. Do not add another field mapping in a UI
@@ -95,9 +99,16 @@ component.
 
 ## Repository and concurrency
 
-`CharacterRepository` owns record discovery, validation, schema migration,
-creation, patching, replacement, direct deletion, legacy-tombstone cleanup,
-subscriptions, and metadata-size estimation.
+Production surfaces depend on `CharacterRepositoryContract` and use
+`CharacterLocalRepository`. The legacy room `CharacterRepository` remains only
+for migration compatibility and focused tests.
+
+Bootstrap, room imports, local mutations, transfer recovery, and complete
+reconciliation executions share one room-wide Web Lock. Startup ordering is:
+journal recovery, frozen-room import, local validation, scene reconciliation,
+linked-token synchronization, then normal subscriptions. Room change events
+may import newer legacy descendants but are serialized through the same lock;
+room Character keys remain untouched.
 
 Record patches use bounded optimistic retries:
 

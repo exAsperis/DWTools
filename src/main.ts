@@ -1,11 +1,11 @@
 import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./style.css";
-import {
-  type CharacterLookup,
-  type CharacterRecord,
-  type CharacterRepository,
-  type CharacterStorageUsage,
-} from "./characterRepository";
+import { type CharacterRecord } from "./characterRepository";
+import type {
+  CharacterRepositoryContract,
+  CharacterRepositoryLookup,
+} from "./characterRepositoryContract";
+import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
 import {
   CharacterManagerService,
   CreatureService,
@@ -28,10 +28,7 @@ import {
   writeDeveloperToolsEnabled,
   type CharacterPersistenceDevSnapshot,
 } from "./characterPersistenceDev";
-import {
-  createBrowserCharacterLocalStore,
-  type CharacterLocalStore,
-} from "./characterLocalStore";
+import { type CharacterLocalStore } from "./characterLocalStore";
 import {
   createObrCharacterSceneStore,
   type CharacterSceneStore,
@@ -101,7 +98,7 @@ import {
 } from "./homeView";
 import {
   createObrCharacterManagerService,
-  createObrCharacterRepository,
+  createObrCharacterPersistenceAuthority,
   createObrCreatureService,
 } from "./obrCharacterServices";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
@@ -320,17 +317,16 @@ function fieldPatch(
 let homeRole: HomeRole = "PLAYER";
 let homeMetadata: RoomMetadata = {};
 let savingDefaultVisibility = false;
-let homeRepository: CharacterRepository | undefined;
+let homeRepository: CharacterRepositoryContract | undefined;
+let homeAuthority: CharacterPersistenceAuthority | undefined;
 let homeCreatureService: CreatureService | undefined;
 let homeManagerService: CharacterManagerService | undefined;
 let managerRecords: CharacterRecord[] = [];
 let managerCounts = new Map<string, number>();
 let managerLinkedTokens = new Map<string, LinkedTokenPreview[]>();
-let managerUsage: CharacterStorageUsage | undefined;
 let managerLoading = false;
 let managerSaving = false;
 let managerError: string | undefined;
-let managerLegacyCleanupComplete = false;
 const managerExpandedStats = new Set<string>();
 const managerStatsSaveChains = new Map<string, Promise<void>>();
 let managerDraftCharacterId: string | undefined;
@@ -456,7 +452,6 @@ function managerState(): CharacterManagerViewState {
     counts: managerCounts,
     linkedTokens: managerLinkedTokens,
     role: homeRole,
-    usage: managerUsage,
     loading: managerLoading,
     saving: managerSaving,
     error: managerError,
@@ -1126,9 +1121,6 @@ async function runInventoryMutation(
     managerTransfer = undefined;
     await refreshManager(false);
     if (successMessage) notify(successMessage, "SUCCESS");
-    if (managerUsage?.nearLimit) {
-      notify("Room metadata is approaching Owlbear's size limit.", "WARNING");
-    }
   } catch (error) {
     const errorMessage = messageFrom(
       error,
@@ -1387,22 +1379,9 @@ async function refreshManager(render = true): Promise<void> {
   managerError = undefined;
   if (render) renderHome();
   try {
-    if (homeRole === "GM" && !managerLegacyCleanupComplete) {
-      const cleaned = await homeManagerService.cleanupLegacyTombstones();
-      managerLegacyCleanupComplete = true;
-      if (cleaned) {
-        notify(
-          `Cleaned up ${cleaned} legacy deleted character record${cleaned === 1 ? "" : "s"}.`,
-          "SUCCESS",
-        );
-      }
-    }
-    [managerRecords, managerLinkedTokens, managerUsage] = await Promise.all([
+    [managerRecords, managerLinkedTokens] = await Promise.all([
       homeManagerService.listAccessible(),
       currentSceneLinkedTokenPreviews(homeCreatureService.scene),
-      homeRole === "GM"
-        ? homeRepository.estimateUsage()
-        : Promise.resolve(undefined),
     ]);
     managerCounts = new Map(
       [...managerLinkedTokens].map(([characterId, tokens]) => [
@@ -1552,7 +1531,16 @@ async function startHome(): Promise<void> {
     notify("DWTools could not migrate its saved data.", "ERROR");
     return;
   }
-  homeRepository = createObrCharacterRepository();
+  try {
+    homeAuthority = await createObrCharacterPersistenceAuthority();
+  } catch (error) {
+    console.error("DWTools Character persistence bootstrap failed", error);
+    app.innerHTML =
+      '<p class="error">DWTools could not safely open Character storage. Reload Owlbear and try again.</p>';
+    notify("DWTools could not safely open Character storage.", "ERROR");
+    return;
+  }
+  homeRepository = homeAuthority.repository;
   homeCreatureService = createObrCreatureService(homeRepository);
   homeManagerService = createObrCharacterManagerService(
     homeRepository,
@@ -1567,9 +1555,7 @@ async function startHome(): Promise<void> {
   homeRole = role;
   homeMetadata = roomMetadata;
   loadHomeLayout(playerMetadata);
-  developerPersistenceLocalStore = createBrowserCharacterLocalStore(
-    OBR.room.id,
-  );
+  developerPersistenceLocalStore = homeAuthority.localStore;
   developerPersistenceSceneStore = createObrCharacterSceneStore();
   unsubscribeDeveloperPersistenceLocal =
     developerPersistenceLocalStore.subscribe(() => {
@@ -1595,10 +1581,7 @@ async function startHome(): Promise<void> {
       }
       renderHome();
     }),
-    homeRepository.subscribe((changes) => {
-      if (changes.some((change) => change.lookup.status === "deleted")) {
-        managerLegacyCleanupComplete = false;
-      }
+    homeRepository.subscribe(() => {
       void refreshManager(
         managerStatsSaveChains.size === 0 &&
           (homeRole === "PLAYER" || !managerSaving),
@@ -1651,7 +1634,8 @@ async function startHome(): Promise<void> {
       for (const unsubscribe of unsubscribers) unsubscribe();
       unsubscribeDeveloperPersistenceLocal?.();
       unsubscribeDeveloperPersistenceLocal = undefined;
-      developerPersistenceLocalStore?.close();
+      homeAuthority?.close();
+      homeAuthority = undefined;
       developerPersistenceLocalStore = undefined;
       developerPersistenceSceneStore = undefined;
     },
@@ -1661,11 +1645,12 @@ async function startHome(): Promise<void> {
 
 // Creature editor -----------------------------------------------------------
 
-let editorRepository: CharacterRepository | undefined;
+let editorRepository: CharacterRepositoryContract | undefined;
+let editorAuthority: CharacterPersistenceAuthority | undefined;
 let editorService: CreatureService | undefined;
 let editorToken: Item | undefined;
 let editorFields: CreatureFields | undefined;
-let editorLookup: CharacterLookup = { status: "missing" };
+let editorLookup: CharacterRepositoryLookup = { status: "missing" };
 let editorLinkRecords: CharacterRecord[] = [];
 let editorLinking = false;
 let editorLinkSearch = "";
@@ -2205,7 +2190,16 @@ async function startEditor(): Promise<void> {
     notify("DWTools could not migrate its saved data.", "ERROR");
     return;
   }
-  editorRepository = createObrCharacterRepository();
+  try {
+    editorAuthority = await createObrCharacterPersistenceAuthority();
+  } catch (error) {
+    console.error("DWTools Character persistence bootstrap failed", error);
+    app.innerHTML =
+      '<p class="error">DWTools could not safely open Character storage. Reload Owlbear and try again.</p>';
+    notify("DWTools could not safely open Character storage.", "ERROR");
+    return;
+  }
+  editorRepository = editorAuthority.repository;
   editorService = createObrCreatureService(editorRepository);
   editorClipboard = readCreatureClipboard(window.localStorage);
   const [token, roomMetadata, sceneItems] = await Promise.all([
@@ -2283,6 +2277,8 @@ async function startEditor(): Promise<void> {
     "unload",
     () => {
       for (const unsubscribe of unsubscribers) unsubscribe();
+      editorAuthority?.close();
+      editorAuthority = undefined;
     },
     { once: true },
   );
@@ -2334,14 +2330,6 @@ if (preview === "home") {
       ],
     ],
   ]);
-  managerUsage = {
-    bytes: 7_168,
-    limitBytes: 16_384,
-    safeMaximumBytes: 15_360,
-    warningBytes: 13_107,
-    nearLimit: false,
-    percentOfLimit: 43.75,
-  };
   renderHome();
 } else if (preview === "editor") {
   editorOverwriteLabel =

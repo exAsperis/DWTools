@@ -90,6 +90,7 @@ function setup(room = new FakeRoomStore(metadata())) {
   const errors: unknown[] = [];
   const shadow = new CharacterShadowPersistence(local, room, {
     reconciliation: automaticCharacterReconciliationOptions,
+    mutationLock: { runExclusive: (_roomId, operation) => operation() },
     onError: (error) => errors.push(error),
   });
   return { room, local, shadow, errors };
@@ -106,6 +107,7 @@ describe("CharacterShadowPersistence", () => {
     const { shadow, local, room } = setup();
     await shadow.start();
     room.emit(metadata(record("next", 2, ["root"])));
+    await shadow.whenSceneIdle();
     expect(
       Object.keys(local.get("character-1")!.history.revisions).sort(),
     ).toEqual(["next", "root"]);
@@ -130,6 +132,7 @@ describe("CharacterShadowPersistence", () => {
     await shadow.whenSceneIdle();
     shadow.stopScene();
     room.emit(metadata(record("next", 2, ["root"])));
+    await shadow.whenSceneIdle();
     expect(local.get("character-1")?.history.heads).toEqual(["next"]);
     expect((await scene.get("character-1"))?.heads).toEqual(["root"]);
   });

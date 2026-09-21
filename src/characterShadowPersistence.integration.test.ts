@@ -71,6 +71,7 @@ async function start(metadata: RoomMetadata) {
   const scene = new CharacterSceneStore(new SceneApi());
   const shadow = new CharacterShadowPersistence(local, room, {
     reconciliation: automaticCharacterReconciliationOptions,
+    mutationLock: { runExclusive: (_roomId, operation) => operation() },
   });
   await shadow.start();
   await shadow.startScene(scene, 1, () => true);
