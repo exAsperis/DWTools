@@ -1,7 +1,8 @@
 import type { Item } from "@owlbear-rodeo/sdk";
-import type {
-  CharacterMetadataStore,
-  CharacterRecord,
+import {
+  CHARACTER_RECORD_SCHEMA_VERSION,
+  type CharacterMetadataStore,
+  type CharacterRecord,
 } from "./characterRepository";
 import type { SceneItemStore } from "./characterService";
 import {
@@ -95,7 +96,7 @@ export function activeRecord(
   overrides: Partial<CharacterRecord> = {},
 ): CharacterRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
     id,
     fields: {
       name: "Raganah",
@@ -108,6 +109,7 @@ export function activeRecord(
       treasure: "Silver",
     },
     revision: 1,
+    parents: [],
     createdAt: "2026-07-26T12:00:00.000Z",
     createdBy: "gm-1",
     updatedAt: "2026-07-26T12:00:00.000Z",

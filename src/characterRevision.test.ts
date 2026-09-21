@@ -1,12 +1,6 @@
-import {
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type {
-  CharacterRecord,
-} from "./characterRepository";
+import type { CharacterRecord } from "./characterRepository";
 
 import {
   combineHistories,
@@ -21,9 +15,7 @@ import {
   type VersionedCharacterRecord,
 } from "./characterRevision";
 
-import {
-  activeRecord,
-} from "./characterTestHelpers";
+import { activeRecord } from "./characterTestHelpers";
 
 function record(
   writeId: string,
@@ -59,53 +51,32 @@ function history(
     heads,
 
     revisions: Object.fromEntries(
-      records.map(
-        (entry) => [entry.writeId, entry],
-      ),
+      records.map((entry) => [entry.writeId, entry]),
     ),
   };
 }
 
 describe("deepEqual", () => {
   it("ignores object property insertion order", () => {
-    expect(
-      deepEqual(
-        { a: 1, b: 2 },
-        { b: 2, a: 1 },
-      ),
-    ).toBe(true);
+    expect(deepEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(true);
   });
 
   it("preserves array ordering", () => {
-    expect(
-      deepEqual(
-        ["a", "b"],
-        ["b", "a"],
-      ),
-    ).toBe(false);
+    expect(deepEqual(["a", "b"], ["b", "a"])).toBe(false);
   });
 
   it("distinguishes missing and undefined properties", () => {
-    expect(
-      deepEqual(
-        {},
-        { hpCurrent: undefined },
-      ),
-    ).toBe(false);
+    expect(deepEqual({}, { hpCurrent: undefined })).toBe(false);
   });
 
   it("compares nested values structurally", () => {
     expect(
       deepEqual(
         {
-          inventory: [
-            ["Potion", 1, 3],
-          ],
+          inventory: [["Potion", 1, 3]],
         },
         {
-          inventory: [
-            ["Potion", 1, 3],
-          ],
+          inventory: [["Potion", 1, 3]],
         },
       ),
     ).toBe(true);
@@ -115,100 +86,42 @@ describe("deepEqual", () => {
 describe("revision ancestry", () => {
   const root = record("root");
 
-  const second = record(
-    "second",
-    ["root"],
-  );
+  const second = record("second", ["root"]);
 
-  const third = record(
-    "third",
-    ["second"],
-  );
+  const third = record("third", ["second"]);
 
-  const branch = record(
-    "branch",
-    ["root"],
-  );
+  const branch = record("branch", ["root"]);
 
   const graph = historyGraph(
-    history(
-      ["third", "branch"],
-      root,
-      second,
-      third,
-      branch,
-    ),
+    history(["third", "branch"], root, second, third, branch),
   );
 
   it("recognizes identical revisions", () => {
-    expect(
-      compareAncestry(
-        graph,
-        "root",
-        "root",
-      ),
-    ).toBe("same");
+    expect(compareAncestry(graph, "root", "root")).toBe("same");
   });
 
   it("recognizes indirect ancestry", () => {
-    expect(
-      compareAncestry(
-        graph,
-        "root",
-        "third",
-      ),
-    ).toBe("ancestor");
+    expect(compareAncestry(graph, "root", "third")).toBe("ancestor");
   });
 
   it("does not reverse ancestry", () => {
-    expect(
-      compareAncestry(
-        graph,
-        "third",
-        "root",
-      ),
-    ).toBe("diverged");
+    expect(compareAncestry(graph, "third", "root")).toBe("diverged");
   });
 
   it("recognizes divergent branches", () => {
-    expect(
-      compareAncestry(
-        graph,
-        "third",
-        "branch",
-      ),
-    ).toBe("diverged");
+    expect(compareAncestry(graph, "third", "branch")).toBe("diverged");
   });
 
   it("reports unknown ancestry when a node is absent", () => {
     const incomplete = historyGraph(
-      history(
-        ["third"],
-        root,
-        record(
-          "third",
-          ["missing"],
-        ),
-      ),
+      history(["third"], root, record("third", ["missing"])),
     );
 
-    expect(
-      compareAncestry(
-        incomplete,
-        "root",
-        "third",
-      ),
-    ).toBe("unknown");
+    expect(compareAncestry(incomplete, "root", "third")).toBe("unknown");
   });
 
   it("finds the nearest common ancestor", () => {
-    expect(
-      findCommonAncestor(
-        graph,
-        "third",
-        "branch",
-      ),
-    ).toEqual({
+    expect(findCommonAncestor(graph, "third", "branch")).toEqual({
       status: "found",
       id: "root",
     });
@@ -218,44 +131,22 @@ describe("revision ancestry", () => {
     const incomplete = historyGraph(
       history(
         ["left", "right"],
-        record(
-          "left",
-          ["missing"],
-        ),
-        record(
-          "right",
-          ["missing"],
-        ),
+        record("left", ["missing"]),
+        record("right", ["missing"]),
       ),
     );
 
-    expect(
-      findCommonAncestor(
-        incomplete,
-        "left",
-        "right",
-      ),
-    ).toEqual({
+    expect(findCommonAncestor(incomplete, "left", "right")).toEqual({
       status: "unknown",
     });
   });
 
   it("does not invent a common ancestor", () => {
     const disconnected = historyGraph(
-      history(
-        ["left", "right"],
-        record("left"),
-        record("right"),
-      ),
+      history(["left", "right"], record("left"), record("right")),
     );
 
-    expect(
-      findCommonAncestor(
-        disconnected,
-        "left",
-        "right",
-      ),
-    ).toEqual({
+    expect(findCommonAncestor(disconnected, "left", "right")).toEqual({
       status: "none",
     });
   });
@@ -270,25 +161,13 @@ describe("revision ancestry", () => {
         record("a", ["root"]),
         record("b", ["root"]),
 
-        record(
-          "left",
-          ["a", "b"],
-        ),
+        record("left", ["a", "b"]),
 
-        record(
-          "right",
-          ["b", "a"],
-        ),
+        record("right", ["b", "a"]),
       ),
     );
 
-    expect(
-      findCommonAncestor(
-        ambiguous,
-        "left",
-        "right",
-      ),
-    ).toEqual({
+    expect(findCommonAncestor(ambiguous, "left", "right")).toEqual({
       status: "ambiguous",
     });
   });
@@ -297,11 +176,7 @@ describe("revision ancestry", () => {
 describe("history validation", () => {
   it("accepts a valid history", () => {
     const result = validateHistory(
-      history(
-        ["second"],
-        record("root"),
-        record("second", ["root"]),
-      ),
+      history(["second"], record("root"), record("second", ["root"])),
     );
 
     expect(result).toEqual([]);
@@ -309,13 +184,7 @@ describe("history validation", () => {
 
   it("reports missing parent records", () => {
     const result = validateHistory(
-      history(
-        ["second"],
-        record(
-          "second",
-          ["missing"],
-        ),
-      ),
+      history(["second"], record("second", ["missing"])),
     );
 
     expect(result).toContainEqual({
@@ -327,48 +196,24 @@ describe("history validation", () => {
 
   it("reports duplicate parents", () => {
     const result = validateHistory(
-      history(
-        ["second"],
-        record("root"),
-        record(
-          "second",
-          ["root", "root"],
-        ),
-      ),
+      history(["second"], record("root"), record("second", ["root", "root"])),
     );
 
-    expect(
-      result.some(
-        (issue) =>
-          issue.code === "duplicate-parent",
-      ),
-    ).toBe(true);
+    expect(result.some((issue) => issue.code === "duplicate-parent")).toBe(
+      true,
+    );
   });
 
   it("detects revision cycles", () => {
     const result = validateHistory(
-      history(
-        ["a"],
-        record("a", ["b"]),
-        record("b", ["a"]),
-      ),
+      history(["a"], record("a", ["b"]), record("b", ["a"])),
     );
 
-    expect(
-      result.some(
-        (issue) =>
-          issue.code === "cycle",
-      ),
-    ).toBe(true);
+    expect(result.some((issue) => issue.code === "cycle")).toBe(true);
   });
 
   it("reports missing heads", () => {
-    const result = validateHistory(
-      history(
-        ["missing"],
-        record("root"),
-      ),
-    );
+    const result = validateHistory(history(["missing"], record("root")));
 
     expect(result).toContainEqual({
       code: "missing-head",
@@ -382,38 +227,23 @@ describe("history validation", () => {
       id: "another-character",
     };
 
-    const result = validateHistory(
-      history(
-        ["root"],
-        incorrect,
-      ),
-    );
+    const result = validateHistory(history(["root"], incorrect));
 
-    expect(
-      result.some(
-        (issue) =>
-          issue.code === "invalid-identity",
-      ),
-    ).toBe(true);
+    expect(result.some((issue) => issue.code === "invalid-identity")).toBe(
+      true,
+    );
   });
 });
 
 describe("combining histories", () => {
   it("fast-forwards a known ancestor", () => {
     const root = record("root");
-    const next = record(
-      "next",
-      ["root"],
-    );
+    const next = record("next", ["root"]);
 
     const result = combineHistories(
       history(["root"], root),
 
-      history(
-        ["next"],
-        root,
-        next,
-      ),
+      history(["next"], root, next),
     );
 
     expect(result.status).toBe("combined");
@@ -422,40 +252,22 @@ describe("combining histories", () => {
       throw new Error(result.reason);
     }
 
-    expect(result.history.heads).toEqual([
-      "next",
-    ]);
+    expect(result.history.heads).toEqual(["next"]);
 
-    expect(
-      Object.keys(result.history.revisions),
-    ).toHaveLength(2);
+    expect(Object.keys(result.history.revisions)).toHaveLength(2);
   });
 
   it("preserves divergent heads", () => {
     const root = record("root");
 
-    const left = record(
-      "left",
-      ["root"],
-    );
+    const left = record("left", ["root"]);
 
-    const right = record(
-      "right",
-      ["root"],
-    );
+    const right = record("right", ["root"]);
 
     const result = combineHistories(
-      history(
-        ["left"],
-        root,
-        left,
-      ),
+      history(["left"], root, left),
 
-      history(
-        ["right"],
-        root,
-        right,
-      ),
+      history(["right"], root, right),
     );
 
     expect(result.status).toBe("combined");
@@ -464,28 +276,18 @@ describe("combining histories", () => {
       throw new Error(result.reason);
     }
 
-    expect(
-      new Set(result.history.heads),
-    ).toEqual(
-      new Set(["left", "right"]),
-    );
+    expect(new Set(result.history.heads)).toEqual(new Set(["left", "right"]));
   });
 
   it("does not discard an uncertain head", () => {
     const root = record("root");
 
-    const unknown = record(
-      "unknown",
-      ["missing"],
-    );
+    const unknown = record("unknown", ["missing"]);
 
     const result = combineHistories(
       history(["root"], root),
 
-      history(
-        ["unknown"],
-        unknown,
-      ),
+      history(["unknown"], unknown),
     );
 
     expect(result.status).toBe("combined");
@@ -494,25 +296,13 @@ describe("combining histories", () => {
       throw new Error(result.reason);
     }
 
-    expect(
-      new Set(result.history.heads),
-    ).toEqual(
-      new Set(["root", "unknown"]),
-    );
+    expect(new Set(result.history.heads)).toEqual(new Set(["root", "unknown"]));
   });
 
   it("rejects identical revision IDs with different contents", () => {
-    const left = record(
-      "same-id",
-      [],
-      { hpCurrent: 10 },
-    );
+    const left = record("same-id", [], { hpCurrent: 10 });
 
-    const right = record(
-      "same-id",
-      [],
-      { hpCurrent: 5 },
-    );
+    const right = record("same-id", [], { hpCurrent: 5 });
 
     const result = combineHistories(
       history(["same-id"], left),
@@ -526,23 +316,14 @@ describe("combining histories", () => {
   it("does not mutate either source history", () => {
     const root = record("root");
 
-    const original = history(
-      ["root"],
-      root,
-    );
+    const original = history(["root"], root);
 
-    const before =
-      JSON.stringify(original);
+    const before = JSON.stringify(original);
 
-    const result = combineHistories(
-      original,
-      history(["root"], root),
-    );
+    const result = combineHistories(original, history(["root"], root));
 
     expect(result.status).toBe("combined");
-    expect(
-      JSON.stringify(original),
-    ).toBe(before);
+    expect(JSON.stringify(original)).toBe(before);
   });
 });
 
@@ -556,9 +337,7 @@ describe("three-way Character merging", () => {
     },
     {
       revision: 12,
-      inventory: [
-        ["Potion", 1, 3],
-      ],
+      inventory: [["Potion", 1, 3]],
     },
   );
 
@@ -571,9 +350,7 @@ describe("three-way Character merging", () => {
     },
     {
       revision: 13,
-      inventory: [
-        ["Potion", 1, 3],
-      ],
+      inventory: [["Potion", 1, 3]],
     },
   );
 
@@ -586,25 +363,17 @@ describe("three-way Character merging", () => {
     },
     {
       revision: 13,
-      inventory: [
-        ["Potion", 1, 3],
-      ],
+      inventory: [["Potion", 1, 3]],
     },
   );
 
   it("merges independent field changes", () => {
-    const result = mergeCharacterSnapshots(
-      base,
-      local,
-      remote,
-    );
+    const result = mergeCharacterSnapshots(base, local, remote);
 
     expect(result.status).toBe("merged");
 
     if (result.status !== "merged") {
-      throw new Error(
-        result.fields.join(", "),
-      );
+      throw new Error(result.fields.join(", "));
     }
 
     expect(result.data.fields.hpCurrent).toBe(12);
@@ -612,25 +381,11 @@ describe("three-way Character merging", () => {
   });
 
   it("does not mutate its input records", () => {
-    const before = JSON.stringify([
-      base,
-      local,
-      remote,
-    ]);
+    const before = JSON.stringify([base, local, remote]);
 
-    mergeCharacterSnapshots(
-      base,
-      local,
-      remote,
-    );
+    mergeCharacterSnapshots(base, local, remote);
 
-    expect(
-      JSON.stringify([
-        base,
-        local,
-        remote,
-      ]),
-    ).toBe(before);
+    expect(JSON.stringify([base, local, remote])).toBe(before);
   });
 
   it("reports incompatible changes to the same field", () => {
@@ -643,17 +398,11 @@ describe("three-way Character merging", () => {
       },
       {
         revision: 13,
-        inventory: [
-          ["Potion", 1, 3],
-        ],
+        inventory: [["Potion", 1, 3]],
       },
     );
 
-    const result = mergeCharacterSnapshots(
-      base,
-      local,
-      conflictingRemote,
-    );
+    const result = mergeCharacterSnapshots(base, local, conflictingRemote);
 
     expect(result).toEqual({
       status: "conflict",
@@ -671,17 +420,11 @@ describe("three-way Character merging", () => {
       },
       {
         revision: 13,
-        inventory: [
-          ["Potion", 1, 3],
-        ],
+        inventory: [["Potion", 1, 3]],
       },
     );
 
-    const result = mergeCharacterSnapshots(
-      base,
-      local,
-      other,
-    );
+    const result = mergeCharacterSnapshots(base, local, other);
 
     expect(result.status).toBe("merged");
   });
@@ -696,31 +439,21 @@ describe("three-way Character merging", () => {
       },
       {
         revision: 13,
-        inventory: [
-          ["Potion", 1, 4],
-        ],
+        inventory: [["Potion", 1, 4]],
       },
     );
 
-    const result = mergeCharacterSnapshots(
-      base,
-      local,
-      inventoryBranch,
-    );
+    const result = mergeCharacterSnapshots(base, local, inventoryBranch);
 
     expect(result.status).toBe("merged");
 
     if (result.status !== "merged") {
-      throw new Error(
-        result.fields.join(", "),
-      );
+      throw new Error(result.fields.join(", "));
     }
 
     expect(result.data.fields.hpCurrent).toBe(12);
 
-    expect(result.data.inventory).toEqual([
-      ["Potion", 1, 4],
-    ]);
+    expect(result.data.inventory).toEqual([["Potion", 1, 4]]);
   });
 
   it("refuses incompatible inventory changes", () => {
@@ -730,9 +463,7 @@ describe("three-way Character merging", () => {
       {},
       {
         revision: 13,
-        inventory: [
-          ["Potion", 1, 2],
-        ],
+        inventory: [["Potion", 1, 2]],
       },
     );
 
@@ -742,17 +473,11 @@ describe("three-way Character merging", () => {
       {},
       {
         revision: 13,
-        inventory: [
-          ["Potion", 1, 4],
-        ],
+        inventory: [["Potion", 1, 4]],
       },
     );
 
-    const result = mergeCharacterSnapshots(
-      base,
-      inventoryLeft,
-      inventoryRight,
-    );
+    const result = mergeCharacterSnapshots(base, inventoryLeft, inventoryRight);
 
     expect(result).toEqual({
       status: "conflict",
@@ -762,7 +487,7 @@ describe("three-way Character merging", () => {
 
   it("refuses incompatible deletion and editing", () => {
     const deleted: VersionedCharacterRecord = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "character-1",
       revision: 13,
       writeId: "deleted",
@@ -773,42 +498,27 @@ describe("three-way Character merging", () => {
       deletedBy: "gm-1",
     };
 
-    const result = mergeCharacterSnapshots(
-      base,
-      local,
-      deleted,
-    );
+    const result = mergeCharacterSnapshots(base, local, deleted);
 
     expect(result.status).toBe("conflict");
   });
 
   it("creates a merge revision with two parents", () => {
-    const result = createMergeRevision(
-      base,
-      local,
-      remote,
-      {
-        writeId: "merged",
-        actorId: "gm-1",
-        updatedAt:
-          "2026-07-28T12:00:00.000Z",
-      },
-    );
+    const result = createMergeRevision(base, local, remote, {
+      writeId: "merged",
+      actorId: "gm-1",
+      updatedAt: "2026-07-28T12:00:00.000Z",
+    });
 
     expect(result.status).toBe("merged");
 
     if (result.status !== "merged") {
-      throw new Error(
-        result.fields.join(", "),
-      );
+      throw new Error(result.fields.join(", "));
     }
 
     expect(result.record.writeId).toBe("merged");
 
-    expect(result.record.parents).toEqual([
-      "local",
-      "remote",
-    ]);
+    expect(result.record.parents).toEqual(["local", "remote"]);
 
     expect(result.record.revision).toBe(14);
 
@@ -819,64 +529,32 @@ describe("three-way Character merging", () => {
   });
 
   it("recognizes a merge commit as a descendant of both branches", () => {
-    const merged = createMergeRevision(
-      base,
-      local,
-      remote,
-      {
-        writeId: "merged",
-        actorId: "gm-1",
-        updatedAt:
-          "2026-07-28T12:00:00.000Z",
-      },
-    );
+    const merged = createMergeRevision(base, local, remote, {
+      writeId: "merged",
+      actorId: "gm-1",
+      updatedAt: "2026-07-28T12:00:00.000Z",
+    });
 
     if (merged.status !== "merged") {
-      throw new Error(
-        merged.fields.join(", "),
-      );
+      throw new Error(merged.fields.join(", "));
     }
 
     const graph = historyGraph(
-      history(
-        ["merged"],
-        base,
-        local,
-        remote,
-        merged.record,
-      ),
+      history(["merged"], base, local, remote, merged.record),
     );
 
-    expect(
-      compareAncestry(
-        graph,
-        "local",
-        "merged",
-      ),
-    ).toBe("ancestor");
+    expect(compareAncestry(graph, "local", "merged")).toBe("ancestor");
 
-    expect(
-      compareAncestry(
-        graph,
-        "remote",
-        "merged",
-      ),
-    ).toBe("ancestor");
+    expect(compareAncestry(graph, "remote", "merged")).toBe("ancestor");
   });
 
   it("refuses to reuse a parent revision ID", () => {
     expect(() =>
-      createMergeRevision(
-        base,
-        local,
-        remote,
-        {
-          writeId: "local",
-          actorId: "gm-1",
-          updatedAt:
-            "2026-07-28T12:00:00.000Z",
-        },
-      ),
+      createMergeRevision(base, local, remote, {
+        writeId: "local",
+        actorId: "gm-1",
+        updatedAt: "2026-07-28T12:00:00.000Z",
+      }),
     ).toThrow();
   });
 });

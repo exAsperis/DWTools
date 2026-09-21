@@ -2150,7 +2150,7 @@ if (preview === "home") {
   };
   managerRecords = [
     {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "preview-active",
       fields: {
         name: "Raganah",
@@ -2161,6 +2161,7 @@ if (preview === "home") {
         tags: ["Cautious", "Loyal"],
       },
       revision: 3,
+      parents: [],
       createdAt: "2026-07-25T15:00:00.000Z",
       createdBy: "preview-gm",
       updatedAt: "2026-07-26T15:00:00.000Z",

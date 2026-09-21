@@ -1,6 +1,6 @@
 # DWTools character-record engineering notes
 
-Last updated: 2026-07-29
+Last updated: 2026-09-21
 
 This document records the architecture and operational limits of persistent
 room-level character records.
@@ -73,6 +73,22 @@ maximum into `fields.maxLoad`; schema-1 records default non-destructively to no
 maximum Load and an empty inventory. Empty inventory arrays are omitted when
 written.
 
+Schema 4 adds explicit revision ancestry through `parents`, an array of direct
+parent `writeId` values. `writeId` is the stable identity of a specific
+Character revision; the integer `revision` remains a convenience value and is
+not used by itself to establish ancestry or authority.
+
+New Characters begin with an empty parent list. An ordinary mutation records
+the exact previous record's `writeId` as its sole parent. Schema-1, schema-2,
+and schema-3 records migrate non-destructively as earliest-known roots with an
+empty parent list while preserving their existing Character ID, revision
+number, write ID, timestamps, fields, and inventory. The first subsequent
+mutation descends from that preserved legacy write ID.
+
+This schema change is preparatory for the local-first Character persistence
+architecture. At this stage, room metadata remains the authoritative live
+Character store.
+
 The pure helpers in `creatureFields.ts` are the canonical mapping between an
 Owlbear item and a character record. Do not add another field mapping in a UI
 component.
@@ -87,7 +103,8 @@ Record patches use bounded optimistic retries:
 
 1. read the latest record;
 2. merge the requested patch;
-3. increment its revision and generate a new write ID;
+3. create a descendant revision whose parent is the latest record's `writeId`,
+   increment its numeric revision, and generate a new `writeId`;
 4. write only the record's independent room-metadata key;
 5. read it back and compare the write ID; and
 6. merge the original patch onto the new latest record and retry after a

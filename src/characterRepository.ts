@@ -17,7 +17,7 @@ import {
   type InventorySelection,
 } from "./inventory";
 
-export const CHARACTER_RECORD_SCHEMA_VERSION = 3;
+export const CHARACTER_RECORD_SCHEMA_VERSION = 4;
 export const OWLBEAR_ROOM_METADATA_LIMIT_BYTES = 16 * 1024;
 export const CHARACTER_METADATA_SAFE_MAX_BYTES = 15 * 1024;
 export const CHARACTER_METADATA_WARNING_BYTES = Math.floor(
@@ -29,6 +29,16 @@ interface CharacterAuditFields {
   id: string;
   revision: number;
   writeId: string;
+
+  /**
+   * writeIds of the revisions from which this revision
+   * directly descends.
+   *
+   * Ordinary edits have one parent.
+   * New/imported roots have none.
+   * Future merge revisions may have multiple parents.
+   */
+  parents: string[];
 }
 
 export interface CharacterRecord extends CharacterAuditFields {
@@ -131,12 +141,62 @@ export function characterIdFromMetadataKey(key: string): string | undefined {
   return id || undefined;
 }
 
+type CharacterRecordSourceVersion =
+  1 | 2 | 3 | typeof CHARACTER_RECORD_SCHEMA_VERSION;
+
+function parseCharacterParents(
+  value: Record<string, unknown>,
+  sourceVersion: CharacterRecordSourceVersion,
+): string[] | undefined {
+  /*
+   * Schemas 1-3 did not store ancestry.
+   *
+   * Treat an old record as an earliest-known root.
+   * Do not infer parents from revision numbers or
+   * timestamps.
+   */
+  if (sourceVersion < 4) {
+    return [];
+  }
+
+  if (!Array.isArray(value.parents)) {
+    return undefined;
+  }
+
+  const parents: string[] = [];
+  const seen = new Set<string>();
+
+  for (const parentId of value.parents) {
+    if (
+      typeof parentId !== "string" ||
+      parentId.length === 0 ||
+      parentId === value.writeId ||
+      seen.has(parentId)
+    ) {
+      return undefined;
+    }
+
+    seen.add(parentId);
+    parents.push(parentId);
+  }
+
+  return parents;
+}
+
 function parseCharacterRecordVersion(
   value: unknown,
   expectedId: string,
-  sourceVersion: 1 | 2 | typeof CHARACTER_RECORD_SCHEMA_VERSION,
+  sourceVersion: CharacterRecordSourceVersion,
 ): StoredCharacterRecord | undefined {
-  if (!isObject(value) || !isAuditFields(value, expectedId)) return undefined;
+  if (!isObject(value) || !isAuditFields(value, expectedId)) {
+    return undefined;
+  }
+
+  const parents = parseCharacterParents(value, sourceVersion);
+
+  if (parents === undefined) {
+    return undefined;
+  }
 
   if (value.deleted === true) {
     if (
@@ -150,6 +210,7 @@ function parseCharacterRecordVersion(
       id: expectedId,
       revision: Number(value.revision),
       writeId: String(value.writeId),
+      parents,
       ...(typeof value.name === "string" && value.name
         ? { name: value.name }
         : {}),
@@ -183,11 +244,12 @@ function parseCharacterRecordVersion(
           : { ...fields, maxLoad: legacyMaxLoad },
       ...(inventory.length ? { inventory } : {}),
       revision: Number(value.revision),
+      writeId: String(value.writeId),
+      parents,
       createdAt: value.createdAt,
       createdBy: value.createdBy,
       updatedAt: value.updatedAt,
       updatedBy: value.updatedBy,
-      writeId: String(value.writeId),
     };
   } catch {
     return undefined;
@@ -198,12 +260,17 @@ export function migrateCharacterRecord(
   value: unknown,
   expectedId: string,
 ): StoredCharacterRecord | undefined {
-  if (!isObject(value)) return undefined;
+  if (!isObject(value)) {
+    return undefined;
+  }
+
   switch (value.schemaVersion) {
     case 1:
       return parseCharacterRecordVersion(value, expectedId, 1);
     case 2:
       return parseCharacterRecordVersion(value, expectedId, 2);
+    case 3:
+      return parseCharacterRecordVersion(value, expectedId, 3);
     case CHARACTER_RECORD_SCHEMA_VERSION:
       return parseCharacterRecordVersion(
         value,
@@ -336,6 +403,7 @@ export class CharacterRepository {
       id: this.randomUUID(),
       fields: normalized,
       revision: 1,
+      parents: [],
       createdAt: timestamp,
       createdBy: actorId,
       updatedAt: timestamp,
@@ -357,14 +425,14 @@ export class CharacterRepository {
         characterId,
       );
       const actorId = await this.getActorId();
-      const candidate: CharacterRecord = {
-        ...current,
-        fields: mergeCreatureFieldPatch(current.fields, patch),
-        revision: current.revision + 1,
-        updatedAt: this.now().toISOString(),
-        updatedBy: actorId,
-        writeId: this.randomUUID(),
-      };
+      const candidate = this.finalizeMutation(
+        {
+          ...current,
+          fields: mergeCreatureFieldPatch(current.fields, patch),
+        },
+        actorId,
+        this.now().toISOString(),
+      );
       if (!(await this.writeCandidate(candidate, current.writeId))) continue;
       const readBack = await this.inspect(characterId);
       if (
@@ -393,14 +461,14 @@ export class CharacterRepository {
         characterId,
       );
       const actorId = await this.getActorId();
-      const candidate: CharacterRecord = {
-        ...current,
-        fields: normalized,
-        revision: current.revision + 1,
-        updatedAt: this.now().toISOString(),
-        updatedBy: actorId,
-        writeId: this.randomUUID(),
-      };
+      const candidate = this.finalizeMutation(
+        {
+          ...current,
+          fields: normalized,
+        },
+        actorId,
+        this.now().toISOString(),
+      );
       if (!(await this.writeCandidate(candidate, current.writeId))) continue;
       const readBack = await this.inspect(characterId);
       if (
@@ -825,10 +893,13 @@ export class CharacterRepository {
     actorId: string,
     timestamp: string,
   ): CharacterRecord {
+    const parentWriteId = record.writeId;
+
     return {
       ...record,
       schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
       revision: record.revision + 1,
+      parents: [parentWriteId],
       updatedAt: timestamp,
       updatedBy: actorId,
       writeId: this.randomUUID(),

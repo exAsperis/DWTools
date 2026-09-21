@@ -6,17 +6,12 @@ import type {
 import type { CreatureFields } from "./constants";
 
 /**
- * A Character record with revision ancestry.
+ * Kept as a semantic name for revision-history code.
  *
- * This separate type allows the revision engine to be developed
- * before CharacterRepository's production schema changes.
- *
- * In Chunk 3, parents will become part of the normal record schema.
+ * As of Character schema 4, every stored Character
+ * revision already includes its ancestry.
  */
-export type VersionedCharacterRecord =
-  StoredCharacterRecord & {
-    parents: string[];
-  };
+export type VersionedCharacterRecord = StoredCharacterRecord;
 
 /**
  * The key is the record's existing writeId.
@@ -36,14 +31,9 @@ export interface RevisionNode {
   parents: readonly string[];
 }
 
-export type RevisionGraph =
-  ReadonlyMap<string, RevisionNode>;
+export type RevisionGraph = ReadonlyMap<string, RevisionNode>;
 
-export type Ancestry =
-  | "same"
-  | "ancestor"
-  | "diverged"
-  | "unknown";
+export type Ancestry = "same" | "ancestor" | "diverged" | "unknown";
 
 export type CommonAncestorResult =
   | { status: "found"; id: string }
@@ -107,10 +97,7 @@ export interface MergeRevisionOptions {
   updatedAt: string;
 }
 
-const hasOwn = (
-  object: object,
-  key: string,
-): boolean =>
+const hasOwn = (object: object, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(object, key);
 
 /**
@@ -123,10 +110,7 @@ const hasOwn = (
  *
  * No input values are modified.
  */
-export function deepEqual(
-  left: unknown,
-  right: unknown,
-): boolean {
+export function deepEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
 
   if (
@@ -145,9 +129,7 @@ export function deepEqual(
 
     if (left.length !== right.length) return false;
 
-    return left.every((value, index) =>
-      deepEqual(value, right[index]),
-    );
+    return left.every((value, index) => deepEqual(value, right[index]));
   }
 
   const leftObject = left as Record<string, unknown>;
@@ -162,8 +144,7 @@ export function deepEqual(
 
   return leftKeys.every(
     (key) =>
-      hasOwn(rightObject, key) &&
-      deepEqual(leftObject[key], rightObject[key]),
+      hasOwn(rightObject, key) && deepEqual(leftObject[key], rightObject[key]),
   );
 }
 
@@ -178,14 +159,9 @@ function cloneValue<T>(value: T): T {
     return value.map((item) => cloneValue(item)) as T;
   }
 
-  if (
-    value !== null &&
-    typeof value === "object"
-  ) {
+  if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(
-        ([key, item]) => [key, cloneValue(item)],
-      ),
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
     ) as T;
   }
 
@@ -301,9 +277,7 @@ export function findCommonAncestor(
     return { status: "unknown" };
   }
 
-  const common = [...left.ids].filter(
-    (id) => right.ids.has(id),
-  );
+  const common = [...left.ids].filter((id) => right.ids.has(id));
 
   if (common.length === 0) {
     return { status: "none" };
@@ -320,11 +294,7 @@ export function findCommonAncestor(
       !common.some(
         (other) =>
           other !== candidate &&
-          compareAncestry(
-            graph,
-            candidate,
-            other,
-          ) === "ancestor",
+          compareAncestry(graph, candidate, other) === "ancestor",
       ),
   );
 
@@ -347,15 +317,10 @@ export function findCommonAncestor(
  * but must not assume that unknown ancestry establishes
  * an authoritative ordering.
  */
-export function validateHistory(
-  history: CharacterHistory,
-): RevisionIssue[] {
+export function validateHistory(history: CharacterHistory): RevisionIssue[] {
   const issues: RevisionIssue[] = [];
 
-  if (
-    history.formatVersion !== 1 ||
-    !history.characterId.trim()
-  ) {
+  if (history.formatVersion !== 1 || !history.characterId.trim()) {
     issues.push({
       code: "invalid-identity",
       revisionId: history.characterId,
@@ -388,10 +353,7 @@ export function validateHistory(
     const seenParents = new Set<string>();
 
     for (const parentId of record.parents) {
-      if (
-        typeof parentId !== "string" ||
-        parentId.length === 0
-      ) {
+      if (typeof parentId !== "string" || parentId.length === 0) {
         issues.push({
           code: "invalid-parent",
           revisionId: id,
@@ -501,12 +463,10 @@ export function historyGraph(
   history: CharacterHistory,
 ): Map<string, RevisionNode> {
   return new Map(
-    Object.entries(history.revisions).map(
-      ([id, record]) => [
-        id,
-        { parents: [...record.parents] },
-      ],
-    ),
+    Object.entries(history.revisions).map(([id, record]) => [
+      id,
+      { parents: [...record.parents] },
+    ]),
   );
 }
 
@@ -542,8 +502,8 @@ export function combineHistories(
   ]);
 
   for (const history of [left, right]) {
-    const invalid = validateHistory(history).find(
-      (issue) => invalidCodes.has(issue.code),
+    const invalid = validateHistory(history).find((issue) =>
+      invalidCodes.has(issue.code),
     );
 
     if (invalid) {
@@ -556,25 +516,17 @@ export function combineHistories(
     }
   }
 
-  const revisions:
-    Record<string, VersionedCharacterRecord> = {};
+  const revisions: Record<string, VersionedCharacterRecord> = {};
 
   for (const history of [left, right]) {
-    for (
-      const [id, record]
-      of Object.entries(history.revisions)
-    ) {
+    for (const [id, record] of Object.entries(history.revisions)) {
       const existing = revisions[id];
 
-      if (
-        existing &&
-        !deepEqual(existing, record)
-      ) {
+      if (existing && !deepEqual(existing, record)) {
         return {
           status: "conflict",
           reason:
-            `Revision ${id} has different contents ` +
-            "in the two histories.",
+            `Revision ${id} has different contents ` + "in the two histories.",
         };
       }
 
@@ -591,20 +543,14 @@ export function combineHistories(
 
   const graph = historyGraph(combined);
 
-  const candidateHeads = [
-    ...new Set([...left.heads, ...right.heads]),
-  ];
+  const candidateHeads = [...new Set([...left.heads, ...right.heads])];
 
   combined.heads = candidateHeads.filter(
     (candidate) =>
       !candidateHeads.some(
         (other) =>
           other !== candidate &&
-          compareAncestry(
-            graph,
-            candidate,
-            other,
-          ) === "ancestor",
+          compareAncestry(graph, candidate, other) === "ancestor",
       ),
   );
 
@@ -630,10 +576,7 @@ function sameProperty(
 
   if (leftHas !== rightHas) return false;
 
-  return (
-    !leftHas ||
-    deepEqual(left[key], right[key])
-  );
+  return !leftHas || deepEqual(left[key], right[key]);
 }
 
 interface PropertyMergeResult {
@@ -698,10 +641,7 @@ export function mergeCharacterSnapshots(
 ): CharacterMergeResult {
   const identityConflicts: string[] = [];
 
-  if (
-    base.id !== local.id ||
-    base.id !== remote.id
-  ) {
+  if (base.id !== local.id || base.id !== remote.id) {
     identityConflicts.push("id");
   }
 
@@ -752,14 +692,11 @@ export function mergeCharacterSnapshots(
     };
   }
 
-  const baseFields =
-    base.fields as unknown as Record<string, unknown>;
+  const baseFields = base.fields as unknown as Record<string, unknown>;
 
-  const localFields =
-    local.fields as unknown as Record<string, unknown>;
+  const localFields = local.fields as unknown as Record<string, unknown>;
 
-  const remoteFields =
-    remote.fields as unknown as Record<string, unknown>;
+  const remoteFields = remote.fields as unknown as Record<string, unknown>;
 
   const fieldKeys = [
     ...new Set([
@@ -784,9 +721,7 @@ export function mergeCharacterSnapshots(
   );
 
   const conflicts = [
-    ...fieldMerge.conflicts.map(
-      (field) => `fields.${field}`,
-    ),
+    ...fieldMerge.conflicts.map((field) => `fields.${field}`),
     ...inventoryMerge.conflicts,
   ];
 
@@ -798,14 +733,12 @@ export function mergeCharacterSnapshots(
   }
 
   const data: MergedCharacterData = {
-    fields:
-      fieldMerge.values as unknown as CreatureFields,
+    fields: fieldMerge.values as unknown as CreatureFields,
   };
 
   if (hasOwn(inventoryMerge.values, "inventory")) {
-    data.inventory =
-      inventoryMerge.values.inventory as
-        CharacterRecord["inventory"];
+    data.inventory = inventoryMerge.values
+      .inventory as CharacterRecord["inventory"];
   }
 
   return {
@@ -837,9 +770,7 @@ export function createMergeRevision(
     !options.actorId.trim() ||
     !options.updatedAt.trim()
   ) {
-    throw new Error(
-      "A merge requires a write ID, actor ID, and timestamp.",
-    );
+    throw new Error("A merge requires a write ID, actor ID, and timestamp.");
   }
 
   if (
@@ -850,15 +781,11 @@ export function createMergeRevision(
   ) {
     throw new Error(
       "A merge must have two distinct parent revisions " +
-      "and a new revision ID.",
+        "and a new revision ID.",
     );
   }
 
-  const merged = mergeCharacterSnapshots(
-    base,
-    local,
-    remote,
-  );
+  const merged = mergeCharacterSnapshots(base, local, remote);
 
   if (merged.status === "conflict") {
     return merged;
@@ -869,38 +796,27 @@ export function createMergeRevision(
    * The following guard also makes the type narrowing
    * explicit to TypeScript.
    */
-  if (
-    local.deleted === true ||
-    remote.deleted === true
-  ) {
+  if (local.deleted === true || remote.deleted === true) {
     return {
       status: "conflict",
       fields: ["deleted"],
     };
   }
 
-  const record:
-    VersionedCharacterRecord & CharacterRecord = {
-      ...cloneValue(local),
+  const record: VersionedCharacterRecord & CharacterRecord = {
+    ...cloneValue(local),
 
-      fields: cloneValue(merged.data.fields),
+    fields: cloneValue(merged.data.fields),
 
-      revision:
-        Math.max(
-          local.revision,
-          remote.revision,
-        ) + 1,
+    revision: Math.max(local.revision, remote.revision) + 1,
 
-      writeId: options.writeId,
+    writeId: options.writeId,
 
-      parents: [
-        local.writeId,
-        remote.writeId,
-      ],
+    parents: [local.writeId, remote.writeId],
 
-      updatedAt: options.updatedAt,
-      updatedBy: options.actorId,
-    };
+    updatedAt: options.updatedAt,
+    updatedBy: options.actorId,
+  };
 
   /*
    * Inventory is optional. Preserve the canonical
@@ -909,8 +825,7 @@ export function createMergeRevision(
   if (merged.data.inventory === undefined) {
     delete record.inventory;
   } else {
-    record.inventory =
-      cloneValue(merged.data.inventory);
+    record.inventory = cloneValue(merged.data.inventory);
   }
 
   return {

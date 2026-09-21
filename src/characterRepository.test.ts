@@ -25,6 +25,23 @@ function repository(
   });
 }
 
+function legacyRecord(
+  id: string,
+  schemaVersion: 1 | 2 | 3,
+): Record<string, unknown> {
+  const value: Record<string, unknown> = {
+    ...activeRecord(id),
+    schemaVersion,
+  };
+
+  /*
+   * Schemas 1-3 predate explicit ancestry.
+   */
+  delete value.parents;
+
+  return value;
+}
+
 describe("character manifest parsing", () => {
   it("parses namespaced records and ignores unrelated extension metadata", () => {
     const record = activeRecord("raganah");
@@ -47,10 +64,7 @@ describe("character manifest parsing", () => {
   });
 
   it("migrates schema-1 records without serializing empty inventory fields", () => {
-    const legacy = {
-      ...activeRecord("legacy"),
-      schemaVersion: 1,
-    };
+    const legacy = legacyRecord("legacy", 1);
     const manifest = parseCharacterManifest({
       [characterMetadataKey("legacy")]: legacy,
     });
@@ -61,14 +75,14 @@ describe("character manifest parsing", () => {
     expect(lookup.record.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
     expect(lookup.record.inventory).toBeUndefined();
     expect(lookup.record.fields.maxLoad).toBeUndefined();
+    expect(lookup.record.parents).toEqual([]);
+    expect(lookup.record.writeId).toBe(activeRecord("legacy").writeId);
+    expect(lookup.record.revision).toBe(activeRecord("legacy").revision);
   });
 
   it("migrates schema-2 Maximum Load into shared fields", () => {
-    const legacy = {
-      ...activeRecord("legacy"),
-      schemaVersion: 2,
-      maxLoad: 11,
-    };
+    const legacy = legacyRecord("legacy", 2);
+    legacy.maxLoad = 11;
     const manifest = parseCharacterManifest({
       [characterMetadataKey("legacy")]: legacy,
     });
@@ -79,6 +93,62 @@ describe("character manifest parsing", () => {
     expect(lookup.record.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
     expect(lookup.record.fields.maxLoad).toBe(11);
     expect(lookup.record).not.toHaveProperty("maxLoad");
+    expect(lookup.record.parents).toEqual([]);
+  });
+
+  it("migrates schema-3 records as ancestry roots without changing revision identity", () => {
+    const legacy = legacyRecord("legacy", 3);
+    const originalWriteId = legacy.writeId;
+    const originalRevision = legacy.revision;
+    const manifest = parseCharacterManifest({
+      [characterMetadataKey("legacy")]: legacy,
+    });
+    const lookup = manifest.get("legacy");
+
+    expect(lookup?.status).toBe("active");
+    if (lookup?.status !== "active") throw new Error("Expected active record");
+    expect(lookup.record.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
+    expect(lookup.record.parents).toEqual([]);
+    expect(lookup.record.writeId).toBe(originalWriteId);
+    expect(lookup.record.revision).toBe(originalRevision);
+  });
+
+  it("rejects a schema-4 record with duplicate parents", () => {
+    const record = activeRecord("broken", {
+      revision: 3,
+      writeId: "current-write",
+      parents: ["previous-write", "previous-write"],
+    });
+    const manifest = parseCharacterManifest({
+      [characterMetadataKey("broken")]: record,
+    });
+
+    expect(manifest.get("broken")?.status).toBe("malformed");
+  });
+
+  it("rejects a schema-4 record that names itself as a parent", () => {
+    const record = activeRecord("broken", {
+      revision: 3,
+      writeId: "current-write",
+      parents: ["current-write"],
+    });
+    const manifest = parseCharacterManifest({
+      [characterMetadataKey("broken")]: record,
+    });
+
+    expect(manifest.get("broken")?.status).toBe("malformed");
+  });
+
+  it("rejects a schema-4 record without a parents array", () => {
+    const record: Record<string, unknown> = {
+      ...activeRecord("broken"),
+    };
+    delete record.parents;
+    const manifest = parseCharacterManifest({
+      [characterMetadataKey("broken")]: record,
+    });
+
+    expect(manifest.get("broken")?.status).toBe("malformed");
   });
 });
 
@@ -94,9 +164,10 @@ describe("CharacterRepository writes", () => {
     });
 
     expect(result).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "character-1",
       revision: 1,
+      parents: [],
       fields: { name: "Raganah", hpCurrent: 6, hpMax: 8 },
       createdBy: "user-1",
       updatedBy: "user-1",
@@ -106,12 +177,9 @@ describe("CharacterRepository writes", () => {
     expect(store.metadata[characterMetadataKey("character-1")]).toEqual(result);
   });
 
-  it("persists migrated schema-2 Maximum Load in schema-3 fields on mutation", async () => {
-    const legacy = {
-      ...activeRecord("legacy"),
-      schemaVersion: 2,
-      maxLoad: 11,
-    };
+  it("persists migrated schema-2 Maximum Load in schema-4 fields on mutation", async () => {
+    const legacy = legacyRecord("legacy", 2);
+    legacy.maxLoad = 11;
     const store = new FakeMetadataStore({
       [characterMetadataKey("legacy")]: legacy,
     });
@@ -121,7 +189,8 @@ describe("CharacterRepository writes", () => {
       { hpCurrent: 7 },
     );
 
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
+    expect(result.parents).toEqual([String(legacy.writeId)]);
     expect(result.fields.maxLoad).toBe(11);
     expect(result).not.toHaveProperty("maxLoad");
     expect(store.metadata[characterMetadataKey("legacy")]).toEqual(result);
@@ -157,6 +226,7 @@ describe("CharacterRepository writes", () => {
         fields: { ...first.fields, armor: 3 },
         revision: 2,
         writeId: "competing-write",
+        parents: [first.writeId],
       };
     };
 
@@ -169,6 +239,26 @@ describe("CharacterRepository writes", () => {
     expect(result.fields.armor).toBe(3);
     expect(result.revision).toBe(3);
     expect(result.writeId).toBe("our-retry-write");
+    expect(result.parents).toEqual(["competing-write"]);
+  });
+
+  it("records the exact previous writeId as the parent of a normal mutation", async () => {
+    const first = activeRecord("raganah", {
+      revision: 7,
+      writeId: "revision-seven",
+      parents: ["revision-six"],
+    });
+    const store = new FakeMetadataStore({
+      [characterMetadataKey(first.id)]: first,
+    });
+    const result = await repository(store, ["revision-eight"]).patch(first.id, {
+      hpCurrent: 4,
+    });
+
+    expect(result.revision).toBe(8);
+    expect(result.writeId).toBe("revision-eight");
+    expect(result.parents).toEqual(["revision-seven"]);
+    expect(result.parents).not.toContain("revision-six");
   });
 
   it("returns an actionable conflict after bounded retry exhaustion", async () => {
@@ -177,13 +267,17 @@ describe("CharacterRepository writes", () => {
       [characterMetadataKey(first.id)]: first,
     });
     let revision = 1;
+    let previousWriteId = first.writeId;
     store.afterSet = (_update, target) => {
       revision += 1;
+      const writeId = `competing-${revision}`;
       target.metadata[characterMetadataKey(first.id)] = {
         ...first,
         revision,
-        writeId: `competing-${revision}`,
+        writeId,
+        parents: [previousWriteId],
       };
+      previousWriteId = writeId;
     };
 
     await expect(
@@ -347,6 +441,7 @@ describe("CharacterRepository writes", () => {
         inventory: [["Healing Potion", 1, 2]],
         revision: 2,
         writeId: "competing-inventory-write",
+        parents: [record.writeId],
       };
     };
 
@@ -400,6 +495,8 @@ describe("CharacterRepository writes", () => {
       ["Healing Potion", 1, 1],
       ["Healing Potion", 1, 1],
     ]);
+    expect(partial.source.parents).toEqual([source.writeId]);
+    expect(partial.destination.parents).toEqual([destination.writeId]);
 
     const entire = await repo.transferInventoryItem(
       source.id,
@@ -413,5 +510,7 @@ describe("CharacterRepository writes", () => {
       0.33,
       2,
     ]);
+    expect(entire.source.parents).toEqual([partial.source.writeId]);
+    expect(entire.destination.parents).toEqual([partial.destination.writeId]);
   });
 });

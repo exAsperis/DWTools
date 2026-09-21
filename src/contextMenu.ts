@@ -255,7 +255,7 @@ if (preview === "context") {
     },
   } as unknown as Item;
   characterRecord = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: "preview-character",
     fields: { name: "Frogman", maxLoad: 11 },
     inventory: [
@@ -263,6 +263,7 @@ if (preview === "context") {
       ["Bag of Books", 0.4, 3],
     ],
     revision: 1,
+    parents: [],
     createdAt: "2026-07-27T12:00:00.000Z",
     createdBy: "preview",
     updatedAt: "2026-07-27T12:00:00.000Z",
