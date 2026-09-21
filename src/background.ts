@@ -50,7 +50,7 @@ async function setupContextMenus(): Promise<void> {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.3.17"),
+      url: assetUrl("context-menu.html?v=1.3.18"),
       height: 360,
     },
   });

@@ -23,6 +23,7 @@ describe("tag normalization", () => {
 
   it("formats tags and enforces the serialized length limit", () => {
     expect(formatTags(["Close", "Reach"])).toBe("Close, Reach");
+    expect(formatTags("Close, Reach")).toBe("Close, Reach");
     expect(() => normalizeTags("x".repeat(161))).toThrow("160");
     expect(() => normalizeTags([1])).toThrow("array of text");
   });

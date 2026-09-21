@@ -16,7 +16,10 @@ export function tagKeyAction(
   return "native";
 }
 
-export function formatTags(tags: readonly string[] | undefined): string {
+export function formatTags(
+  tags: readonly string[] | string | undefined,
+): string {
+  if (typeof tags === "string") return tags;
   return tags?.join(", ") ?? "";
 }
 
