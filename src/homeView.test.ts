@@ -62,6 +62,41 @@ describe("buildHomeMarkup", () => {
     expect(markup).toContain("Moves");
   });
 
+  it("shows client-local developer diagnostics only in expanded GM Settings", () => {
+    const sections = { ...DEFAULT_HOME_SECTIONS, settings: true };
+    const panel = '<section id="diagnostics">Diagnostics</section>';
+    const gm = buildHomeMarkup(
+      "GM",
+      true,
+      false,
+      sections,
+      "",
+      "",
+      "",
+      "dwtools",
+      true,
+      panel,
+    );
+    const player = buildHomeMarkup(
+      "PLAYER",
+      true,
+      false,
+      sections,
+      "",
+      "",
+      "",
+      "dwtools",
+      true,
+      panel,
+    );
+
+    expect(gm).toContain('id="developer-tools-toggle"');
+    expect(gm).toContain("checked");
+    expect(gm).toContain(panel);
+    expect(player).not.toContain("developer-tools-toggle");
+    expect(player).not.toContain(panel);
+  });
+
   it("renders persistent section controls with the requested defaults", () => {
     const markup = buildHomeMarkup("GM", true, false);
 

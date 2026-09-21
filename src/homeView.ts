@@ -245,6 +245,8 @@ export function buildHomeMarkup(
   encounterMarkup = "",
   version = "",
   diceExtension: "dwtools" | "no-dice" = "dwtools",
+  developerToolsEnabled = false,
+  developerPanelMarkup = "",
 ): string {
   const stateLabel = defaultVisibleToPlayers
     ? "Default: visible to players"
@@ -330,7 +332,18 @@ export function buildHomeMarkup(
             <option value="dwtools" ${diceExtension === "dwtools" ? "selected" : ""}>DWTools</option>
             <option value="no-dice" ${diceExtension === "no-dice" ? "selected" : ""}>No Dice</option>
           </select>
-        </label>`
+        </label>
+        <label class="developer-tools-setting">
+          <span>
+            <strong>Developer tools</strong>
+            <small>Show persistence diagnostics for this browser.</small>
+          </span>
+          <span class="setting-switch">
+            <input id="developer-tools-toggle" type="checkbox" ${developerToolsEnabled ? "checked" : ""} aria-label="Enable developer tools">
+            <span class="setting-switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        ${developerToolsEnabled ? developerPanelMarkup : ""}`
             : ""
         }
       </section>`

@@ -22,6 +22,21 @@ import {
   type CharacterManagerViewState,
 } from "./characterView";
 import {
+  buildCharacterPersistenceDevMarkup,
+  buildCharacterPersistenceDevSnapshot,
+  readDeveloperToolsEnabled,
+  writeDeveloperToolsEnabled,
+  type CharacterPersistenceDevSnapshot,
+} from "./characterPersistenceDev";
+import {
+  createBrowserCharacterLocalStore,
+  type CharacterLocalStore,
+} from "./characterLocalStore";
+import {
+  createObrCharacterSceneStore,
+  type CharacterSceneStore,
+} from "./characterSceneStore";
+import {
   type CreatureFieldPatch,
   type CreatureFields,
   CREATURE_KEY,
@@ -334,6 +349,14 @@ let encounterRefreshGeneration = 0;
 const managerExpandedCharacters = new Set<string>();
 const managerExpandedInventories = new Set<string>();
 const HOME_SECTIONS_KEY = "dwtools/home-sections";
+let developerToolsEnabled = readDeveloperToolsEnabled(window.localStorage);
+let developerPersistenceSnapshot: CharacterPersistenceDevSnapshot | undefined;
+let developerPersistenceLoading = false;
+let developerPersistenceError: string | undefined;
+let developerPersistenceGeneration = 0;
+let developerPersistenceLocalStore: CharacterLocalStore | undefined;
+let developerPersistenceSceneStore: CharacterSceneStore | undefined;
+let unsubscribeDeveloperPersistenceLocal: (() => void) | undefined;
 
 function loadLegacyHomeSections(): HomeSectionState {
   try {
@@ -477,6 +500,13 @@ function renderHome(): void {
     homeSections.encounterInactive,
     encounterBusyItemIds,
   );
+  const developerPanelMarkup = developerToolsEnabled
+    ? buildCharacterPersistenceDevMarkup(
+        developerPersistenceSnapshot,
+        developerPersistenceLoading,
+        developerPersistenceError,
+      )
+    : "";
   app.innerHTML = buildHomeMarkup(
     homeRole,
     defaultVisibleToPlayers,
@@ -486,7 +516,21 @@ function renderHome(): void {
     encounterMarkup,
     EXTENSION_VERSION,
     selectedDiceExtension(homeMetadata),
+    developerToolsEnabled,
+    developerPanelMarkup,
   );
+  document
+    .querySelector<HTMLInputElement>("#developer-tools-toggle")
+    ?.addEventListener("change", (event) => {
+      setDeveloperToolsEnabled(
+        (event.currentTarget as HTMLInputElement).checked,
+      );
+    });
+  document
+    .querySelector("#persistence-dev-refresh")
+    ?.addEventListener("click", () => {
+      void refreshDeveloperPersistence();
+    });
   document
     .querySelector<HTMLSelectElement>("#dice-extension")
     ?.addEventListener("change", (event) => {
@@ -1430,6 +1474,74 @@ async function toggleDefaultVisibility(): Promise<void> {
   }
 }
 
+async function refreshDeveloperPersistence(render = true): Promise<void> {
+  if (
+    !developerToolsEnabled ||
+    !developerPersistenceLocalStore ||
+    !developerPersistenceSceneStore
+  ) {
+    return;
+  }
+
+  const generation = ++developerPersistenceGeneration;
+  developerPersistenceLoading = true;
+  developerPersistenceError = undefined;
+  if (render) renderHome();
+
+  try {
+    const [roomMetadata, sceneReady] = await Promise.all([
+      OBR.room.getMetadata(),
+      OBR.scene.isReady(),
+    ]);
+    const localScan = developerPersistenceLocalStore.scan();
+    const sceneScan = sceneReady
+      ? await developerPersistenceSceneStore.scan()
+      : undefined;
+
+    if (
+      generation !== developerPersistenceGeneration ||
+      !developerToolsEnabled
+    ) {
+      return;
+    }
+
+    developerPersistenceSnapshot = buildCharacterPersistenceDevSnapshot(
+      roomMetadata,
+      localScan,
+      sceneScan,
+      sceneReady,
+    );
+  } catch (error) {
+    if (generation !== developerPersistenceGeneration) return;
+    developerPersistenceError = messageFrom(
+      error,
+      "Could not load Character persistence diagnostics.",
+    );
+  } finally {
+    if (generation === developerPersistenceGeneration) {
+      developerPersistenceLoading = false;
+      if (render) renderHome();
+    }
+  }
+}
+
+function setDeveloperToolsEnabled(enabled: boolean): void {
+  developerToolsEnabled = enabled;
+  writeDeveloperToolsEnabled(window.localStorage, enabled);
+
+  if (!enabled) {
+    developerPersistenceGeneration += 1;
+    developerPersistenceSnapshot = undefined;
+    developerPersistenceError = undefined;
+    developerPersistenceLoading = false;
+    renderHome();
+    return;
+  }
+
+  renderHome();
+  void refreshDeveloperPersistence();
+}
+
 async function startHome(): Promise<void> {
   try {
     await ensureMetadataNamespaceMigrated();
@@ -1455,12 +1567,32 @@ async function startHome(): Promise<void> {
   homeRole = role;
   homeMetadata = roomMetadata;
   loadHomeLayout(playerMetadata);
-  await Promise.all([refreshManager(false), refreshEncounter()]);
+  developerPersistenceLocalStore = createBrowserCharacterLocalStore(
+    OBR.room.id,
+  );
+  developerPersistenceSceneStore = createObrCharacterSceneStore();
+  unsubscribeDeveloperPersistenceLocal =
+    developerPersistenceLocalStore.subscribe(() => {
+      if (developerToolsEnabled) {
+        void refreshDeveloperPersistence(false).then(renderHome);
+      }
+    });
+  await Promise.all([
+    refreshManager(false),
+    refreshEncounter(),
+    developerToolsEnabled
+      ? refreshDeveloperPersistence(false)
+      : Promise.resolve(),
+  ]);
   renderHome();
 
   const unsubscribers = [
     OBR.room.onMetadataChange((metadata) => {
       homeMetadata = metadata;
+      if (developerToolsEnabled) {
+        void refreshDeveloperPersistence(false).then(renderHome);
+        return;
+      }
       renderHome();
     }),
     homeRepository.subscribe((changes) => {
@@ -1493,10 +1625,20 @@ async function startHome(): Promise<void> {
     }),
     OBR.scene.onMetadataChange((metadata) => {
       homeEncounterState = encounterStateFromMetadata(metadata);
+      if (developerToolsEnabled) {
+        void refreshDeveloperPersistence(false).then(renderHome);
+        return;
+      }
       renderHome();
     }),
     OBR.scene.onReadyChange(() => {
-      void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
+      void Promise.all([
+        refreshManager(),
+        refreshEncounter(),
+        developerToolsEnabled
+          ? refreshDeveloperPersistence(false)
+          : Promise.resolve(),
+      ]).then(renderHome);
     }),
     OBR.room.onPermissionsChange(
       () => void refreshManager(homeRole === "PLAYER" || !managerSaving),
@@ -1507,6 +1649,11 @@ async function startHome(): Promise<void> {
     "unload",
     () => {
       for (const unsubscribe of unsubscribers) unsubscribe();
+      unsubscribeDeveloperPersistenceLocal?.();
+      unsubscribeDeveloperPersistenceLocal = undefined;
+      developerPersistenceLocalStore?.close();
+      developerPersistenceLocalStore = undefined;
+      developerPersistenceSceneStore = undefined;
     },
     { once: true },
   );
