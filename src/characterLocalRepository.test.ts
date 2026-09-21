@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { CharacterLocalRepository } from "./characterLocalRepository";
-import { CharacterLocalStore } from "./characterLocalStore";
+import {
+  CharacterLocalStore,
+  characterLocalStorageKey,
+} from "./characterLocalStore";
 import type { CharacterMutationLock } from "./characterMutationLock";
 import {
   CharacterRepositoryError,
@@ -8,9 +11,16 @@ import {
 } from "./characterRepository";
 import { activeRecord } from "./characterTestHelpers";
 import type { CharacterHistory } from "./characterRevision";
+import {
+  CharacterTransferJournalStore,
+  characterTransferJournalStorageKey,
+  type CharacterTransferJournalStorage,
+} from "./characterTransferJournal";
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
+  beforeSet?: (key: string, value: string) => void;
+  beforeRemove?: (key: string) => void;
   get length(): number {
     return this.values.size;
   }
@@ -24,9 +34,11 @@ class MemoryStorage implements Storage {
     return [...this.values.keys()][index] ?? null;
   }
   removeItem(key: string): void {
+    this.beforeRemove?.(key);
     this.values.delete(key);
   }
   setItem(key: string, value: string): void {
+    this.beforeSet?.(key, value);
     this.values.set(key, value);
   }
 }
@@ -78,6 +90,7 @@ function repo(
   store: CharacterLocalStore,
   lock: CharacterMutationLock = new SerialMutationLock(),
   ids: string[] = ["next"],
+  transferJournal?: CharacterTransferJournalStorage,
 ) {
   return new CharacterLocalRepository(store, {
     getActorId: async () => "actor-1",
@@ -88,7 +101,25 @@ function repo(
       if (!value) throw new Error("Missing test UUID");
       return value;
     },
+    transferJournal,
   });
+}
+
+function transferSetup() {
+  const storage = new MemoryStorage();
+  const store = new CharacterLocalStore(storage, "room-1");
+  const journals = new CharacterTransferJournalStore(storage, "room-1");
+  const source = activeRecord("source", {
+    writeId: "A",
+    inventory: [["Potion", 0, 5]],
+  });
+  const destination = activeRecord("destination", {
+    writeId: "X",
+    inventory: [],
+  });
+  seed(store, history(source));
+  seed(store, history(destination));
+  return { storage, store, journals, source, destination };
 }
 
 function code(error: unknown): string | undefined {
@@ -359,5 +390,268 @@ describe("CharacterLocalRepository", () => {
       repo(store, undefined, ["character-1"]).create(activeRecord("x").fields),
     ).rejects.toSatisfy((error) => code(error) === "CONFLICT");
     expect(store.scan().entries).toHaveLength(1);
+  });
+
+  it("transfers inventory with two independent descendant revisions", async () => {
+    const { store, journals } = transferSetup();
+    const result = await repo(
+      store,
+      undefined,
+      ["B", "Y", "transaction"],
+      journals,
+    ).transferInventoryItem(
+      "source",
+      "destination",
+      { sourceIndex: 0, expected: ["Potion", 0, 5] },
+      2,
+    );
+    expect(result.source.inventory).toEqual([["Potion", 0, 3]]);
+    expect(result.destination.inventory).toEqual([["Potion", 0, 2]]);
+    expect(result.source.parents).toEqual(["A"]);
+    expect(result.destination.parents).toEqual(["X"]);
+    expect(result.source.writeId).not.toBe(result.destination.writeId);
+    expect(result.source.updatedAt).toBe(result.destination.updatedAt);
+    expect(result.source.updatedBy).toBe(result.destination.updatedBy);
+    expect(store.get("source")?.sync.pendingRevisionIds).toEqual(["B"]);
+    expect(store.get("destination")?.sync.pendingRevisionIds).toEqual(["Y"]);
+    expect(journals.get()).toBeUndefined();
+  });
+
+  it("does not write either Character when journal creation fails", async () => {
+    const { storage, store, journals } = transferSetup();
+    const beforeSource = structuredClone(store.get("source"));
+    const beforeDestination = structuredClone(store.get("destination"));
+    storage.beforeSet = (key) => {
+      if (key === characterTransferJournalStorageKey("room-1"))
+        throw new Error("journal failed");
+    };
+    await expect(
+      repo(
+        store,
+        undefined,
+        ["B", "Y", "transaction"],
+        journals,
+      ).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        2,
+      ),
+    ).rejects.toThrow("could not start");
+    expect(store.get("source")).toEqual(beforeSource);
+    expect(store.get("destination")).toEqual(beforeDestination);
+  });
+
+  it("recovers both revisions after a source write failure", async () => {
+    const { storage, store, journals } = transferSetup();
+    storage.beforeSet = (key) => {
+      if (key === characterLocalStorageKey("room-1", "source"))
+        throw new Error("source failed");
+    };
+    await expect(
+      repo(
+        store,
+        undefined,
+        ["B", "Y", "transaction"],
+        journals,
+      ).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        2,
+      ),
+    ).rejects.toThrow("interrupted");
+    expect(journals.get()).toBeDefined();
+    expect(store.get("source")?.history.heads).toEqual(["A"]);
+    expect(store.get("destination")?.history.heads).toEqual(["X"]);
+    storage.beforeSet = undefined;
+    const freshStore = new CharacterLocalStore(storage, "room-1");
+    await repo(
+      freshStore,
+      undefined,
+      ["unused"],
+      journals,
+    ).recoverPendingTransfer();
+    expect(freshStore.get("source")?.history.heads).toEqual(["B"]);
+    expect(freshStore.get("destination")?.history.heads).toEqual(["Y"]);
+    expect(journals.get()).toBeUndefined();
+  });
+
+  it("recovers only the missing destination after its write fails", async () => {
+    const { storage, store, journals } = transferSetup();
+    storage.beforeSet = (key) => {
+      if (key === characterLocalStorageKey("room-1", "destination"))
+        throw new Error("destination failed");
+    };
+    await expect(
+      repo(
+        store,
+        undefined,
+        ["B", "Y", "transaction"],
+        journals,
+      ).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        2,
+      ),
+    ).rejects.toThrow("interrupted");
+    expect(store.get("source")?.history.heads).toEqual(["B"]);
+    expect(store.get("destination")?.history.heads).toEqual(["X"]);
+    storage.beforeSet = undefined;
+    await repo(
+      new CharacterLocalStore(storage, "room-1"),
+      undefined,
+      ["unused"],
+      journals,
+    ).recoverPendingTransfer();
+    expect(Object.keys(store.get("source")!.history.revisions)).toEqual([
+      "A",
+      "B",
+    ]);
+    expect(store.get("destination")?.history.heads).toEqual(["Y"]);
+  });
+
+  it("recovers by only clearing a stale journal after both writes succeeded", async () => {
+    const { storage, store, journals } = transferSetup();
+    storage.beforeRemove = (key) => {
+      if (key === characterTransferJournalStorageKey("room-1"))
+        throw new Error("clear failed");
+    };
+    await expect(
+      repo(
+        store,
+        undefined,
+        ["B", "Y", "transaction"],
+        journals,
+      ).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        2,
+      ),
+    ).rejects.toThrow("could not clear");
+    const before = [
+      Object.keys(store.get("source")!.history.revisions),
+      Object.keys(store.get("destination")!.history.revisions),
+    ];
+    storage.beforeRemove = undefined;
+    await repo(store, undefined, ["unused"], journals).recoverPendingTransfer();
+    expect(Object.keys(store.get("source")!.history.revisions)).toEqual(
+      before[0],
+    );
+    expect(Object.keys(store.get("destination")!.history.revisions)).toEqual(
+      before[1],
+    );
+    expect(journals.get()).toBeUndefined();
+  });
+
+  it("automatically recovers before an ordinary mutation", async () => {
+    const { storage, store, journals } = transferSetup();
+    storage.beforeSet = (key) => {
+      if (key === characterLocalStorageKey("room-1", "destination"))
+        throw new Error("destination failed");
+    };
+    await expect(
+      repo(
+        store,
+        undefined,
+        ["B", "Y", "transaction"],
+        journals,
+      ).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        2,
+      ),
+    ).rejects.toThrow();
+    storage.beforeSet = undefined;
+    const patched = await repo(store, undefined, ["C"], journals).patch(
+      "source",
+      { armor: 3 },
+    );
+    expect(patched.parents).toEqual(["B"]);
+    expect(store.get("destination")?.history.heads).toEqual(["Y"]);
+    expect(journals.get()).toBeUndefined();
+  });
+
+  it("refuses transfer against an unresolved branch without a journal", async () => {
+    const { store, journals } = transferSetup();
+    const A = store.get("source")!.history.revisions.A as CharacterRecord;
+    const B = activeRecord("source", {
+      writeId: "B",
+      revision: 2,
+      parents: ["A"],
+    });
+    const C = activeRecord("source", {
+      writeId: "C",
+      revision: 2,
+      parents: ["A"],
+    });
+    const branched = history(A, B, C);
+    branched.heads = ["B", "C"];
+    seed(store, branched);
+    await expect(
+      repo(store, undefined, ["unused"], journals).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        1,
+      ),
+    ).rejects.toSatisfy((error) => code(error) === "CONFLICT");
+    expect(journals.get()).toBeUndefined();
+  });
+
+  it("refuses transfer against a tombstone without a journal", async () => {
+    const { store, journals } = transferSetup();
+    await repo(store, undefined, ["T"]).delete("destination");
+    await expect(
+      repo(store, undefined, ["unused"], journals).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 0, expected: ["Potion", 0, 5] },
+        1,
+      ),
+    ).rejects.toSatisfy((error) => code(error) === "TOMBSTONED");
+    expect(journals.get()).toBeUndefined();
+  });
+
+  it("uses exact tuple fallback after the selected row moves", async () => {
+    const { store, journals } = transferSetup();
+    const source = store.get("source")!;
+    const A = source.history.revisions.A as CharacterRecord;
+    A.inventory = [
+      ["Rope", 1, 1],
+      ["Potion", 0, 5],
+    ];
+    seed(store, history(A));
+    const result = await repo(
+      store,
+      undefined,
+      ["B", "Y", "transaction"],
+      journals,
+    ).transferInventoryItem(
+      "source",
+      "destination",
+      { sourceIndex: 0, expected: ["Potion", 0, 5] },
+      2,
+    );
+    expect(result.source.inventory).toEqual([
+      ["Rope", 1, 1],
+      ["Potion", 0, 3],
+    ]);
+  });
+
+  it("rejects a missing transfer tuple without creating a journal", async () => {
+    const { store, journals } = transferSetup();
+    await expect(
+      repo(store, undefined, ["unused"], journals).transferInventoryItem(
+        "source",
+        "destination",
+        { sourceIndex: 4, expected: ["Missing", 0, 1] },
+        1,
+      ),
+    ).rejects.toSatisfy((error) => code(error) === "CONFLICT");
+    expect(journals.get()).toBeUndefined();
   });
 });

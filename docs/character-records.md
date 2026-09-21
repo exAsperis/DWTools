@@ -301,6 +301,34 @@ the mutation lock. UI code must eventually call that semantic operation rather
 than reading an HP value and converting a relative +/- action into an absolute
 write.
 
-Inventory transfer is intentionally excluded from this repository phase because
-it changes two localStorage keys. Production transfer requires a durable
-transaction journal and recovery procedure in addition to mutation locking.
+### Inventory transfer journal
+
+A local-first inventory transfer changes two independent Character localStorage
+entries and therefore cannot rely on localStorage for multi-key atomicity.
+
+Transfers use a room-scoped write-ahead recovery journal while holding the same
+room-wide Character mutation lock used by ordinary mutations. The journal
+contains validated before and intended-after Character entries for both sides.
+
+The durable write order is:
+
+1. journal intent;
+2. source Character;
+3. destination Character;
+4. journal removal.
+
+If execution stops after the journal is durable, recovery completes the
+transaction forward. Recovery first classifies both Character states before
+making any write. A Character still at the recorded before-history can receive
+its intended after-state. A Character that already contains the exact intended
+after revision is considered applied, even if later descendants now exist.
+Any incompatible state blocks automatic recovery and preserves the journal for
+inspection.
+
+The journal is not used to roll back already-written transfer revisions.
+Preserving immutable revisions avoids erasing history that may already have
+synchronized to another browser or the active scene.
+
+Before local-first production startup permits Character mutations or starts
+scene reconciliation, any pending transfer journal must be recovered or
+surfaced as a blocking persistence error.

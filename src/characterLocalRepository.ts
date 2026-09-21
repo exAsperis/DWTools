@@ -12,6 +12,13 @@ import {
 } from "./characterLocalStore";
 import type { CharacterMutationLock } from "./characterMutationLock";
 import {
+  CHARACTER_TRANSFER_JOURNAL_FORMAT_VERSION,
+  recoverCharacterTransferJournal,
+  type CharacterTransferJournal,
+  type CharacterTransferJournalStorage,
+  type CharacterTransferRecoveryResult,
+} from "./characterTransferJournal";
+import {
   mergeCreatureFieldPatch,
   normalizeCreatureFields,
 } from "./creatureFields";
@@ -38,6 +45,7 @@ export interface CharacterLocalRepositoryOptions {
   mutationLock: CharacterMutationLock;
   now?: () => Date;
   randomUUID?: () => string;
+  transferJournal?: CharacterTransferJournalStorage;
 }
 
 export type CharacterLocalLookup =
@@ -264,6 +272,170 @@ export class CharacterLocalRepository {
     );
   }
 
+  async recoverPendingTransfer(): Promise<CharacterTransferRecoveryResult> {
+    const journal = this.options.transferJournal;
+    if (!journal) return { status: "none" };
+    return this.options.mutationLock.runExclusive(this.store.roomId, async () =>
+      recoverCharacterTransferJournal(this.store, journal),
+    );
+  }
+
+  async transferInventoryItem(
+    sourceCharacterId: string,
+    destinationCharacterId: string,
+    selection: InventorySelection,
+    count: number,
+  ): Promise<{ source: CharacterRecord; destination: CharacterRecord }> {
+    if (sourceCharacterId === destinationCharacterId) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Choose a different destination Character.",
+      );
+    }
+    if (!Number.isInteger(count) || count <= 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Transfer count must be a positive integer.",
+      );
+    }
+    const journalStore = this.options.transferJournal;
+    if (!journalStore) {
+      throw new CharacterRepositoryError(
+        "API",
+        "Local Character inventory transfer requires a recovery journal.",
+      );
+    }
+    if (journalStore.roomId !== this.store.roomId) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "Character transfer journal belongs to another room.",
+      );
+    }
+
+    return this.withLock(async () => {
+      const source = this.requireActive(sourceCharacterId);
+      const destination = this.requireActive(destinationCharacterId);
+      const sourceInventory = normalizeInventory(source.record.inventory);
+      const sourceIndex = findSelectedInventoryIndex(
+        sourceInventory,
+        selection,
+      );
+      if (sourceIndex < 0) {
+        throw new CharacterRepositoryError(
+          "CONFLICT",
+          "That inventory item changed before the update could be applied. Refresh and try again.",
+          { characterId: sourceCharacterId },
+        );
+      }
+      const item = sourceInventory[sourceIndex];
+      if (count > item[2]) {
+        throw new CharacterRepositoryError(
+          "VALIDATION",
+          "Transfer count cannot exceed the source item count.",
+        );
+      }
+      if (count === item[2]) sourceInventory.splice(sourceIndex, 1);
+      else sourceInventory[sourceIndex] = [item[0], item[1], item[2] - count];
+      const destinationInventory = [
+        ...(destination.record.inventory ?? []),
+        [item[0], item[1], count] satisfies InventoryItem,
+      ];
+      const actorId = await this.options.getActorId();
+      const timestamp = this.now().toISOString();
+      const sourceWriteId = this.randomUUID();
+      const destinationWriteId = this.randomUUID();
+      const transactionId = this.randomUUID();
+      const knownIds = new Set([
+        ...Object.keys(source.entry.history.revisions),
+        ...Object.keys(destination.entry.history.revisions),
+      ]);
+      if (
+        new Set([sourceWriteId, destinationWriteId, transactionId]).size !==
+          3 ||
+        [sourceWriteId, destinationWriteId, transactionId].some((id) =>
+          knownIds.has(id),
+        )
+      ) {
+        throw new CharacterRepositoryError(
+          "CONFLICT",
+          "Generated Character transfer identities must be unique.",
+        );
+      }
+      const sourceCandidate: CharacterRecord = {
+        ...this.withInventory(source.record, sourceInventory),
+        revision: source.record.revision + 1,
+        writeId: sourceWriteId,
+        parents: [source.record.writeId],
+        createdAt: source.record.createdAt,
+        createdBy: source.record.createdBy,
+        updatedAt: timestamp,
+        updatedBy: actorId,
+      };
+      const destinationCandidate: CharacterRecord = {
+        ...this.withInventory(destination.record, destinationInventory),
+        revision: destination.record.revision + 1,
+        writeId: destinationWriteId,
+        parents: [destination.record.writeId],
+        createdAt: destination.record.createdAt,
+        createdBy: destination.record.createdBy,
+        updatedAt: timestamp,
+        updatedBy: actorId,
+      };
+      const sourceAfter = this.entryWithDescendant(
+        source.entry,
+        sourceCandidate,
+      );
+      const destinationAfter = this.entryWithDescendant(
+        destination.entry,
+        destinationCandidate,
+      );
+      const journal: CharacterTransferJournal = {
+        formatVersion: CHARACTER_TRANSFER_JOURNAL_FORMAT_VERSION,
+        roomId: this.store.roomId,
+        transactionId,
+        createdAt: timestamp,
+        sourceCharacterId,
+        destinationCharacterId,
+        sourceBefore: source.entry,
+        sourceAfter,
+        destinationBefore: destination.entry,
+        destinationAfter,
+      };
+      try {
+        journalStore.put(journal);
+      } catch (error) {
+        throw new CharacterRepositoryError(
+          "API",
+          "DWTools could not start a recoverable inventory transfer.",
+          { transactionId, sourceCharacterId, destinationCharacterId },
+          { cause: error },
+        );
+      }
+      try {
+        this.store.put(sourceAfter);
+        this.store.put(destinationAfter);
+      } catch (error) {
+        throw new CharacterRepositoryError(
+          "API",
+          "The inventory transfer was interrupted. DWTools preserved a recovery journal and will attempt to complete it before the next Character mutation.",
+          { transactionId, sourceCharacterId, destinationCharacterId },
+          { cause: error },
+        );
+      }
+      try {
+        journalStore.clear(transactionId);
+      } catch (error) {
+        throw new CharacterRepositoryError(
+          "API",
+          "The inventory transfer was saved, but DWTools could not clear its recovery journal. Reload before making more Character changes.",
+          { transactionId, sourceCharacterId, destinationCharacterId },
+          { cause: error },
+        );
+      }
+      return { source: sourceCandidate, destination: destinationCandidate };
+    });
+  }
+
   async delete(characterId: string): Promise<CharacterTombstone> {
     return this.withLock(async () => {
       const { entry, record } = this.requireActive(characterId);
@@ -383,10 +555,10 @@ export class CharacterLocalRepository {
     return { entry, record: lookup.record };
   }
 
-  private writeDescendant(
+  private entryWithDescendant(
     entry: CharacterLocalEntry,
     record: StoredCharacterRecord,
-  ): void {
+  ): CharacterLocalEntry {
     if (record.writeId in entry.history.revisions) {
       throw new CharacterRepositoryError(
         "CONFLICT",
@@ -394,7 +566,7 @@ export class CharacterLocalRepository {
         { characterId: entry.characterId, writeId: record.writeId },
       );
     }
-    this.store.put({
+    return {
       formatVersion: LOCAL_CHARACTER_ENTRY_FORMAT_VERSION,
       roomId: this.store.roomId,
       characterId: entry.characterId,
@@ -405,10 +577,24 @@ export class CharacterLocalRepository {
         heads: [record.writeId],
       },
       sync: { pendingRevisionIds: [record.writeId] },
-    });
+    };
+  }
+
+  private writeDescendant(
+    entry: CharacterLocalEntry,
+    record: StoredCharacterRecord,
+  ): void {
+    this.store.put(this.entryWithDescendant(entry, record));
   }
 
   private withLock<T>(operation: () => Promise<T>): Promise<T> {
-    return this.options.mutationLock.runExclusive(this.store.roomId, operation);
+    return this.options.mutationLock.runExclusive(
+      this.store.roomId,
+      async () => {
+        const journal = this.options.transferJournal;
+        if (journal) recoverCharacterTransferJournal(this.store, journal);
+        return operation();
+      },
+    );
   }
 }
