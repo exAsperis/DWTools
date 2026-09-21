@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import { activeRecord } from "./characterTestHelpers";
 
 import {
+  CHARACTER_RECORD_SCHEMA_VERSION,
+  parseCharacterRecord,
+} from "./characterRepository";
+
+import {
   cloneCharacterHistory,
   deserializeCharacterHistory,
   parseCharacterHistory,
@@ -96,6 +101,57 @@ describe("Character history codec", () => {
     );
   });
 
+  it("rejects legacy-schema revisions embedded directly in a Character history", () => {
+    const value = history();
+
+    const legacy = {
+      ...value.revisions.root,
+      schemaVersion: 3,
+      parents: ["invented-parent"],
+    };
+
+    value.revisions = {
+      root: legacy as unknown as VersionedCharacterRecord,
+    };
+
+    value.heads = ["root"];
+
+    expect(() => parseCharacterHistory(value)).toThrow(
+      "Character history revisions must use the current Character schema.",
+    );
+  });
+
+  it("accepts a legacy record after it has been normalized to the current schema", () => {
+    const legacy = {
+      ...activeRecord("character-1"),
+      schemaVersion: 3,
+    } as Record<string, unknown>;
+
+    delete legacy.parents;
+
+    const normalized = parseCharacterRecord(legacy, "character-1");
+
+    expect(normalized).toBeDefined();
+
+    if (!normalized) {
+      throw new Error("Expected legacy Character to normalize.");
+    }
+
+    expect(normalized.schemaVersion).toBe(CHARACTER_RECORD_SCHEMA_VERSION);
+    expect(normalized.parents).toEqual([]);
+
+    const value: CharacterHistory = {
+      formatVersion: 1,
+      characterId: "character-1",
+      revisions: {
+        [normalized.writeId]: normalized,
+      },
+      heads: [normalized.writeId],
+    };
+
+    expect(parseCharacterHistory(value)).toEqual(value);
+  });
+
   it("rejects a history for another Character", () => {
     expect(() =>
       parseCharacterHistory(history("character-2"), "character-1"),
@@ -141,7 +197,7 @@ describe("Character history codec", () => {
             writeId: "broken",
             revision: 1,
             parents: [],
-            schemaVersion: 999,
+            schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
           },
         },
         heads: ["broken"],

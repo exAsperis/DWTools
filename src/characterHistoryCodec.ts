@@ -1,4 +1,5 @@
 import {
+  CHARACTER_RECORD_SCHEMA_VERSION,
   parseCharacterRecord,
   type StoredCharacterRecord,
 } from "./characterRepository";
@@ -111,6 +112,18 @@ export function parseCharacterHistory(
         {
           characterId,
           revisionId,
+        },
+      );
+    }
+
+    if (rawRevision.schemaVersion !== CHARACTER_RECORD_SCHEMA_VERSION) {
+      throw new CharacterHistoryCodecError(
+        "Character history revisions must use the current Character schema.",
+        {
+          characterId,
+          revisionId,
+          schemaVersion: rawRevision.schemaVersion,
+          expectedSchemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
         },
       );
     }
