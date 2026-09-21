@@ -356,13 +356,14 @@ export async function executeCharacterReconciliation(
    * the durable local marker that the desired scene state
    * has not yet been confirmed.
    *
-   * We do not need to keep superseded ancestor IDs in the
-   * pending array. Writing CharacterHistory sends the full
-   * known ancestry represented by desiredHistory.
+   * When no scene write is currently planned, preserve any
+   * existing pending marker until the final scene
+   * verification succeeds. A stale pending marker is safer
+   * than clearing one before confirmation.
    */
   const desiredPendingIds = reconciliation.writeScene
     ? [...desiredHistory.heads].sort()
-    : [];
+    : [...(initialLocal?.sync.pendingRevisionIds ?? [])].sort();
 
   const desiredLocalEntry = localEntryFor(
     localStore.roomId,
@@ -446,13 +447,6 @@ export async function executeCharacterReconciliation(
     };
   }
 
-  /*
-   * If no scene write is planned, the initial scene was
-   * already the desired history.
-   *
-   * Re-read it before claiming synchronization so a scene
-   * change during the local operation is not hidden.
-   */
   if (!reconciliation.writeScene) {
     let verifiedScene: CharacterHistory | undefined;
 
@@ -470,6 +464,13 @@ export async function executeCharacterReconciliation(
     }
 
     if (!historiesEquivalent(verifiedScene, desiredHistory)) {
+      /*
+       * Do not clear an existing pending marker.
+       *
+       * The scene changed before final confirmation.
+       * Reconciliation must run again with the new scene
+       * history.
+       */
       return retryResult(
         characterId,
         "scene-changed-during-reconciliation",
@@ -479,7 +480,60 @@ export async function executeCharacterReconciliation(
       );
     }
 
-    return completedResult(characterId, reconciliation, persistedLocal);
+    /*
+     * The scene now confirms desiredHistory.
+     *
+     * Clear pending state only if local storage still
+     * contains exactly the entry whose scene state we just
+     * confirmed.
+     */
+    let currentLocal: CharacterLocalEntry | undefined;
+
+    try {
+      currentLocal = localStore.get(characterId);
+    } catch (error) {
+      return retryResult(
+        characterId,
+        "local-post-scene-read-failed",
+        reconciliation,
+        persistedLocal,
+        true,
+        error,
+      );
+    }
+
+    if (!localEntriesEquivalent(currentLocal, persistedLocal)) {
+      return retryResult(
+        characterId,
+        "local-changed-after-scene",
+        reconciliation,
+        currentLocal,
+        true,
+      );
+    }
+
+    const confirmedLocal = localEntryFor(localStore.roomId, desiredHistory, []);
+
+    if (localEntriesEquivalent(currentLocal, confirmedLocal)) {
+      return completedResult(characterId, reconciliation, currentLocal!);
+    }
+
+    let savedConfirmedLocal: CharacterLocalEntry;
+
+    try {
+      savedConfirmedLocal = localStore.put(confirmedLocal);
+    } catch (error) {
+      return retryResult(
+        characterId,
+        "local-confirmation-write-failed",
+        reconciliation,
+        currentLocal,
+        true,
+        error,
+      );
+    }
+
+    return completedResult(characterId, reconciliation, savedConfirmedLocal);
   }
 
   /*

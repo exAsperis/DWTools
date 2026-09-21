@@ -548,6 +548,68 @@ describe("Character storage executor", () => {
     expect(scene.current).toEqual(value);
   });
 
+  it("does not clear an existing pending marker before final scene verification", async () => {
+    const root = record("root");
+
+    const value = history(["root"], root);
+
+    const next = record(
+      "next",
+      ["root"],
+      {
+        hpCurrent: 4,
+      },
+      {
+        revision: 2,
+      },
+    );
+
+    const newer = history(["next"], root, next);
+
+    const local = new FakeLocalStore(entry(value, ["root"]));
+
+    const scene = new FakeSceneStore(value);
+
+    /*
+     * Scene get 1 establishes the original matching
+     * scene history.
+     *
+     * Scene get 2 is final verification.
+     */
+    scene.beforeGet.set(2, () => {
+      scene.current = clone(newer);
+    });
+
+    const result = await executeCharacterReconciliation(
+      "character-1",
+      local,
+      scene,
+      options(),
+    );
+
+    expect(result).toMatchObject({
+      status: "retry",
+
+      reason: "scene-changed-during-reconciliation",
+
+      sceneConfirmed: false,
+    });
+
+    /*
+     * Confirmation failed, so the conservative pending
+     * marker must survive.
+     */
+    expect(local.current?.sync.pendingRevisionIds).toEqual(["root"]);
+
+    /*
+     * The executor should not have cleared and rewritten
+     * the local entry before verification.
+     */
+    expect(local.putCalls).toHaveLength(0);
+
+    expect(scene.current).toEqual(newer);
+  });
+
   it("clears an old pending marker when the scene already confirms the same history", async () => {
     const root = record("root");
 
