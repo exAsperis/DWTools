@@ -241,3 +241,32 @@ the project owner in the live Owlbear environment on 2026-07-27.
 - Local-server extension testing is currently nonfunctional. Follow the
   standing internal-QC, GitHub push, and live pre-production testing directive
   recorded in the project decision documents.
+
+## Shadow local/scene persistence
+
+During the migration validation phase, the existing room Character repository
+remains the live authority used by the DWTools UI, linked-token synchronization,
+inventory editing, and deletion workflow.
+
+In parallel, the background page runs the new persistence system in shadow
+mode. Existing Character records from both supported room namespaces are
+imported non-destructively into room-scoped browser local storage. The active
+scene stores synchronized Character revision histories in scene metadata.
+Room-metadata changes continue to be imported as new revision knowledge, and
+the local/scene reconciliation coordinator propagates that history without
+writing any result back to room Character records.
+
+Shadow storage is therefore observational and redundant at this stage. Failure
+of shadow import or synchronization is logged but does not prevent the existing
+room-authoritative Character workflow from operating.
+
+Automatic merge revisions are deterministic across clients. Their identity is
+derived from the Character ID, merge base, and parent revision IDs; automatic
+merge audit metadata is also deterministic. Two clients independently merging
+the same revisions therefore manufacture the same revision rather than creating
+competing merge commits.
+
+Physical deletion of an authoritative room Character is intentionally not
+treated as a shadow deletion during this phase. Absence is not sufficient
+evidence of deletion. The shadow history may retain the deleted Character as
+recovery data until versioned tombstone deletion becomes the production model.

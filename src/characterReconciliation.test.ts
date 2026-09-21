@@ -323,6 +323,8 @@ describe("Character history reconciliation", () => {
         baseWriteId: "root",
 
         parentWriteIds: ["left", "right"],
+
+        parentUpdatedAts: [left.updatedAt, right.updatedAt],
       });
 
       return {

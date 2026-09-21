@@ -1,4 +1,11 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
+import { automaticCharacterReconciliationOptions } from "./characterAutomaticMerge";
+import {
+  createBrowserCharacterLocalStore,
+  type CharacterLocalStore,
+} from "./characterLocalStore";
+import { createObrCharacterSceneStore } from "./characterSceneStore";
+import { CharacterShadowPersistence } from "./characterShadowPersistence";
 import { CharacterSyncCoordinator } from "./characterSync";
 import type { CharacterRecord } from "./characterRepository";
 import { CONTEXT_MENU_ID, LEGACY_CONTEXT_MENU_ID } from "./constants";
@@ -78,6 +85,8 @@ let activeLoadStates: OverlayLoadStates = new Map();
 let lastSourceSignatures = new Map<string, string>();
 let unsubscribeItems: (() => void) | undefined;
 let unsubscribeGrid: (() => void) | undefined;
+let characterShadowPersistence: CharacterShadowPersistence | undefined;
+let characterShadowLocalStore: CharacterLocalStore | undefined;
 const pendingLegacyIds = new Set<string>();
 let legacyCleanupRunning = false;
 
@@ -161,6 +170,9 @@ function handleSceneItems(items: Item[], force = false) {
 }
 
 function restartSceneSync() {
+  /* Stop subscriptions immediately and invalidate guarded in-flight work. */
+  characterShadowPersistence?.stopScene();
+
   const requestedGeneration = ++sceneGeneration;
   lifecycleChain = lifecycleChain
     .then(() => startSceneSync(requestedGeneration))
@@ -187,6 +199,15 @@ async function startSceneSync(requestedGeneration: number) {
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
   await ensureMetadataNamespaceMigrated();
+  if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
+    return;
+
+  await characterShadowPersistence?.startScene(
+    createObrCharacterSceneStore(),
+    requestedGeneration,
+    (generation) => generation === sceneGeneration,
+  );
+
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
 
@@ -224,6 +245,62 @@ async function initializeBackground(): Promise<void> {
       "ERROR",
     );
     return;
+  }
+
+  try {
+    const localStore = createBrowserCharacterLocalStore(OBR.room.id);
+    const shadow = new CharacterShadowPersistence(
+      localStore,
+      {
+        getMetadata: () => OBR.room.getMetadata(),
+        subscribe: (callback) => OBR.room.onMetadataChange(callback),
+      },
+      {
+        reconciliation: automaticCharacterReconciliationOptions,
+        onImportResult: (result) => {
+          if (result.importedCharacterIds.length > 0) {
+            console.debug("DWTools shadow Character import", {
+              imported: result.importedCharacterIds,
+              unchanged: result.unchangedCharacterIds,
+            });
+          }
+          if (
+            result.issues.length > 0 ||
+            result.blockedCharacterIds.length > 0
+          ) {
+            console.warn("DWTools shadow Character import issues", result);
+          }
+        },
+        onResult: (result) => {
+          if (
+            result.status === "conflict" ||
+            result.status === "retry" ||
+            result.status === "failed"
+          ) {
+            console.warn("DWTools shadow Character synchronization", result);
+          }
+        },
+        onIssue: (issue) => {
+          console.warn("DWTools shadow Character storage issue", issue);
+        },
+        onError: (error) => {
+          console.error("DWTools shadow Character persistence failed", error);
+        },
+      },
+    );
+
+    characterShadowLocalStore = localStore;
+    characterShadowPersistence = shadow;
+    await shadow.start();
+  } catch (error) {
+    console.error(
+      "DWTools could not start shadow Character persistence",
+      error,
+    );
+    characterShadowPersistence?.stop();
+    characterShadowPersistence = undefined;
+    characterShadowLocalStore?.close();
+    characterShadowLocalStore = undefined;
   }
 
   const characterRepository = createObrCharacterRepository();
@@ -264,6 +341,10 @@ async function initializeBackground(): Promise<void> {
   window.addEventListener(
     "unload",
     () => {
+      characterShadowPersistence?.stop();
+      characterShadowPersistence = undefined;
+      characterShadowLocalStore?.close();
+      characterShadowLocalStore = undefined;
       characterSync.stop();
       unsubscribeOverlayCharacters();
     },

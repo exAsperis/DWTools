@@ -50,6 +50,15 @@ export interface CharacterAutomaticMergeContext {
    * revision.
    */
   parentWriteIds: readonly [string, string];
+
+  /**
+   * Correspond exactly to parentWriteIds.
+   *
+   * These are supplied so a deterministic automatic
+   * merge can create identical audit metadata on every
+   * client.
+   */
+  parentUpdatedAts: readonly [string, string];
 }
 
 export interface CharacterReconciliationOptions {
@@ -414,6 +423,13 @@ export function reconcileCharacterHistories(
     });
   }
 
+  if (left.deleted === true || right.deleted === true) {
+    return conflictWithHistory("merge-conflict", combined, local, scene, {
+      fields: ["deleted"],
+      message: "Deleted Character revisions cannot be automatically merged.",
+    });
+  }
+
   let mergeOptions: MergeRevisionOptions;
 
   try {
@@ -421,6 +437,7 @@ export function reconcileCharacterHistories(
       characterId,
       baseWriteId: commonAncestor.id,
       parentWriteIds,
+      parentUpdatedAts: [left.updatedAt, right.updatedAt],
     });
   } catch (error) {
     return conflictWithHistory("merge-metadata-error", combined, local, scene, {
