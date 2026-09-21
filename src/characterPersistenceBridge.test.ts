@@ -5,7 +5,7 @@ import {
   CharacterSceneStore,
   type CharacterSceneMetadataApi,
 } from "./characterSceneStore";
-import { CharacterShadowPersistence } from "./characterShadowPersistence";
+import { CharacterPersistenceBridge } from "./characterPersistenceBridge";
 import { activeRecord } from "./characterTestHelpers";
 import { CHARACTER_KEY_PREFIX } from "./constants";
 import type { RoomMetadata } from "./defaultVisibility";
@@ -88,7 +88,7 @@ function metadata(value = record()): RoomMetadata {
 function setup(room = new FakeRoomStore(metadata())) {
   const local = new CharacterLocalStore(new MemoryStorage(), "room-1");
   const errors: unknown[] = [];
-  const shadow = new CharacterShadowPersistence(local, room, {
+  const shadow = new CharacterPersistenceBridge(local, room, {
     reconciliation: automaticCharacterReconciliationOptions,
     mutationLock: { runExclusive: (_roomId, operation) => operation() },
     onError: (error) => errors.push(error),
@@ -96,7 +96,7 @@ function setup(room = new FakeRoomStore(metadata())) {
   return { room, local, shadow, errors };
 }
 
-describe("CharacterShadowPersistence", () => {
+describe("CharacterPersistenceBridge", () => {
   it("imports the initial room snapshot", async () => {
     const { shadow, local } = setup();
     await shadow.start();

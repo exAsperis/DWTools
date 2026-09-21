@@ -5,7 +5,7 @@ import {
   CharacterSceneStore,
   type CharacterSceneMetadataApi,
 } from "./characterSceneStore";
-import { CharacterShadowPersistence } from "./characterShadowPersistence";
+import { CharacterPersistenceBridge } from "./characterPersistenceBridge";
 import { activeRecord } from "./characterTestHelpers";
 import { CHARACTER_KEY_PREFIX, LEGACY_CHARACTER_KEY_PREFIX } from "./constants";
 import type { RoomMetadata } from "./defaultVisibility";
@@ -69,7 +69,7 @@ async function start(metadata: RoomMetadata) {
   const room = new RoomStore(metadata);
   const local = new CharacterLocalStore(new MemoryStorage(), "room-1");
   const scene = new CharacterSceneStore(new SceneApi());
-  const shadow = new CharacterShadowPersistence(local, room, {
+  const shadow = new CharacterPersistenceBridge(local, room, {
     reconciliation: automaticCharacterReconciliationOptions,
     mutationLock: { runExclusive: (_roomId, operation) => operation() },
   });
@@ -79,7 +79,7 @@ async function start(metadata: RoomMetadata) {
   return { room, local, scene, shadow };
 }
 
-describe("Character shadow persistence integration", () => {
+describe("Character persistence bridge integration", () => {
   it("normalizes a schema-3 room record and confirms it in local and scene storage", async () => {
     const legacy = {
       ...activeRecord("character-1", { writeId: "legacy" }),

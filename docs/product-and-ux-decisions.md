@@ -357,7 +357,7 @@ uses the HP bar's width, height, font size, dark background, and opacity.
 Loads of 1 or 2 above maximum display **Encumbered (-1)**; loads more than 2
 above maximum display **Encumbered (X)**.
 
-Current Load remains derived from the authoritative room Character inventory
+Current Load remains derived from the authoritative local/scene Character inventory
 and is not copied into token metadata. The client-local background renderer
 reads that derived state and remains the sole overlay writer.
 
@@ -482,7 +482,7 @@ Every persistent Character can carry an optional `maxLoad` and a compact
 inventory tuple array. Missing inventory is the canonical empty state, and an
 inventory that becomes empty is omitted from serialized room metadata. Load is
 calculated from full numeric values and rounded only for display. Inventory
-stays on the authoritative room Character record; Creature token metadata
+stays on the authoritative local/scene Character record; Creature token metadata
 continues to contain only the established character link and synchronized
 creature fields.
 

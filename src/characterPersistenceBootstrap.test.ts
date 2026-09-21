@@ -6,6 +6,8 @@ import {
 } from "./characterLocalStore";
 import type { CharacterMutationLock } from "./characterMutationLock";
 import type { CharacterTransferJournalStorage } from "./characterTransferJournal";
+import { activeRecord } from "./characterTestHelpers";
+import { CHARACTER_KEY_PREFIX, CHARACTER_STORAGE_STATE_KEY } from "./constants";
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -39,6 +41,48 @@ function journal(roomId: string): CharacterTransferJournalStorage {
 }
 
 describe("bootstrapCharacterPersistenceAuthority", () => {
+  async function bootstrapWith(metadata: Record<string, unknown>) {
+    const storage = new MemoryStorage();
+    const localStore = new CharacterLocalStore(storage, "room-1");
+    const authority = await bootstrapCharacterPersistenceAuthority({
+      localStore,
+      transferJournal: journal("room-1"),
+      roomStore: { getMetadata: async () => metadata },
+      mutationLock: { runExclusive: (_roomId, operation) => operation() },
+      getActorId: async () => "actor-1",
+    });
+    return authority;
+  }
+
+  it("imports room records for legacy and frozen rooms but not retired rooms", async () => {
+    const record = activeRecord("character-1", { writeId: "A" });
+    const key = CHARACTER_KEY_PREFIX + "character-1";
+    const legacy = await bootstrapWith({ [key]: record });
+    expect(await legacy.repository.list()).toHaveLength(1);
+    const frozen = await bootstrapWith({
+      [key]: record,
+      [CHARACTER_STORAGE_STATE_KEY]: {
+        formatVersion: 1,
+        authority: "local-scene-v1",
+        roomRecords: "frozen",
+        hasCharacterHistory: true,
+      },
+    });
+    expect(await frozen.repository.list()).toHaveLength(1);
+    const retired = await bootstrapWith({
+      [key]: record,
+      [CHARACTER_STORAGE_STATE_KEY]: {
+        formatVersion: 1,
+        authority: "local-scene-v1",
+        roomRecords: "retired",
+        hasCharacterHistory: true,
+      },
+    });
+    expect(await retired.repository.list()).toEqual([]);
+    legacy.close();
+    frozen.close();
+    retired.close();
+  });
   it("performs recovery, import, and validation under one room lock", async () => {
     const order: string[] = [];
     const storage = new MemoryStorage();

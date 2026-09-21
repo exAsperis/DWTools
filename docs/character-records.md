@@ -299,3 +299,28 @@ synchronized to another browser or the active scene.
 Before local-first production startup permits Character mutations or starts
 scene reconciliation, any pending transfer journal must be recovered or
 surfaced as a blocking persistence error.
+
+## Frozen room-record retirement
+
+Version 1.3.21 does not automatically delete legacy room Character records.
+
+Rooms receive a small Character-storage state marker and each successfully
+reconciled scene receives an initialized-replica marker. These markers allow a
+future release to distinguish a genuinely empty Character database from a fresh
+browser that opened a scene which has never participated in Character
+synchronization.
+
+Until retirement, frozen room Character records remain read-only compatibility
+input so a still-running older client can contribute a legitimate descendant
+revision.
+
+A later release may retire those keys only after the local/scene architecture
+has been validated in production. Retired rooms no longer import room Character
+records. A fresh browser with no local history that opens an uninitialized scene
+in a retired room with known Character history must fail closed and require a
+previously initialized scene rather than assuming the Character database is
+empty.
+
+Closed scenes remain lazy replicas. DWTools cannot enumerate and rewrite every
+closed scene through the Owlbear Scene extension API, so scenes are initialized
+when they are opened.

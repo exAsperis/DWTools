@@ -46,6 +46,13 @@ current scene. Linked tokens in another scene receive the latest record when
 that scene is opened. Later synchronization leaves native token labels
 unchanged.
 
+Character data is stored locally in the browser and synchronized through
+Owlbear scene metadata. Opening a previously synchronized scene from another
+browser brings its current Character data across. Old room Character records
+are temporarily retained as read-only migration input. Simultaneous edits that
+cannot be merged safely are preserved for explicit GM resolution rather than
+silently overwriting one version.
+
 ### Manage characters and inventory
 
 The main DWTools action contains a **Characters** section. GMs can see every

@@ -1,7 +1,7 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import { automaticCharacterReconciliationOptions } from "./characterAutomaticMerge";
 import { createObrCharacterSceneStore } from "./characterSceneStore";
-import { CharacterShadowPersistence } from "./characterShadowPersistence";
+import { CharacterPersistenceBridge } from "./characterPersistenceBridge";
 import { CharacterSyncCoordinator } from "./characterSync";
 import type { CharacterRecord } from "./characterRepository";
 import { CONTEXT_MENU_ID, LEGACY_CONTEXT_MENU_ID } from "./constants";
@@ -15,6 +15,7 @@ import {
 import { LatestTaskQueue } from "./latestTaskQueue";
 import {
   createObrCharacterPersistenceAuthority,
+  markObrCurrentSceneCharacterReplica,
   obrSceneItemStore,
 } from "./obrCharacterServices";
 import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
@@ -54,7 +55,7 @@ async function setupContextMenus(): Promise<void> {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.3.20"),
+      url: assetUrl("context-menu.html?v=1.3.21"),
       height: 360,
     },
   });
@@ -82,7 +83,7 @@ let activeLoadStates: OverlayLoadStates = new Map();
 let lastSourceSignatures = new Map<string, string>();
 let unsubscribeItems: (() => void) | undefined;
 let unsubscribeGrid: (() => void) | undefined;
-let characterShadowPersistence: CharacterShadowPersistence | undefined;
+let characterPersistenceBridge: CharacterPersistenceBridge | undefined;
 let characterAuthority: CharacterPersistenceAuthority | undefined;
 const pendingLegacyIds = new Set<string>();
 let legacyCleanupRunning = false;
@@ -168,7 +169,7 @@ function handleSceneItems(items: Item[], force = false) {
 
 function restartSceneSync() {
   /* Stop subscriptions immediately and invalidate guarded in-flight work. */
-  characterShadowPersistence?.stopScene();
+  characterPersistenceBridge?.stopScene();
 
   const requestedGeneration = ++sceneGeneration;
   lifecycleChain = lifecycleChain
@@ -199,12 +200,13 @@ async function startSceneSync(requestedGeneration: number) {
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
 
-  await characterShadowPersistence?.startScene(
+  await characterPersistenceBridge?.startScene(
     createObrCharacterSceneStore(),
     requestedGeneration,
     (generation) => generation === sceneGeneration,
   );
-  await characterShadowPersistence?.whenSceneIdle();
+  await characterPersistenceBridge?.whenSceneIdle();
+  await markObrCurrentSceneCharacterReplica();
 
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
@@ -248,7 +250,7 @@ async function initializeBackground(): Promise<void> {
   try {
     const authority = await createObrCharacterPersistenceAuthority();
     const localStore = authority.localStore;
-    const shadow = new CharacterShadowPersistence(
+    const bridge = new CharacterPersistenceBridge(
       localStore,
       {
         getMetadata: () => OBR.room.getMetadata(),
@@ -290,12 +292,12 @@ async function initializeBackground(): Promise<void> {
     );
 
     characterAuthority = authority;
-    characterShadowPersistence = shadow;
-    await shadow.start();
+    characterPersistenceBridge = bridge;
+    await bridge.start();
   } catch (error) {
     console.error("DWTools could not start Character persistence", error);
-    characterShadowPersistence?.stop();
-    characterShadowPersistence = undefined;
+    characterPersistenceBridge?.stop();
+    characterPersistenceBridge = undefined;
     characterAuthority?.close();
     characterAuthority = undefined;
     await OBR.notification.show(
@@ -315,7 +317,7 @@ async function initializeBackground(): Promise<void> {
       onReadyChange: (callback) => OBR.scene.onReadyChange(callback),
     },
     (error) => console.error("DWTools character synchronization failed", error),
-    async () => characterShadowPersistence?.whenSceneIdle(),
+    async () => characterPersistenceBridge?.whenSceneIdle(),
   );
   characterSync.start();
   const refreshOverlayLoadStates = async () => {
@@ -343,8 +345,8 @@ async function initializeBackground(): Promise<void> {
   window.addEventListener(
     "unload",
     () => {
-      characterShadowPersistence?.stop();
-      characterShadowPersistence = undefined;
+      characterPersistenceBridge?.stop();
+      characterPersistenceBridge = undefined;
       characterAuthority?.close();
       characterAuthority = undefined;
       characterSync.stop();

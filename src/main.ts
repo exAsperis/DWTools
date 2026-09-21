@@ -1504,6 +1504,7 @@ async function refreshDeveloperPersistence(render = true): Promise<void> {
     const sceneScan = sceneReady
       ? await developerPersistenceSceneStore.scan()
       : undefined;
+    const sceneMetadata = sceneReady ? await OBR.scene.getMetadata() : {};
 
     if (
       generation !== developerPersistenceGeneration ||
@@ -1517,6 +1518,8 @@ async function refreshDeveloperPersistence(render = true): Promise<void> {
       localScan,
       sceneScan,
       sceneReady,
+      sceneMetadata,
+      homeAuthority?.transferJournal.get() !== undefined,
     );
   } catch (error) {
     if (generation !== developerPersistenceGeneration) return;

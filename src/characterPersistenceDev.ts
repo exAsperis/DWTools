@@ -11,6 +11,11 @@ import type {
   VersionedCharacterRecord,
 } from "./characterRevision";
 import { escapeHtml } from "./characterView";
+import {
+  assessCharacterRoomRetirement,
+  characterSceneReplicaFromMetadata,
+  characterStorageStateFromMetadata,
+} from "./characterMigrationState";
 
 export const DEVELOPER_TOOLS_ENABLED_KEY = `${EXTENSION_ID}/developer-tools-enabled`;
 
@@ -48,6 +53,10 @@ export interface CharacterPersistenceDevSnapshot {
   issueCount: number;
   sceneReady: boolean;
   globalIssues: string[];
+  roomRecordState: "Legacy" | "Frozen" | "Retired";
+  sceneReplicaInitialized: boolean;
+  retirementReady: boolean;
+  retirementReasons: string[];
 }
 
 export function readDeveloperToolsEnabled(
@@ -119,6 +128,8 @@ export function buildCharacterPersistenceDevSnapshot(
   localScan: CharacterLocalStoreScan,
   sceneScan: CharacterSceneStoreScan | undefined,
   sceneReady: boolean,
+  sceneMetadata: RoomMetadata = {},
+  transferJournalPresent = false,
 ): CharacterPersistenceDevSnapshot {
   const roomScan = scanRoomCharacterHistories(roomMetadata);
   const roomById = new Map(
@@ -165,6 +176,15 @@ export function buildCharacterPersistenceDevSnapshot(
     ...issuesById.keys(),
   ]);
   const rows: CharacterPersistenceDevRow[] = [];
+  const roomState = characterStorageStateFromMetadata(roomMetadata);
+  const sceneReplica = characterSceneReplicaFromMetadata(sceneMetadata);
+  const retirement = assessCharacterRoomRetirement(
+    roomState,
+    localScan,
+    sceneScan,
+    sceneReplica,
+    transferJournalPresent,
+  );
 
   for (const characterId of sorted(ids)) {
     const room = roomById.get(characterId);
@@ -219,6 +239,14 @@ export function buildCharacterPersistenceDevSnapshot(
       (sceneScan?.issues.length ?? 0),
     sceneReady,
     globalIssues: globalIssues.sort(),
+    roomRecordState: roomState
+      ? roomState.roomRecords === "frozen"
+        ? "Frozen"
+        : "Retired"
+      : "Legacy",
+    sceneReplicaInitialized: sceneReplica !== undefined,
+    retirementReady: retirement.ready,
+    retirementReasons: retirement.reasons,
   };
 }
 
@@ -265,7 +293,7 @@ export function buildCharacterPersistenceDevMarkup(
   error: string | undefined,
 ): string {
   const summary = snapshot
-    ? `<div class="persistence-summary"><span>Room <strong>${snapshot.roomCharacterCount}</strong></span><span>Local <strong>${snapshot.localCharacterCount}</strong></span><span>Scene <strong>${snapshot.sceneCharacterCount}</strong></span><span>Pending <strong>${snapshot.pendingCharacterCount}</strong></span><span>Issues <strong>${snapshot.issueCount}</strong></span></div>`
+    ? `<div class="persistence-summary"><span>Authority <strong>Local ↔ Scene</strong></span><span>Room records <strong>${snapshot.roomRecordState}</strong></span><span>Scene replica <strong>${snapshot.sceneReplicaInitialized ? "Initialized" : "Uninitialized"}</strong></span><span>Retirement <strong>${snapshot.retirementReady ? "Ready" : "Not ready"}</strong></span><span>Room <strong>${snapshot.roomCharacterCount}</strong></span><span>Local <strong>${snapshot.localCharacterCount}</strong></span><span>Scene <strong>${snapshot.sceneCharacterCount}</strong></span><span>Pending <strong>${snapshot.pendingCharacterCount}</strong></span><span>Issues <strong>${snapshot.issueCount}</strong></span></div>${snapshot.retirementReasons.length ? `<details><summary>Retirement blockers</summary>${snapshot.retirementReasons.map((reason) => `<div>${escapeHtml(reason)}</div>`).join("")}</details>` : ""}`
     : "";
   const globals = snapshot?.globalIssues.length
     ? `<div class="persistence-global-issues">${snapshot.globalIssues.map((issue) => `<div>${escapeHtml(issue)}</div>`).join("")}</div>`
@@ -283,5 +311,5 @@ export function buildCharacterPersistenceDevMarkup(
       }</div>`
     : `<p class="manager-status">${loading ? "Loading Character persistence…" : "No diagnostics loaded."}</p>`;
 
-  return `<section class="persistence-dev-panel"><div class="persistence-dev-heading"><div><strong>Character Persistence</strong><span>Shadow room → local ↔ scene diagnostics</span></div><button class="secondary persistence-refresh" type="button" id="persistence-dev-refresh" ${loading ? "disabled" : ""}>${loading ? "Refreshing…" : "Refresh"}</button></div>${error ? `<p class="persistence-dev-error">${escapeHtml(error)}</p>` : ""}${summary}${globals}${rows}</section>`;
+  return `<section class="persistence-dev-panel"><div class="persistence-dev-heading"><div><strong>Character Persistence</strong><span>Migration room → local ↔ scene diagnostics</span></div><button class="secondary persistence-refresh" type="button" id="persistence-dev-refresh" ${loading ? "disabled" : ""}>${loading ? "Refreshing…" : "Refresh"}</button></div>${error ? `<p class="persistence-dev-error">${escapeHtml(error)}</p>` : ""}${summary}${globals}${rows}</section>`;
 }

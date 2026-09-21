@@ -2,9 +2,10 @@ import { CharacterLocalRepository } from "./characterLocalRepository";
 import type { CharacterLocalStore } from "./characterLocalStore";
 import type { CharacterMutationLock } from "./characterMutationLock";
 import {
-  importRoomCharactersToLocal,
+  importRoomCharacterMetadataToLocal,
   type CharacterRoomImportSourceStore,
 } from "./characterRoomImport";
+import { characterStorageStateFromMetadata } from "./characterMigrationState";
 import {
   recoverCharacterTransferJournal,
   type CharacterTransferJournalStorage,
@@ -25,6 +26,7 @@ export interface CharacterPersistenceAuthority {
   repository: CharacterLocalRepository;
   localStore: CharacterLocalStore;
   mutationLock: CharacterMutationLock;
+  transferJournal: CharacterTransferJournalStorage;
   close(): void;
 }
 
@@ -34,13 +36,27 @@ export async function bootstrapCharacterPersistenceAuthority(
   const { localStore, transferJournal, roomStore, mutationLock } = dependencies;
   await mutationLock.runExclusive(localStore.roomId, async () => {
     recoverCharacterTransferJournal(localStore, transferJournal);
-    const imported = await importRoomCharactersToLocal(roomStore, localStore);
-    if (imported.blockedCharacterIds.length || imported.issues.length) {
+    let metadata;
+    try {
+      metadata = await roomStore.getMetadata();
+    } catch (error) {
       throw new CharacterRepositoryError(
-        "MALFORMED",
-        "Character migration could not safely import every room record.",
-        { imported },
+        "API",
+        "DWTools could not read room Character migration state.",
+        undefined,
+        { cause: error },
       );
+    }
+    const roomState = characterStorageStateFromMetadata(metadata);
+    if (roomState?.roomRecords !== "retired") {
+      const imported = importRoomCharacterMetadataToLocal(metadata, localStore);
+      if (imported.blockedCharacterIds.length || imported.issues.length) {
+        throw new CharacterRepositoryError(
+          "MALFORMED",
+          "Character migration could not safely import every room record.",
+          { imported },
+        );
+      }
     }
     const scan = localStore.scan();
     if (scan.issues.length) {
@@ -63,6 +79,7 @@ export async function bootstrapCharacterPersistenceAuthority(
     repository,
     localStore,
     mutationLock,
+    transferJournal,
     close: () => localStore.close(),
   };
 }

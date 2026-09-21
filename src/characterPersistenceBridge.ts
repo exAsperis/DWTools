@@ -15,13 +15,15 @@ import type { CharacterReconciliationOptions } from "./characterReconciliation";
 import type { CharacterStorageExecutionResult } from "./characterStorageExecutor";
 import { executeCharacterReconciliation } from "./characterStorageExecutor";
 import type { CharacterMutationLock } from "./characterMutationLock";
+import { characterStorageStateFromMetadata } from "./characterMigrationState";
+import { CharacterRepositoryError } from "./characterRepository";
 
-export interface CharacterShadowRoomStore {
+export interface CharacterPersistenceRoomStore {
   getMetadata(): Promise<RoomMetadata>;
   subscribe(callback: (metadata: RoomMetadata) => void): () => void;
 }
 
-export interface CharacterShadowPersistenceOptions {
+export interface CharacterPersistenceBridgeOptions {
   reconciliation: CharacterReconciliationOptions;
   mutationLock: CharacterMutationLock;
   /** Optional test injection. */
@@ -33,20 +35,21 @@ export interface CharacterShadowPersistenceOptions {
 }
 
 /**
- * Mirrors authoritative room Characters into local/scene history storage.
- * It deliberately has no room write capability.
+ * Imports frozen old-client room revisions and reconciles authoritative local
+ * history with the active scene replica. It has no room write capability.
  */
-export class CharacterShadowPersistence {
+export class CharacterPersistenceBridge {
   private unsubscribeRoom: (() => void) | undefined;
   private sceneCoordinator: CharacterReconciliationCoordinator | undefined;
   private active = false;
   private importChain = Promise.resolve();
+  private sceneUnsafe = false;
 
   constructor(
     private readonly localStore: CharacterCoordinatorLocalStore &
       CharacterRoomImportLocalStore,
-    private readonly roomStore: CharacterShadowRoomStore,
-    private readonly options: CharacterShadowPersistenceOptions,
+    private readonly roomStore: CharacterPersistenceRoomStore,
+    private readonly options: CharacterPersistenceBridgeOptions,
   ) {}
 
   async start(): Promise<void> {
@@ -75,6 +78,7 @@ export class CharacterShadowPersistence {
     isGenerationCurrent: (generation: number) => boolean,
   ): Promise<void> {
     this.stopScene();
+    this.sceneUnsafe = false;
     if (!this.active || !isGenerationCurrent(generation)) return;
 
     const coordinator = new CharacterReconciliationCoordinator(
@@ -84,9 +88,24 @@ export class CharacterShadowPersistence {
         reconciliation: this.options.reconciliation,
         sceneGeneration: generation,
         isSceneGenerationCurrent: isGenerationCurrent,
-        onResult: (result) => this.reportResult(result),
-        onIssue: (issue) => this.reportIssue(issue),
-        onError: (error) => this.reportError(error),
+        onResult: (result) => {
+          if (
+            result.status === "failed" ||
+            result.status === "retry" ||
+            (result.status === "conflict" &&
+              !("history" in result.reconciliation))
+          )
+            this.sceneUnsafe = true;
+          this.reportResult(result);
+        },
+        onIssue: (issue) => {
+          this.sceneUnsafe = true;
+          this.reportIssue(issue);
+        },
+        onError: (error) => {
+          this.sceneUnsafe = true;
+          this.reportError(error);
+        },
         executor: (...args) =>
           this.options.mutationLock.runExclusive(this.localStore.roomId, () =>
             (this.options.executor ?? executeCharacterReconciliation)(...args),
@@ -129,6 +148,12 @@ export class CharacterShadowPersistence {
     await this.importChain;
     const coordinator = this.sceneCoordinator;
     if (coordinator) await coordinator.whenIdle();
+    if (this.sceneUnsafe) {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "DWTools could not safely reconcile Character storage with the current scene.",
+      );
+    }
   }
 
   stop(): void {
@@ -142,6 +167,10 @@ export class CharacterShadowPersistence {
   private queueImport(metadata: RoomMetadata): Promise<void> {
     const task = this.importChain.then(async () => {
       if (!this.active) return;
+      if (
+        characterStorageStateFromMetadata(metadata)?.roomRecords === "retired"
+      )
+        return;
       const result = await this.options.mutationLock.runExclusive(
         this.localStore.roomId,
         async () =>
@@ -181,7 +210,7 @@ export class CharacterShadowPersistence {
     try {
       (this.options.onError ?? console.error)(error);
     } catch {
-      // Diagnostics must never poison shadow synchronization.
+      // Diagnostics must never poison persistence synchronization.
     }
   }
 }
