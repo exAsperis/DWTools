@@ -185,11 +185,28 @@ orphan recovery. Legacy tombstones from version 1.1.1 still remove stale links
 while they exist, preserving backward compatibility.
 
 Version 1.2.2 changed the DWTools namespace from
-`com.bryan.dungeon-world-creatures` to `com.ex-asperis.dwtools`. Startup moves
-room settings and character records atomically, while each scene's creature
-and character-link metadata moves when that scene is opened. New-namespaced
-values win conflicts, migrated legacy keys are removed immediately, and the
-absence of legacy keys makes the migration idempotent.
+`com.bryan.dungeon-world-creatures` to `com.ex-asperis.dwtools`. Ordinary room
+settings still migrate to the current namespace, and each scene's Creature and
+Character-link metadata still migrates when that scene is opened.
+
+During the local-first Character-storage transition, room Character records are
+treated differently. Startup namespace migration no longer moves or deletes
+Character records from either the legacy or current room namespace. Both are
+preserved as non-destructive migration and recovery inputs. The Character room
+importer reads both namespaces, normalizes legacy record schemas to schema 4,
+combines compatible revision identities, preserves divergent branches, and
+imports the resulting history into local storage. Unsafe revision-ID collisions
+are reported rather than resolved by choosing one namespace.
+
+Imported room records are not deleted in this phase. Room Character retirement
+is a separate later operation performed only after the local/scene persistence
+system has been validated.
+
+Room-to-local import is idempotent by `writeId`. Re-reading the same room
+snapshot does not create a new Character revision. When imported history adds
+new revision knowledge, the resulting local history heads are marked pending
+scene synchronization; the reconciliation executor clears that marker only
+after scene metadata confirms the desired history.
 
 ## Deletion
 

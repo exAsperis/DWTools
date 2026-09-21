@@ -1,10 +1,8 @@
 import type { Item } from "@owlbear-rodeo/sdk";
 import {
-  CHARACTER_KEY_PREFIX,
   CHARACTER_LINK_KEY,
   CREATURE_KEY,
   DEFAULT_OVERLAY_VISIBILITY_KEY,
-  LEGACY_CHARACTER_KEY_PREFIX,
   LEGACY_CHARACTER_LINK_KEY,
   LEGACY_CREATURE_KEY,
   LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY,
@@ -37,28 +35,26 @@ export function planRoomMetadataNamespaceMigration(
   metadata: RoomMetadata,
 ): RoomMetadata {
   const update: RoomMetadata = {};
-  for (const [key, value] of Object.entries(metadata)) {
-    if (key === LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY) {
-      setMigratedValue(
-        metadata,
-        update,
-        key,
-        DEFAULT_OVERLAY_VISIBILITY_KEY,
-        value,
-      );
-      continue;
-    }
-    if (!key.startsWith(LEGACY_CHARACTER_KEY_PREFIX)) continue;
-    const suffix = key.slice(LEGACY_CHARACTER_KEY_PREFIX.length);
-    if (!suffix) continue;
+
+  /*
+   * Ordinary room settings still migrate from the legacy
+   * namespace.
+   *
+   * Character records deliberately do NOT migrate here
+   * anymore. Both legacy and current room Character keys
+   * are preserved as migration/recovery sources for the
+   * local-first persistence architecture.
+   */
+  if (LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY in metadata) {
     setMigratedValue(
       metadata,
       update,
-      key,
-      `${CHARACTER_KEY_PREFIX}${suffix}`,
-      value,
+      LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY,
+      DEFAULT_OVERLAY_VISIBILITY_KEY,
+      metadata[LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY],
     );
   }
+
   return update;
 }
 
