@@ -270,3 +270,37 @@ Physical deletion of an authoritative room Character is intentionally not
 treated as a shadow deletion during this phase. Absence is not sufficient
 evidence of deletion. The shadow history may retain the deleted Character as
 recovery data until versioned tombstone deletion becomes the production model.
+
+## Local-first mutation repository
+
+DWTools now contains a dormant local-first Character mutation repository in
+preparation for production cutover. It is not yet used by the Character UI,
+CreatureService, or linked-token synchronization.
+
+Local Character read-modify-write operations are serialized within one browser
+using one room-scoped exclusive Web Lock. A room-wide lock is deliberately used
+instead of per-Character locks so later multi-Character operations can be
+coordinated without nested lock ordering.
+
+A local mutation appends a new immutable revision to the CharacterHistory,
+moves the history head to that revision, and marks the new head pending scene
+confirmation. Existing ancestor revisions remain available for reconciliation
+and merge ancestry.
+
+Local deletion is versioned rather than physical. A delete creates a
+CharacterTombstone that descends from the previous active head. The previous
+active revision and the tombstone both remain in history, allowing stale or
+concurrent edits from another browser to be recognized as a delete/edit
+divergence rather than silently resurrecting the Character.
+
+A Character with multiple unresolved heads is read-only to the local mutation
+repository. Automatic mutation never chooses one conflicting branch.
+
+Relative HP adjustment is applied to the latest active local head while holding
+the mutation lock. UI code must eventually call that semantic operation rather
+than reading an HP value and converting a relative +/- action into an absolute
+write.
+
+Inventory transfer is intentionally excluded from this repository phase because
+it changes two localStorage keys. Production transfer requires a durable
+transaction journal and recovery procedure in addition to mutation locking.
