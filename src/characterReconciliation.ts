@@ -6,6 +6,7 @@ import {
   deepEqual,
   findCommonAncestor,
   historyGraph,
+  mergeCharacterSnapshots,
   type CharacterHistory,
   type MergeRevisionOptions,
 } from "./characterRevision";
@@ -400,6 +401,16 @@ export function reconcileCharacterHistories(
   if (!base || !left || !right) {
     return conflictWithHistory("unknown-ancestry", combined, local, scene, {
       message: "A required Character revision is unavailable.",
+    });
+  }
+
+  const mergePreview = mergeCharacterSnapshots(base, left, right);
+
+  if (mergePreview.status === "conflict") {
+    return conflictWithHistory("merge-conflict", combined, local, scene, {
+      fields: [...mergePreview.fields].sort(),
+
+      message: "The divergent Character revisions changed incompatible data.",
     });
   }
 

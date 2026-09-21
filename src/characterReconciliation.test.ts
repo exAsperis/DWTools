@@ -441,12 +441,18 @@ describe("Character history reconciliation", () => {
       },
     );
 
+    const factory = vi.fn(() => {
+      throw new Error("merge metadata should not be requested");
+    });
+
     const result = reconcileCharacterHistories(
       history(["left"], root, left),
 
       history(["right"], root, right),
 
-      mergeOptions(),
+      {
+        createMergeRevisionOptions: factory,
+      },
     );
 
     expect(result.status).toBe("conflict");
@@ -464,6 +470,8 @@ describe("Character history reconciliation", () => {
     expect(result.writeLocal).toBe(true);
 
     expect(result.writeScene).toBe(true);
+
+    expect(factory).not.toHaveBeenCalled();
   });
 
   it("treats independently changed inventory as a conflict", () => {
