@@ -33,6 +33,7 @@ import {
 } from "./inventory";
 import { adjustedHp } from "./hp";
 import type { CharacterHistory } from "./characterRevision";
+import type { CharacterRepositoryConflict } from "./characterRepositoryContract";
 
 export interface CharacterLocalMutationStore {
   readonly roomId: string;
@@ -115,6 +116,24 @@ export class CharacterLocalRepository {
           sensitivity: "base",
         }),
       );
+  }
+
+  async listConflicts(): Promise<CharacterRepositoryConflict[]> {
+    const scan = this.store.scan();
+    if (scan.issues.length) {
+      throw new CharacterRepositoryError(
+        "MALFORMED",
+        "Local Character storage contains malformed entries.",
+        { issues: scan.issues },
+      );
+    }
+    return scan.entries
+      .filter((entry) => entry.history.heads.length > 1)
+      .map((entry) => ({
+        characterId: entry.characterId,
+        history: entry.history,
+      }))
+      .sort((left, right) => left.characterId.localeCompare(right.characterId));
   }
 
   async inspect(characterId: string): Promise<CharacterLocalLookup> {
@@ -504,6 +523,72 @@ export class CharacterLocalRepository {
       };
       this.writeDescendant(entry, tombstone);
       return tombstone;
+    });
+  }
+
+  async resolveConflict(
+    characterId: string,
+    selectedHeadWriteId: string,
+  ): Promise<CharacterRecord | CharacterTombstone> {
+    return this.withLock(async () => {
+      const entry = this.store.get(characterId);
+      if (!entry || entry.history.heads.length <= 1) {
+        throw new CharacterRepositoryError(
+          "CONFLICT",
+          "This Character is no longer conflicted.",
+          { characterId },
+        );
+      }
+      const heads = [...entry.history.heads].sort();
+      if (!heads.includes(selectedHeadWriteId)) {
+        throw new CharacterRepositoryError(
+          "CONFLICT",
+          "The selected Character version is no longer a current head.",
+          { characterId, selectedHeadWriteId, heads },
+        );
+      }
+      const records = heads.map((id) => entry.history.revisions[id]);
+      if (records.some((record) => !record)) {
+        throw new CharacterRepositoryError(
+          "MALFORMED",
+          "A conflicted Character head is missing its revision.",
+          { characterId, heads },
+        );
+      }
+      const selected = entry.history.revisions[selectedHeadWriteId]!;
+      const actorId = await this.options.getActorId();
+      const timestamp = this.now().toISOString();
+      const common = {
+        schemaVersion: CHARACTER_RECORD_SCHEMA_VERSION,
+        id: characterId,
+        revision: Math.max(...records.map((record) => record.revision)) + 1,
+        writeId: this.randomUUID(),
+        parents: heads,
+      } as const;
+      let resolution: CharacterRecord | CharacterTombstone;
+      if (selected.deleted === true) {
+        const activeName = records.find((record) => record.deleted !== true)
+          ?.fields.name;
+        resolution = {
+          ...common,
+          deleted: true,
+          name: selected.name ?? activeName,
+          deletedAt: timestamp,
+          deletedBy: actorId,
+        };
+      } else {
+        resolution = {
+          ...common,
+          fields: selected.fields,
+          ...(selected.inventory ? { inventory: selected.inventory } : {}),
+          createdAt: selected.createdAt,
+          createdBy: selected.createdBy,
+          updatedAt: timestamp,
+          updatedBy: actorId,
+        };
+      }
+      this.writeDescendant(entry, resolution);
+      return resolution;
     });
   }
 

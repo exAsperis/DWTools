@@ -18,6 +18,9 @@ import {
 import { createBrowserCharacterLocalStore } from "./characterLocalStore";
 import { createBrowserCharacterMutationLock } from "./characterMutationLock";
 import { createBrowserCharacterTransferJournalStore } from "./characterTransferJournal";
+import { createObrCharacterSceneStore } from "./characterSceneStore";
+import { automaticCharacterReconciliationOptions } from "./characterAutomaticMerge";
+import { reconcileCharacterAuthorityWithScene } from "./characterAuthorityReadiness";
 
 export const obrRoomMetadataStore: CharacterMetadataStore = {
   getMetadata: () => OBR.room.getMetadata(),
@@ -69,14 +72,24 @@ export function createObrCharacterManagerService(
 
 export async function createObrCharacterPersistenceAuthority(): Promise<CharacterPersistenceAuthority> {
   const localStore = createBrowserCharacterLocalStore(OBR.room.id);
+  const mutationLock = createBrowserCharacterMutationLock();
   try {
-    return await bootstrapCharacterPersistenceAuthority({
+    const authority = await bootstrapCharacterPersistenceAuthority({
       localStore,
       transferJournal: createBrowserCharacterTransferJournalStore(OBR.room.id),
       roomStore: obrRoomMetadataStore,
-      mutationLock: createBrowserCharacterMutationLock(),
+      mutationLock,
       getActorId: () => OBR.player.getId(),
     });
+    if (await OBR.scene.isReady()) {
+      await reconcileCharacterAuthorityWithScene({
+        localStore,
+        sceneStore: createObrCharacterSceneStore(),
+        mutationLock,
+        reconciliation: automaticCharacterReconciliationOptions,
+      });
+    }
+    return authority;
   } catch (error) {
     localStore.close();
     throw error;

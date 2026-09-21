@@ -110,26 +110,16 @@ linked-token synchronization, then normal subscriptions. Room change events
 may import newer legacy descendants but are serialized through the same lock;
 room Character keys remain untouched.
 
-Record patches use bounded optimistic retries:
-
-1. read the latest record;
-2. merge the requested patch;
-3. create a descendant revision whose parent is the latest record's `writeId`,
-   increment its numeric revision, and generate a new `writeId`;
-4. write only the record's independent room-metadata key;
-5. read it back and compare the write ID; and
-6. merge the original patch onto the new latest record and retry after a
-   competing write.
-
-Same-field conflicts are eventual last-write-wins. The retry merge preserves
-different-field changes when the competing write can be observed.
+Every production authority reconciles its local history with the current ready
+scene before its repository is exposed. Failed/retry results and unsafe
+collisions block startup. Safely combined multi-head histories remain readable
+as explicit conflict state until a GM creates a resolution revision.
 
 Inventory mutations retain the selected source-array index and original tuple.
 Each command reads the latest record, checks that index for the exact tuple, and
 falls back to one exact tuple match if the array shifted. A missing match fails
 without changing another row. GM transfers re-read and validate both records,
-then submit both independent metadata keys in one `setMetadata` update and
-confirm both write IDs.
+then commits both local entries through the recovery journal.
 
 ## Character access
 
@@ -141,7 +131,7 @@ deduplicated by Character ID.
 
 Authorization is re-read from Owlbear immediately before every Character or
 inventory mutation. Losing token control invalidates an open player editor.
-This is an interface permission boundary over synchronized room metadata, not
+This is an interface permission boundary over synchronized Character data, not
 strong per-user data secrecy.
 
 ## Inventory interaction
@@ -161,25 +151,17 @@ for quick reference, but all inventory mutations remain in the main panel.
 
 ## Metadata capacity
 
-Owlbear limits total room metadata, shared by all extensions, to 16 KiB.
-DWTools:
-
-- serializes the proposed complete room metadata with `TextEncoder`;
-- warns at 80% of Owlbear's limit;
-- rejects character writes above a conservative 15 KiB safe maximum;
-- reports an actionable capacity error; and
-- never applies a linked token edit when its authoritative record write fails.
-
-The GM manager reports approximate total room-metadata use, including other
-extensions. DWTools includes that data only when estimating capacity and never
-modifies metadata outside its own keys.
+The old 16 KiB room-metadata Character capacity no longer governs new Character
+mutations. Frozen room Character records may temporarily continue consuming
+room metadata until migration retirement. Small DWTools settings still use
+room metadata.
 
 ## Synchronization direction
 
 All explicit DWTools creature mutations use `CreatureService`.
 
 - Unlinked tokens update only their scene item.
-- Linked tokens write the authoritative room record first.
+- Linked tokens append to authoritative local Character history first.
 - After a successful record write, all tokens linked to that character in the
   current scene receive the record's creature data while retaining their
   individual native token labels.
@@ -189,11 +171,10 @@ Do not add an arbitrary scene-item watcher that writes token changes back to a
 record. Token-to-record updates must remain explicit commands to avoid
 feedback loops and ambiguous authority.
 
-The existing background page subscribes to room metadata and scene readiness.
-Changed records synchronize current-scene tokens. Opening a scene performs a
-full linked-token synchronization. Missing records retain their links for
-orphan recovery. Legacy tombstones from version 1.1.1 still remove stale links
-while they exist, preserving backward compatibility.
+The background page reconciles local Character histories with the ready scene
+replica before linked-token synchronization. Frozen room changes from old
+clients are imported only as revision knowledge and never receive special
+authority.
 
 Version 1.2.2 changed the DWTools namespace from
 `com.bryan.dungeon-world-creatures` to `com.ex-asperis.dwtools`. Ordinary room
@@ -221,17 +202,10 @@ after scene metadata confirms the desired history.
 
 ## Deletion
 
-Deletion first unlinks current-scene tokens without changing their creature
-fields, then removes the active record's independent room-metadata key. DWTools
-cannot inspect closed scenes, so tokens still linked there become
-missing-record orphans. Their creature editor provides explicit recovery
-actions to relink, create a replacement record from the current fields, or
-unlink while retaining those fields.
-
-Schema-1 tombstones created by version 1.1.1 remain valid migration input. The
-GM manager removes those legacy tombstone keys idempotently before listing
-records, freeing their room-metadata space. DWTools no longer creates new
-tombstones.
+Deletion appends a versioned tombstone descended from the active revision.
+History is retained and the tombstone synchronizes through scene metadata.
+Current-scene linked tokens are unlinked by normal Character synchronization.
+Frozen room records remain untouched and cannot resurrect a known tombstone.
 
 The direct-delete and missing-record recovery workflow was confirmed by the
 project owner in the live Owlbear environment on 2026-07-26.
@@ -246,30 +220,18 @@ the project owner in the live Owlbear environment on 2026-07-27.
   synchronize when their scene becomes ready.
 - A linked-token count is therefore always labeled as applying to the current
   scene only.
-- The 16 KiB room-metadata limit is shared with every enabled extension.
-  Character capacity depends on field lengths and other extensions' usage.
 - Room metadata is synchronized extension state, not secret storage.
 - Local-server extension testing is currently nonfunctional. Follow the
   standing internal-QC, GitHub push, and live pre-production testing directive
   recorded in the project decision documents.
 
-## Shadow local/scene persistence
+## Local/scene persistence
 
-During the migration validation phase, the existing room Character repository
-remains the live authority used by the DWTools UI, linked-token synchronization,
-inventory editing, and deletion workflow.
-
-In parallel, the background page runs the new persistence system in shadow
-mode. Existing Character records from both supported room namespaces are
-imported non-destructively into room-scoped browser local storage. The active
-scene stores synchronized Character revision histories in scene metadata.
-Room-metadata changes continue to be imported as new revision knowledge, and
-the local/scene reconciliation coordinator propagates that history without
-writing any result back to room Character records.
-
-Shadow storage is therefore observational and redundant at this stage. Failure
-of shadow import or synchronization is logged but does not prevent the existing
-room-authoritative Character workflow from operating.
+Browser-local `CharacterHistory` is the production authority. Scene
+`CharacterHistory` is its shared synchronization replica. Room Character
+records are frozen migration and old-client compatibility input; production
+code never writes or deletes them. Bootstrap fails closed when recovery,
+import, validation, or ready-scene reconciliation cannot complete safely.
 
 Automatic merge revisions are deterministic across clients. Their identity is
 derived from the Character ID, merge base, and parent revision IDs; automatic
@@ -277,16 +239,10 @@ merge audit metadata is also deterministic. Two clients independently merging
 the same revisions therefore manufacture the same revision rather than creating
 competing merge commits.
 
-Physical deletion of an authoritative room Character is intentionally not
-treated as a shadow deletion during this phase. Absence is not sufficient
-evidence of deletion. The shadow history may retain the deleted Character as
-recovery data until versioned tombstone deletion becomes the production model.
-
 ## Local-first mutation repository
 
-DWTools now contains a dormant local-first Character mutation repository in
-preparation for production cutover. It is not yet used by the Character UI,
-CreatureService, or linked-token synchronization.
+`CharacterLocalRepository` is used by the Character UI, CreatureService, and
+linked-token synchronization.
 
 Local Character read-modify-write operations are serialized within one browser
 using one room-scoped exclusive Web Lock. A room-wide lock is deliberately used
@@ -307,10 +263,10 @@ divergence rather than silently resurrecting the Character.
 A Character with multiple unresolved heads is read-only to the local mutation
 repository. Automatic mutation never chooses one conflicting branch.
 
-Relative HP adjustment is applied to the latest active local head while holding
-the mutation lock. UI code must eventually call that semantic operation rather
-than reading an HP value and converting a relative +/- action into an absolute
-write.
+Relative HP and XP adjustments are applied to the latest active local head
+while holding the mutation lock. Multi-head conflicts remain read-only until a
+GM selects one complete head; resolution creates a new revision whose parents
+contain every observed current head, preserving all branch ancestry.
 
 ### Inventory transfer journal
 

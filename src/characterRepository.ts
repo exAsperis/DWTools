@@ -378,6 +378,17 @@ export class CharacterRepository {
       );
   }
 
+  async listConflicts(): Promise<[]> {
+    return [];
+  }
+
+  async resolveConflict(): Promise<never> {
+    throw new CharacterRepositoryError(
+      "CONFLICT",
+      "Room Character records do not support revision conflict resolution.",
+    );
+  }
+
   async read(characterId: string): Promise<StoredCharacterRecord | undefined> {
     const lookup = await this.inspect(characterId);
     return lookup.status === "active" || lookup.status === "deleted"

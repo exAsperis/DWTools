@@ -654,4 +654,88 @@ describe("CharacterLocalRepository", () => {
     ).rejects.toSatisfy((error) => code(error) === "CONFLICT");
     expect(journals.get()).toBeUndefined();
   });
+
+  it("resolves a multi-head conflict with a new all-heads revision", async () => {
+    const store = new CharacterLocalStore(new MemoryStorage(), "room-1");
+    const root = activeRecord("character-1", { writeId: "A" });
+    const left = activeRecord("character-1", {
+      writeId: "B",
+      revision: 2,
+      parents: ["A"],
+      fields: { ...root.fields, hpCurrent: 3 },
+      inventory: [["Rope", 1, 1]],
+    });
+    const right = activeRecord("character-1", {
+      writeId: "C",
+      revision: 4,
+      parents: ["A"],
+      fields: { ...root.fields, hpCurrent: 8 },
+    });
+    seed(store, {
+      formatVersion: 1,
+      characterId: "character-1",
+      revisions: { A: root, B: left, C: right },
+      heads: ["C", "B"],
+    });
+    const resolution = await repo(store, undefined, ["R"]).resolveConflict(
+      "character-1",
+      "B",
+    );
+    expect(resolution).toMatchObject({
+      writeId: "R",
+      revision: 5,
+      parents: ["B", "C"],
+      fields: { hpCurrent: 3 },
+      inventory: [["Rope", 1, 1]],
+    });
+    const entry = store.get("character-1")!;
+    expect(entry.history.heads).toEqual(["R"]);
+    expect(Object.keys(entry.history.revisions).sort()).toEqual([
+      "A",
+      "B",
+      "C",
+      "R",
+    ]);
+    expect(entry.sync.pendingRevisionIds).toEqual(["R"]);
+  });
+
+  it("resolves active-vs-tombstone by explicitly choosing deletion", async () => {
+    const store = new CharacterLocalStore(new MemoryStorage(), "room-1");
+    const active = activeRecord("character-1", { writeId: "B" });
+    const tombstone = {
+      schemaVersion: 4 as const,
+      id: "character-1",
+      revision: 3,
+      writeId: "T",
+      parents: ["B"],
+      deleted: true as const,
+      deletedAt: timestamp,
+      deletedBy: "actor-2",
+    };
+    seed(store, {
+      formatVersion: 1,
+      characterId: "character-1",
+      revisions: { B: active, T: tombstone },
+      heads: ["B", "T"],
+    });
+    const resolution = await repo(store, undefined, ["R"]).resolveConflict(
+      "character-1",
+      "T",
+    );
+    expect(resolution).toMatchObject({
+      deleted: true,
+      name: active.fields.name,
+      parents: ["B", "T"],
+      revision: 4,
+    });
+  });
+
+  it("rejects stale or non-conflicted resolution selections", async () => {
+    const store = new CharacterLocalStore(new MemoryStorage(), "room-1");
+    const active = activeRecord("character-1", { writeId: "A" });
+    seed(store, history(active));
+    await expect(
+      repo(store).resolveConflict("character-1", "A"),
+    ).rejects.toSatisfy((error) => code(error) === "CONFLICT");
+  });
 });

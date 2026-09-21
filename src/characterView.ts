@@ -3,6 +3,8 @@ import type {
   CharacterStorageUsage,
 } from "./characterRepository";
 import type { LinkedTokenPreview } from "./characterService";
+import type { CharacterRepositoryConflict } from "./characterRepositoryContract";
+import { characterConflictHeadViews } from "./characterConflictView";
 import type { CreatureFields } from "./constants";
 import { tagEditorMarkup } from "./tagEditor";
 import {
@@ -141,6 +143,7 @@ export function buildCharacterDeleteConfirmation(name: string): string {
 
 export interface CharacterManagerViewState {
   records: CharacterRecord[];
+  conflicts?: CharacterRepositoryConflict[];
   counts: Map<string, number>;
   linkedTokens?: Map<string, LinkedTokenPreview[]>;
   role: "GM" | "PLAYER";
@@ -331,6 +334,20 @@ export function buildCharacterManagerMarkup(
         expanded
           ? `${state.role === "GM" ? '<button type="button" class="primary compact manager-create" id="manager-create">New</button>' : ""}
       ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
+      ${
+        state.role === "GM" && state.conflicts?.length
+          ? `<section class="character-conflicts"><h3>⚠ Character conflicts</h3>${state.conflicts
+              .map((conflict) => {
+                const heads = characterConflictHeadViews(conflict.history);
+                const name =
+                  heads.find((head) => !head.deleted)?.name ??
+                  heads[0]?.name ??
+                  "Character";
+                return `<article class="character-conflict-card"><h4>${escapeHtml(name)}</h4><p>${heads.length} unresolved versions</p>${heads.map((head) => `<div class="character-conflict-version"><strong>${head.deleted ? "Deleted version" : `Version ${escapeHtml(head.writeId.slice(0, 8))}`}</strong><p>${escapeHtml(head.summary)}</p>${head.updatedAt ? `<small>Updated ${escapeHtml(head.updatedAt)}</small>` : ""}<button type="button" class="secondary compact" data-resolve-character="${escapeHtml(conflict.characterId)}" data-resolve-head="${escapeHtml(head.writeId)}" data-resolve-name="${escapeHtml(name)}" data-resolve-deleted="${head.deleted}">${head.deleted ? "Use deletion" : "Use this version"}</button></div>`).join("")}</article>`;
+              })
+              .join("")}</section>`
+          : ""
+      }
       ${
         state.loading
           ? '<p class="manager-status">Loading Characters…</p>'

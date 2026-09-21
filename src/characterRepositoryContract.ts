@@ -1,9 +1,19 @@
 import type { CreatureFieldPatch, CreatureFields } from "./constants";
-import type { CharacterLookup, CharacterRecord } from "./characterRepository";
+import type {
+  CharacterLookup,
+  CharacterRecord,
+  CharacterTombstone,
+} from "./characterRepository";
+import type { CharacterHistory } from "./characterRevision";
 import type { InventoryItem, InventorySelection } from "./inventory";
 
 export type CharacterRepositoryLookup =
-  CharacterLookup | { status: "conflict" };
+  CharacterLookup | { status: "conflict"; history: CharacterHistory };
+
+export interface CharacterRepositoryConflict {
+  characterId: string;
+  history: CharacterHistory;
+}
 
 export interface CharacterRepositoryChange {
   characterId: string;
@@ -12,6 +22,7 @@ export interface CharacterRepositoryChange {
 
 export interface CharacterRepositoryContract {
   list(): Promise<CharacterRecord[]>;
+  listConflicts(): Promise<CharacterRepositoryConflict[]>;
   inspect(characterId: string): Promise<CharacterRepositoryLookup>;
   create(fields: CreatureFields): Promise<CharacterRecord>;
   patch(
@@ -49,6 +60,10 @@ export interface CharacterRepositoryContract {
     count: number,
   ): Promise<{ source: CharacterRecord; destination: CharacterRecord }>;
   delete(characterId: string): Promise<unknown>;
+  resolveConflict(
+    characterId: string,
+    selectedHeadWriteId: string,
+  ): Promise<CharacterRecord | CharacterTombstone>;
   subscribe(
     callback: (changes: CharacterRepositoryChange[]) => void,
   ): () => void;

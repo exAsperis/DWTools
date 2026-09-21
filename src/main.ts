@@ -3,6 +3,7 @@ import "./style.css";
 import { type CharacterRecord } from "./characterRepository";
 import type {
   CharacterRepositoryContract,
+  CharacterRepositoryConflict,
   CharacterRepositoryLookup,
 } from "./characterRepositoryContract";
 import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
@@ -322,6 +323,7 @@ let homeAuthority: CharacterPersistenceAuthority | undefined;
 let homeCreatureService: CreatureService | undefined;
 let homeManagerService: CharacterManagerService | undefined;
 let managerRecords: CharacterRecord[] = [];
+let managerConflicts: CharacterRepositoryConflict[] = [];
 let managerCounts = new Map<string, number>();
 let managerLinkedTokens = new Map<string, LinkedTokenPreview[]>();
 let managerLoading = false;
@@ -449,6 +451,7 @@ let draggedHomeSection: HomeMajorSection | undefined;
 function managerState(): CharacterManagerViewState {
   return {
     records: managerRecords,
+    conflicts: managerConflicts,
     counts: managerCounts,
     linkedTokens: managerLinkedTokens,
     role: homeRole,
@@ -934,6 +937,26 @@ function bindManagerControls(): void {
     void createManagedCharacterInline();
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-resolve-character]",
+  )) {
+    button.addEventListener("click", async () => {
+      if (!homeRepository || managerSaving) return;
+      const characterId = button.dataset.resolveCharacter;
+      const headWriteId = button.dataset.resolveHead;
+      if (!characterId || !headWriteId) return;
+      const deleted = button.dataset.resolveDeleted === "true";
+      const name = button.dataset.resolveName ?? "this Character";
+      const message = deleted
+        ? "Resolve the conflict by keeping this Character deleted?\n\nOther versions will remain in Character history, but the deletion will become the resolved current state."
+        : `Resolve the conflict for "${name}" using this version?\n\nThe other versions will remain in Character history, but this version will become the resolved current state.`;
+      if (!window.confirm(message)) return;
+      await runInventoryMutation(
+        () => homeRepository!.resolveConflict(characterId, headWriteId),
+        "Character conflict resolved.",
+      );
+    });
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-delete-character]",
   )) {
     button.addEventListener(
@@ -1379,10 +1402,15 @@ async function refreshManager(render = true): Promise<void> {
   managerError = undefined;
   if (render) renderHome();
   try {
-    [managerRecords, managerLinkedTokens] = await Promise.all([
-      homeManagerService.listAccessible(),
-      currentSceneLinkedTokenPreviews(homeCreatureService.scene),
-    ]);
+    [managerRecords, managerLinkedTokens, managerConflicts] = await Promise.all(
+      [
+        homeManagerService.listAccessible(),
+        currentSceneLinkedTokenPreviews(homeCreatureService.scene),
+        homeRole === "GM"
+          ? homeRepository.listConflicts()
+          : Promise.resolve([]),
+      ],
+    );
     managerCounts = new Map(
       [...managerLinkedTokens].map(([characterId, tokens]) => [
         characterId,
@@ -1415,7 +1443,7 @@ async function deleteManagedCharacter(
   try {
     await homeManagerService.delete(characterId);
     notify(
-      "Character record deleted. Other-scene copies are now orphaned.",
+      "Character deleted. Other scenes will synchronize the tombstone when opened.",
       "SUCCESS",
     );
     await refreshManager(false);
@@ -1676,6 +1704,11 @@ function buildCharacterRecordSection(token: Item): string {
     controls = `
       <button type="button" class="secondary" id="link-character">Change link</button>
       <button type="button" class="secondary" id="unlink-character">Unlink</button>`;
+  } else if (editorLookup.status === "conflict") {
+    status =
+      'Character record: <strong class="orphaned">Unresolved conflict</strong>';
+    controls =
+      '<p class="inline-error">This linked Character is read-only until a GM resolves it in Character maintenance.</p>';
   } else {
     const reason =
       editorLookup.status === "malformed"
