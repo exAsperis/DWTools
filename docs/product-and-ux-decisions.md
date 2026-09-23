@@ -22,7 +22,7 @@ The extension should:
 
 The overlay is a presentation of token metadata, not the source of truth.
 For unlinked creatures, creature data belongs on the token. For linked
-creatures, a persistent room character record is authoritative and the token
+creatures, the local/scene synchronized Character history is authoritative and the token
 contains a synchronized scene-local copy. Each client independently derives
 the visual overlay appropriate to that player's role from the token copy.
 
@@ -357,7 +357,7 @@ uses the HP bar's width, height, font size, dark background, and opacity.
 Loads of 1 or 2 above maximum display **Encumbered (-1)**; loads more than 2
 above maximum display **Encumbered (X)**.
 
-Current Load remains derived from the authoritative room Character inventory
+Current Load remains derived from the authoritative local/scene Character inventory
 and is not copied into token metadata. The client-local background renderer
 reads that derived state and remains the sole overlay writer.
 
@@ -482,7 +482,7 @@ Every persistent Character can carry an optional `maxLoad` and a compact
 inventory tuple array. Missing inventory is the canonical empty state, and an
 inventory that becomes empty is omitted from serialized room metadata. Load is
 calculated from full numeric values and rounded only for display. Inventory
-stays on the authoritative room Character record; Creature token metadata
+stays on the authoritative local/scene Character record; Creature token metadata
 continues to contain only the established character link and synchronized
 creature fields.
 

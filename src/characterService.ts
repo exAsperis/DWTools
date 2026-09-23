@@ -1,9 +1,10 @@
 import { isImage, type Item } from "@owlbear-rodeo/sdk";
 import {
   type CharacterRecord,
-  type CharacterRepository,
   CharacterRepositoryError,
 } from "./characterRepository";
+import type { CharacterRepositoryContract } from "./characterRepositoryContract";
+import { adjustedHp } from "./hp";
 import {
   CREATURE_KEY,
   type CreatureData,
@@ -94,7 +95,7 @@ export async function currentSceneLinkedTokenPreviews(
 }
 
 export async function syncCharacterToCurrentScene(
-  repository: CharacterRepository,
+  repository: CharacterRepositoryContract,
   scene: SceneItemStore,
   characterId: string,
 ): Promise<number> {
@@ -108,7 +109,8 @@ export async function syncCharacterToCurrentScene(
   if (
     !linked.length ||
     lookup.status === "missing" ||
-    lookup.status === "malformed"
+    lookup.status === "malformed" ||
+    lookup.status === "conflict"
   ) {
     return 0;
   }
@@ -132,7 +134,7 @@ export async function syncCharacterToCurrentScene(
 }
 
 export async function syncAllLinkedCharactersInCurrentScene(
-  repository: CharacterRepository,
+  repository: CharacterRepositoryContract,
   scene: SceneItemStore,
 ): Promise<number> {
   const items = await scene.getItems();
@@ -156,7 +158,8 @@ export async function syncAllLinkedCharactersInCurrentScene(
     if (
       !lookup ||
       lookup.status === "missing" ||
-      lookup.status === "malformed"
+      lookup.status === "malformed" ||
+      lookup.status === "conflict"
     ) {
       return false;
     }
@@ -185,7 +188,7 @@ export async function syncAllLinkedCharactersInCurrentScene(
 
 export class CreatureService {
   constructor(
-    readonly repository: CharacterRepository,
+    readonly repository: CharacterRepositoryContract,
     readonly scene: SceneItemStore,
     private readonly accessProvider?: CharacterAccessProvider,
   ) {}
@@ -212,6 +215,13 @@ export class CreatureService {
     }
 
     const lookup = await this.repository.inspect(link.characterId);
+    if (lookup.status === "conflict") {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "This Character has unresolved revisions and cannot be edited yet.",
+        { characterId: link.characterId },
+      );
+    }
     if (lookup.status !== "active") {
       throw new CreatureUpdateError(
         "ORPHANED",
@@ -241,6 +251,80 @@ export class CreatureService {
       );
     }
     return { fields: record.fields, record };
+  }
+
+  async adjustCreatureHp(
+    itemId: string,
+    amount: number,
+  ): Promise<{ fields: CreatureFields; record?: CharacterRecord }> {
+    if (!Number.isInteger(amount) || amount === 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "HP adjustment must be a non-zero whole number.",
+      );
+    }
+    const item = await this.requireItem(itemId);
+    const link = getCharacterLink(item);
+    if (!link) {
+      const fields = extractCreatureFields(item);
+      if (fields.hpCurrent === undefined) {
+        throw new CharacterRepositoryError(
+          "VALIDATION",
+          "This creature does not have a current HP value.",
+        );
+      }
+      return this.updateCreatureFields(itemId, {
+        hpCurrent: adjustedHp(fields.hpCurrent, amount),
+      });
+    }
+    await this.requireLinkedCharacterAccess(link.characterId);
+    const record = await this.repository.adjustHp(link.characterId, amount);
+    await this.syncSavedRecord(link.characterId, record);
+    return { fields: record.fields, record };
+  }
+
+  async adjustCreatureXp(
+    itemId: string,
+    amount: number,
+  ): Promise<{ fields: CreatureFields; record?: CharacterRecord }> {
+    if (!Number.isInteger(amount) || amount === 0) {
+      throw new CharacterRepositoryError(
+        "VALIDATION",
+        "XP adjustment must be a non-zero whole number.",
+      );
+    }
+    const item = await this.requireItem(itemId);
+    const link = getCharacterLink(item);
+    if (!link) {
+      const fields = extractCreatureFields(item);
+      return this.updateCreatureFields(itemId, {
+        xp: Math.max(0, (fields.xp ?? 0) + amount),
+      });
+    }
+    await this.requireLinkedCharacterAccess(link.characterId);
+    const record = await this.repository.adjustXp(link.characterId, amount);
+    await this.syncSavedRecord(link.characterId, record);
+    return { fields: record.fields, record };
+  }
+
+  private async syncSavedRecord(
+    characterId: string,
+    record: CharacterRecord,
+  ): Promise<void> {
+    try {
+      await syncCharacterToCurrentScene(
+        this.repository,
+        this.scene,
+        characterId,
+      );
+    } catch (error) {
+      throw new CreatureUpdateError(
+        "RECORD_SAVED_TOKEN_SYNC_FAILED",
+        "The character record was saved, but Owlbear could not synchronize its current-scene tokens.",
+        { characterId, record },
+        { cause: error },
+      );
+    }
   }
 
   async replaceCreatureFields(
@@ -309,6 +393,13 @@ export class CreatureService {
       this.requireItem(itemId),
       this.repository.inspect(characterId),
     ]);
+    if (lookup.status === "conflict") {
+      throw new CharacterRepositoryError(
+        "CONFLICT",
+        "This Character has unresolved revisions and cannot be linked yet.",
+        { characterId },
+      );
+    }
     if (lookup.status !== "active") {
       throw new CharacterRepositoryError(
         lookup.status === "deleted" ? "TOMBSTONED" : "NOT_FOUND",
@@ -423,7 +514,7 @@ export class CreatureService {
 
 export class CharacterManagerService {
   constructor(
-    private readonly repository: CharacterRepository,
+    private readonly repository: CharacterRepositoryContract,
     private readonly creatures: CreatureService,
     private readonly accessProvider: CharacterAccessProvider,
   ) {}
@@ -566,9 +657,13 @@ export class CharacterManagerService {
     }
   }
 
+  /** Legacy room-repository maintenance retained for compatibility only. */
   async cleanupLegacyTombstones(): Promise<number> {
     await this.requireGm();
-    return this.repository.cleanupLegacyTombstones();
+    const legacy = this.repository as CharacterRepositoryContract & {
+      cleanupLegacyTombstones?: () => Promise<number>;
+    };
+    return legacy.cleanupLegacyTombstones?.() ?? 0;
   }
 
   private async requireGm(): Promise<void> {

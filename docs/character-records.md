@@ -1,21 +1,25 @@
 # DWTools character-record engineering notes
 
-Last updated: 2026-07-29
+Last updated: 2026-09-21
 
 This document records the architecture and operational limits of persistent
-room-level character records.
+Character records.
 
 ## Data ownership
 
-The authoritative character record lives in Owlbear room metadata under one
-independent key per record:
+The authoritative Character history lives in browser local storage and is
+synchronized through Owlbear scene metadata. Owlbear room metadata under the
+following prefixes is frozen, read-only migration input:
 
 ```text
 com.ex-asperis.dwtools/character/<character-id>
 ```
 
-The manifest is discovered by scanning that prefix. There is no monolithic
-record map and no separate index.
+Production code never writes or deletes these room keys. At bootstrap, under
+the room-wide Character mutation lock, DWTools recovers any inventory-transfer
+journal, imports both legacy room namespaces, and validates local storage. Any
+unsafe collision, malformed source, malformed local entry, or failed recovery
+blocks Character startup; there is no room-authoritative fallback.
 
 Each linked scene token stores a versioned relationship under:
 
@@ -29,7 +33,7 @@ layer, or selection. An explicit link can optionally copy the Character name
 to the native token label according to the room-wide **Overwrite label**
 preference, which defaults to enabled.
 
-The room record is authoritative. A linked token retains a synchronized
+The local/scene revision history is authoritative. A linked token retains a synchronized
 scene-local copy of the persistent creature data so existing overlays and UI
 continue to read the established creature metadata. The Character name remains
 part of the record, but the token's native label is overwritten only during an
@@ -73,35 +77,49 @@ maximum into `fields.maxLoad`; schema-1 records default non-destructively to no
 maximum Load and an empty inventory. Empty inventory arrays are omitted when
 written.
 
+Schema 4 adds explicit revision ancestry through `parents`, an array of direct
+parent `writeId` values. `writeId` is the stable identity of a specific
+Character revision; the integer `revision` remains a convenience value and is
+not used by itself to establish ancestry or authority.
+
+New Characters begin with an empty parent list. An ordinary mutation records
+the exact previous record's `writeId` as its sole parent. Schema-1, schema-2,
+and schema-3 records migrate non-destructively as earliest-known roots with an
+empty parent list while preserving their existing Character ID, revision
+number, write ID, timestamps, fields, and inventory. The first subsequent
+mutation descends from that preserved legacy write ID.
+
+Room records using older schemas are normalized to schema 4 with no parents
+before insertion into a Character history. Revisions embedded in histories
+must already use schema 4.
+
 The pure helpers in `creatureFields.ts` are the canonical mapping between an
 Owlbear item and a character record. Do not add another field mapping in a UI
 component.
 
 ## Repository and concurrency
 
-`CharacterRepository` owns record discovery, validation, schema migration,
-creation, patching, replacement, direct deletion, legacy-tombstone cleanup,
-subscriptions, and metadata-size estimation.
+Production surfaces depend on `CharacterRepositoryContract` and use
+`CharacterLocalRepository`. The legacy room `CharacterRepository` remains only
+for migration compatibility and focused tests.
 
-Record patches use bounded optimistic retries:
+Bootstrap, room imports, local mutations, transfer recovery, and complete
+reconciliation executions share one room-wide Web Lock. Startup ordering is:
+journal recovery, frozen-room import, local validation, scene reconciliation,
+linked-token synchronization, then normal subscriptions. Room change events
+may import newer legacy descendants but are serialized through the same lock;
+room Character keys remain untouched.
 
-1. read the latest record;
-2. merge the requested patch;
-3. increment its revision and generate a new write ID;
-4. write only the record's independent room-metadata key;
-5. read it back and compare the write ID; and
-6. merge the original patch onto the new latest record and retry after a
-   competing write.
-
-Same-field conflicts are eventual last-write-wins. The retry merge preserves
-different-field changes when the competing write can be observed.
+Every production authority reconciles its local history with the current ready
+scene before its repository is exposed. Failed/retry results and unsafe
+collisions block startup. Safely combined multi-head histories remain readable
+as explicit conflict state until a GM creates a resolution revision.
 
 Inventory mutations retain the selected source-array index and original tuple.
 Each command reads the latest record, checks that index for the exact tuple, and
 falls back to one exact tuple match if the array shifted. A missing match fails
 without changing another row. GM transfers re-read and validate both records,
-then submit both independent metadata keys in one `setMetadata` update and
-confirm both write IDs.
+then commits both local entries through the recovery journal.
 
 ## Character access
 
@@ -113,7 +131,7 @@ deduplicated by Character ID.
 
 Authorization is re-read from Owlbear immediately before every Character or
 inventory mutation. Losing token control invalidates an open player editor.
-This is an interface permission boundary over synchronized room metadata, not
+This is an interface permission boundary over synchronized Character data, not
 strong per-user data secrecy.
 
 ## Inventory interaction
@@ -133,25 +151,17 @@ for quick reference, but all inventory mutations remain in the main panel.
 
 ## Metadata capacity
 
-Owlbear limits total room metadata, shared by all extensions, to 16 KiB.
-DWTools:
-
-- serializes the proposed complete room metadata with `TextEncoder`;
-- warns at 80% of Owlbear's limit;
-- rejects character writes above a conservative 15 KiB safe maximum;
-- reports an actionable capacity error; and
-- never applies a linked token edit when its authoritative record write fails.
-
-The GM manager reports approximate total room-metadata use, including other
-extensions. DWTools includes that data only when estimating capacity and never
-modifies metadata outside its own keys.
+The old 16 KiB room-metadata Character capacity no longer governs new Character
+mutations. Frozen room Character records may temporarily continue consuming
+room metadata until migration retirement. Small DWTools settings still use
+room metadata.
 
 ## Synchronization direction
 
 All explicit DWTools creature mutations use `CreatureService`.
 
 - Unlinked tokens update only their scene item.
-- Linked tokens write the authoritative room record first.
+- Linked tokens append to authoritative local Character history first.
 - After a successful record write, all tokens linked to that character in the
   current scene receive the record's creature data while retaining their
   individual native token labels.
@@ -161,32 +171,41 @@ Do not add an arbitrary scene-item watcher that writes token changes back to a
 record. Token-to-record updates must remain explicit commands to avoid
 feedback loops and ambiguous authority.
 
-The existing background page subscribes to room metadata and scene readiness.
-Changed records synchronize current-scene tokens. Opening a scene performs a
-full linked-token synchronization. Missing records retain their links for
-orphan recovery. Legacy tombstones from version 1.1.1 still remove stale links
-while they exist, preserving backward compatibility.
+The background page reconciles local Character histories with the ready scene
+replica before linked-token synchronization. Frozen room changes from old
+clients are imported only as revision knowledge and never receive special
+authority.
 
 Version 1.2.2 changed the DWTools namespace from
-`com.bryan.dungeon-world-creatures` to `com.ex-asperis.dwtools`. Startup moves
-room settings and character records atomically, while each scene's creature
-and character-link metadata moves when that scene is opened. New-namespaced
-values win conflicts, migrated legacy keys are removed immediately, and the
-absence of legacy keys makes the migration idempotent.
+`com.bryan.dungeon-world-creatures` to `com.ex-asperis.dwtools`. Ordinary room
+settings still migrate to the current namespace, and each scene's Creature and
+Character-link metadata still migrates when that scene is opened.
+
+During the local-first Character-storage transition, room Character records are
+treated differently. Startup namespace migration no longer moves or deletes
+Character records from either the legacy or current room namespace. Both are
+preserved as non-destructive migration and recovery inputs. The Character room
+importer reads both namespaces, normalizes legacy record schemas to schema 4,
+combines compatible revision identities, preserves divergent branches, and
+imports the resulting history into local storage. Unsafe revision-ID collisions
+are reported rather than resolved by choosing one namespace.
+
+Imported room records are not deleted in this phase. Room Character retirement
+is a separate later operation performed only after the local/scene persistence
+system has been validated.
+
+Room-to-local import is idempotent by `writeId`. Re-reading the same room
+snapshot does not create a new Character revision. When imported history adds
+new revision knowledge, the resulting local history heads are marked pending
+scene synchronization; the reconciliation executor clears that marker only
+after scene metadata confirms the desired history.
 
 ## Deletion
 
-Deletion first unlinks current-scene tokens without changing their creature
-fields, then removes the active record's independent room-metadata key. DWTools
-cannot inspect closed scenes, so tokens still linked there become
-missing-record orphans. Their creature editor provides explicit recovery
-actions to relink, create a replacement record from the current fields, or
-unlink while retaining those fields.
-
-Schema-1 tombstones created by version 1.1.1 remain valid migration input. The
-GM manager removes those legacy tombstone keys idempotently before listing
-records, freeing their room-metadata space. DWTools no longer creates new
-tombstones.
+Deletion appends a versioned tombstone descended from the active revision.
+History is retained and the tombstone synchronizes through scene metadata.
+Current-scene linked tokens are unlinked by normal Character synchronization.
+Frozen room records remain untouched and cannot resurrect a known tombstone.
 
 The direct-delete and missing-record recovery workflow was confirmed by the
 project owner in the live Owlbear environment on 2026-07-26.
@@ -201,9 +220,107 @@ the project owner in the live Owlbear environment on 2026-07-27.
   synchronize when their scene becomes ready.
 - A linked-token count is therefore always labeled as applying to the current
   scene only.
-- The 16 KiB room-metadata limit is shared with every enabled extension.
-  Character capacity depends on field lengths and other extensions' usage.
 - Room metadata is synchronized extension state, not secret storage.
 - Local-server extension testing is currently nonfunctional. Follow the
   standing internal-QC, GitHub push, and live pre-production testing directive
   recorded in the project decision documents.
+
+## Local/scene persistence
+
+Browser-local `CharacterHistory` is the production authority. Scene
+`CharacterHistory` is its shared synchronization replica. Room Character
+records are frozen migration and old-client compatibility input; production
+code never writes or deletes them. Bootstrap fails closed when recovery,
+import, validation, or ready-scene reconciliation cannot complete safely.
+
+Automatic merge revisions are deterministic across clients. Their identity is
+derived from the Character ID, merge base, and parent revision IDs; automatic
+merge audit metadata is also deterministic. Two clients independently merging
+the same revisions therefore manufacture the same revision rather than creating
+competing merge commits.
+
+## Local-first mutation repository
+
+`CharacterLocalRepository` is used by the Character UI, CreatureService, and
+linked-token synchronization.
+
+Local Character read-modify-write operations are serialized within one browser
+using one room-scoped exclusive Web Lock. A room-wide lock is deliberately used
+instead of per-Character locks so later multi-Character operations can be
+coordinated without nested lock ordering.
+
+A local mutation appends a new immutable revision to the CharacterHistory,
+moves the history head to that revision, and marks the new head pending scene
+confirmation. Existing ancestor revisions remain available for reconciliation
+and merge ancestry.
+
+Local deletion is versioned rather than physical. A delete creates a
+CharacterTombstone that descends from the previous active head. The previous
+active revision and the tombstone both remain in history, allowing stale or
+concurrent edits from another browser to be recognized as a delete/edit
+divergence rather than silently resurrecting the Character.
+
+A Character with multiple unresolved heads is read-only to the local mutation
+repository. Automatic mutation never chooses one conflicting branch.
+
+Relative HP and XP adjustments are applied to the latest active local head
+while holding the mutation lock. Multi-head conflicts remain read-only until a
+GM selects one complete head; resolution creates a new revision whose parents
+contain every observed current head, preserving all branch ancestry.
+
+### Inventory transfer journal
+
+A local-first inventory transfer changes two independent Character localStorage
+entries and therefore cannot rely on localStorage for multi-key atomicity.
+
+Transfers use a room-scoped write-ahead recovery journal while holding the same
+room-wide Character mutation lock used by ordinary mutations. The journal
+contains validated before and intended-after Character entries for both sides.
+
+The durable write order is:
+
+1. journal intent;
+2. source Character;
+3. destination Character;
+4. journal removal.
+
+If execution stops after the journal is durable, recovery completes the
+transaction forward. Recovery first classifies both Character states before
+making any write. A Character still at the recorded before-history can receive
+its intended after-state. A Character that already contains the exact intended
+after revision is considered applied, even if later descendants now exist.
+Any incompatible state blocks automatic recovery and preserves the journal for
+inspection.
+
+The journal is not used to roll back already-written transfer revisions.
+Preserving immutable revisions avoids erasing history that may already have
+synchronized to another browser or the active scene.
+
+Before local-first production startup permits Character mutations or starts
+scene reconciliation, any pending transfer journal must be recovered or
+surfaced as a blocking persistence error.
+
+## Frozen room-record retirement
+
+Version 1.3.21 does not automatically delete legacy room Character records.
+
+Rooms receive a small Character-storage state marker and each successfully
+reconciled scene receives an initialized-replica marker. These markers allow a
+future release to distinguish a genuinely empty Character database from a fresh
+browser that opened a scene which has never participated in Character
+synchronization.
+
+Until retirement, frozen room Character records remain read-only compatibility
+input so a still-running older client can contribute a legitimate descendant
+revision.
+
+A later release may retire those keys only after the local/scene architecture
+has been validated in production. Retired rooms no longer import room Character
+records. A fresh browser with no local history that opens an uninitialized scene
+in a retired room with known Character history must fail closed and require a
+previously initialized scene rather than assuming the Character database is
+empty.
+
+Closed scenes remain lazy replicas. DWTools cannot enumerate and rewrite every
+closed scene through the Owlbear Scene extension API, so scenes are initialized
+when they are opened.

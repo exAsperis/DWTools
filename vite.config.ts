@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
-const buildVersion = "1.3.18";
+const buildVersion = "1.3.21";
 
 export default defineConfig({
   base: "/",

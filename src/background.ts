@@ -1,4 +1,7 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
+import { automaticCharacterReconciliationOptions } from "./characterAutomaticMerge";
+import { createObrCharacterSceneStore } from "./characterSceneStore";
+import { CharacterPersistenceBridge } from "./characterPersistenceBridge";
 import { CharacterSyncCoordinator } from "./characterSync";
 import type { CharacterRecord } from "./characterRepository";
 import { CONTEXT_MENU_ID, LEGACY_CONTEXT_MENU_ID } from "./constants";
@@ -11,9 +14,11 @@ import {
 } from "./display";
 import { LatestTaskQueue } from "./latestTaskQueue";
 import {
-  createObrCharacterRepository,
+  createObrCharacterPersistenceAuthority,
+  markObrCurrentSceneCharacterReplica,
   obrSceneItemStore,
 } from "./obrCharacterServices";
+import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
 import {
   getOverlaySourceSignatures,
@@ -50,7 +55,7 @@ async function setupContextMenus(): Promise<void> {
       },
     ],
     embed: {
-      url: assetUrl("context-menu.html?v=1.3.18"),
+      url: assetUrl("context-menu.html?v=1.3.21"),
       height: 360,
     },
   });
@@ -78,6 +83,8 @@ let activeLoadStates: OverlayLoadStates = new Map();
 let lastSourceSignatures = new Map<string, string>();
 let unsubscribeItems: (() => void) | undefined;
 let unsubscribeGrid: (() => void) | undefined;
+let characterPersistenceBridge: CharacterPersistenceBridge | undefined;
+let characterAuthority: CharacterPersistenceAuthority | undefined;
 const pendingLegacyIds = new Set<string>();
 let legacyCleanupRunning = false;
 
@@ -161,6 +168,9 @@ function handleSceneItems(items: Item[], force = false) {
 }
 
 function restartSceneSync() {
+  /* Stop subscriptions immediately and invalidate guarded in-flight work. */
+  characterPersistenceBridge?.stopScene();
+
   const requestedGeneration = ++sceneGeneration;
   lifecycleChain = lifecycleChain
     .then(() => startSceneSync(requestedGeneration))
@@ -187,6 +197,17 @@ async function startSceneSync(requestedGeneration: number) {
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
   await ensureMetadataNamespaceMigrated();
+  if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
+    return;
+
+  await characterPersistenceBridge?.startScene(
+    createObrCharacterSceneStore(),
+    requestedGeneration,
+    (generation) => generation === sceneGeneration,
+  );
+  await characterPersistenceBridge?.whenSceneIdle();
+  await markObrCurrentSceneCharacterReplica();
+
   if (requestedGeneration !== sceneGeneration || !(await OBR.scene.isReady()))
     return;
 
@@ -226,8 +247,68 @@ async function initializeBackground(): Promise<void> {
     return;
   }
 
-  const characterRepository = createObrCharacterRepository();
-  const overlayCharacterRepository = createObrCharacterRepository();
+  try {
+    const authority = await createObrCharacterPersistenceAuthority();
+    const localStore = authority.localStore;
+    const bridge = new CharacterPersistenceBridge(
+      localStore,
+      {
+        getMetadata: () => OBR.room.getMetadata(),
+        subscribe: (callback) => OBR.room.onMetadataChange(callback),
+      },
+      {
+        reconciliation: automaticCharacterReconciliationOptions,
+        mutationLock: authority.mutationLock,
+        onImportResult: (result) => {
+          if (result.importedCharacterIds.length > 0) {
+            console.debug("DWTools migration Character import", {
+              imported: result.importedCharacterIds,
+              unchanged: result.unchangedCharacterIds,
+            });
+          }
+          if (
+            result.issues.length > 0 ||
+            result.blockedCharacterIds.length > 0
+          ) {
+            console.warn("DWTools migration Character import issues", result);
+          }
+        },
+        onResult: (result) => {
+          if (
+            result.status === "conflict" ||
+            result.status === "retry" ||
+            result.status === "failed"
+          ) {
+            console.warn("DWTools Character synchronization", result);
+          }
+        },
+        onIssue: (issue) => {
+          console.warn("DWTools Character storage issue", issue);
+        },
+        onError: (error) => {
+          console.error("DWTools Character persistence failed", error);
+        },
+      },
+    );
+
+    characterAuthority = authority;
+    characterPersistenceBridge = bridge;
+    await bridge.start();
+  } catch (error) {
+    console.error("DWTools could not start Character persistence", error);
+    characterPersistenceBridge?.stop();
+    characterPersistenceBridge = undefined;
+    characterAuthority?.close();
+    characterAuthority = undefined;
+    await OBR.notification.show(
+      "DWTools could not safely open Character storage. Reload Owlbear and try again.",
+      "ERROR",
+    );
+    return;
+  }
+
+  const characterRepository = characterAuthority.repository;
+  const overlayCharacterRepository = characterRepository;
   const characterSync = new CharacterSyncCoordinator(
     characterRepository,
     obrSceneItemStore,
@@ -236,7 +317,7 @@ async function initializeBackground(): Promise<void> {
       onReadyChange: (callback) => OBR.scene.onReadyChange(callback),
     },
     (error) => console.error("DWTools character synchronization failed", error),
-    ensureMetadataNamespaceMigrated,
+    async () => characterPersistenceBridge?.whenSceneIdle(),
   );
   characterSync.start();
   const refreshOverlayLoadStates = async () => {
@@ -264,6 +345,10 @@ async function initializeBackground(): Promise<void> {
   window.addEventListener(
     "unload",
     () => {
+      characterPersistenceBridge?.stop();
+      characterPersistenceBridge = undefined;
+      characterAuthority?.close();
+      characterAuthority = undefined;
       characterSync.stop();
       unsubscribeOverlayCharacters();
     },

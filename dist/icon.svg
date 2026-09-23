@@ -2,9 +2,9 @@
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 
 <svg
-   width="800px"
-   height="800px"
-   viewBox="0 0 16 16"
+   width="24"
+   height="24"
+   viewBox="0 0 0.48 0.48"
    version="1.1"
    id="svg1"
    sodipodi:docname="icon.svg"
@@ -25,9 +25,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="false"
-     inkscape:zoom="0.729375"
-     inkscape:cx="1021.4225"
-     inkscape:cy="348.92888"
+     inkscape:zoom="33.007744"
+     inkscape:cx="19.616609"
+     inkscape:cy="16.071986"
      inkscape:window-width="2560"
      inkscape:window-height="1369"
      inkscape:window-x="1072"
@@ -36,45 +36,42 @@
      inkscape:current-layer="layer3" />
   <path
      fill="#444444"
-     d="M 13.483902,11.976357 7.3948971,5.8873526 C 7.5510254,5.4970317 7.6290896,5.106711 7.6290896,4.6383258 c 0,-1.7174116 -1.405155,-3.1225666 -3.1225668,-3.1225666 -0.4683849,0 -0.8587058,0.078065 -1.2490267,0.2341924 L 5.521357,4.0138126 3.8820094,5.65316 1.6181485,3.3892992 c -0.1561282,0.390321 -0.2341924,0.7806417 -0.2341924,1.2490266 0,1.7174119 1.405155,3.1225669 3.1225667,3.1225669 0.468385,0 0.8587057,-0.078065 1.2490267,-0.2341924 l 6.0890055,6.0890057 c 0.468384,0.468385 1.170962,0.468385 1.639347,0 0.468386,-0.468386 0.468386,-1.170963 0,-1.639349 z m -1.014834,1.249027 c -0.312257,0 -0.624513,-0.234191 -0.624513,-0.624513 0,-0.312257 0.234193,-0.624514 0.624513,-0.624514 0.390321,0 0.624513,0.234195 0.624513,0.624514 0,0.390322 -0.234192,0.624513 -0.624513,0.624513 z"
+     d="M 0.40228678,0.35457176 0.22639622,0.17868121 c 0.00451,-0.0112752 0.006765,-0.0225502 0.006765,-0.0360801 0,-0.04961014 -0.0405902,-0.09020027 -0.0902003,-0.09020027 -0.01353,0 -0.0248051,0.002255 -0.0360801,0.0067651 l 0.0653951,0.06539517 -0.0473551,0.0473552 -0.06539512,-0.0653952 c -0.0045101,0.0112752 -0.0067651,0.0225502 -0.0067651,0.0360801 0,0.0496101 0.04059012,0.0902003 0.09020027,0.0902003 0.01353,0 0.0248051,-0.002254 0.0360801,-0.006765 L 0.35493192,0.4019266 c 0.01353,0.01353 0.0338251,0.01353 0.0473551,0 0.01353,-0.01353 0.01353,-0.0338251 -2.4e-7,-0.0473548 z m -0.029315,0.0360801 c -0.00902,0 -0.0180401,-0.006765 -0.0180401,-0.01804 0,-0.00902 0.006765,-0.0180401 0.0180401,-0.0180401 0.0112752,0 0.01804,0.006765 0.01804,0.0180401 0,0.0112752 -0.006765,0.01804 -0.01804,0.01804 z"
      id="path1"
      inkscape:label="wrench"
      sodipodi:nodetypes="scssccccsscssssssss"
-     style="display:inline;fill:none;stroke:#000000;stroke-width:0.113111;stroke-dasharray:none" />
+     style="display:inline;fill:none;stroke:#000000;stroke-width:0.0158013;stroke-dasharray:none;stroke-opacity:1" />
   <path
      id="path2"
-     style="display:inline;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.106331"
-     d="M 13.528133,2.4946573 11.040441,2.9839523 4.6350133,9.394707 3.8994847,8.664156 3.396101,9.9484788 4.2287959,10.795319 2.9820823,12.032604 2.563377,12.037304 1.8294785,12.7618 3.2643531,14.191987 3.9935653,13.476895 v -0.442262 l 1.2419978,-1.237281 0.8656173,0.837412 1.2843515,-0.508102 -0.742602,-0.737595 6.4119481,-6.3960549 z"
+     style="display:inline;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.0148439;stroke-dasharray:none;stroke-opacity:1"
+     d="m 0.39708662,0.08240137 -0.0718157,0.01412516 -0.18491437,0.18506814 -0.0212335,-0.0210898 -0.0145319,0.0370764 0.0240386,0.0244469 -0.03599059,0.0357183 -0.0120873,1.3541e-4 -0.02118646,0.0209149 0.04142252,0.0412873 0.0210512,-0.0206436 v -0.0127664 l 0.0358544,-0.0357183 0.0249891,0.0241747 0.0370772,-0.014668 -0.0214377,-0.0212932 0.18510262,-0.18464379 z"
      inkscape:label="sword" />
   <g
      inkscape:groupmode="layer"
      id="layer3"
      inkscape:label="DW"
-     style="display:inline"
-     transform="matrix(0.7417411,0,0,0.7417411,1.3194596,2.0112628)">
+     style="display:inline;stroke-width:0.004;stroke-dasharray:none">
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';writing-mode:lr-tb;direction:ltr;fill:#0b934c;fill-opacity:1;stroke:#000000;stroke-width:0.131939"
-       x="2.58126"
-       y="10.878987"
-       id="text1"
-       inkscape:label="D"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:0.30312px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';writing-mode:lr-tb;direction:ltr;fill:#0b934c;fill-opacity:1;stroke:#000000;stroke-width:0.00339659;stroke-dasharray:none"
+       x="0.089596689"
+       y="0.29680255"
+       id="text1"><tspan
          id="tspan1"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.6661px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';fill:#0b934c;fill-opacity:1;stroke-width:0.131939"
-         x="2.58126"
-         y="10.878987"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:0.30312px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy,  Bold';fill:#0b934c;fill-opacity:1;stroke-width:0.00339659;stroke-dasharray:none"
+         x="0.089596689"
+         y="0.29680255"
          sodipodi:role="line">D</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';writing-mode:lr-tb;direction:ltr;fill:#b05d00;fill-opacity:1;stroke:#000000;stroke-width:0.117256"
-       x="5.6616926"
-       y="14.584744"
-       id="text1-5"
-       inkscape:label="W"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:0.269386px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';writing-mode:lr-tb;direction:ltr;fill:#b05d00;fill-opacity:1;stroke:#000000;stroke-width:0.00339659;stroke-dasharray:none"
+       x="0.15615442"
+       y="0.3915641"
+       id="text1-5"><tspan
          id="tspan1-1"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2565px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';fill:#b05d00;fill-opacity:1;stroke-width:0.117256"
-         x="5.6616926"
-         y="14.584744"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:0.269386px;font-family:'Franklin Gothic Heavy';-inkscape-font-specification:'Franklin Gothic Heavy, ';fill:#b05d00;fill-opacity:1;stroke-width:0.00339659;stroke-dasharray:none"
+         x="0.15615442"
+         y="0.3915641"
          sodipodi:role="line">W</tspan></text>
   </g>
   <g
@@ -82,20 +79,18 @@
      id="layer1"
      inkscape:label="Circle"
      style="display:none">
-    <ellipse
-       style="fill:none;stroke:#fa5300;stroke-width:0.14268;stroke-opacity:1"
+    <path
+       style="fill:none;stroke:#454545;stroke-width:0.004;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-dasharray:none"
        id="path3"
-       cx="7.9931445"
-       cy="8.006855"
-       rx="7.965724"
-       ry="7.9520135" />
-    <path
-       style="fill:none;stroke:#fa5300;stroke-width:0.14268;stroke-opacity:1"
-       d="M -0.02742074,0.02742074 15.958869,15.958869"
-       id="path4" />
-    <path
-       style="fill:none;stroke:#fa5300;stroke-width:0.14268;stroke-opacity:1"
-       d="M 15.958869,-0.02742074 0.08226221,16.01371"
-       id="path5" />
+       sodipodi:type="arc"
+       sodipodi:cx="0.23933777"
+       sodipodi:cy="0.24054961"
+       sodipodi:rx="0.23933777"
+       sodipodi:ry="0.23933777"
+       sodipodi:start="0"
+       sodipodi:end="6.2796695"
+       sodipodi:open="true"
+       sodipodi:arc-type="arc"
+       d="M 0.47867554,0.24054961 A 0.23933777,0.23933777 0 0 1 0.23954814,0.47988729 0.23933777,0.23933777 0 0 1 3.6980369e-7,0.24097034 0.23933777,0.23933777 0 0 1 0.23870667,0.00121267 0.23933777,0.23933777 0 0 1 0.47867407,0.23970815" />
   </g>
 </svg>

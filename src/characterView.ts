@@ -3,6 +3,8 @@ import type {
   CharacterStorageUsage,
 } from "./characterRepository";
 import type { LinkedTokenPreview } from "./characterService";
+import type { CharacterRepositoryConflict } from "./characterRepositoryContract";
+import { characterConflictHeadViews } from "./characterConflictView";
 import type { CreatureFields } from "./constants";
 import { tagEditorMarkup } from "./tagEditor";
 import {
@@ -136,14 +138,16 @@ export function buildCharacterSummary(record: CharacterRecord): string {
 }
 
 export function buildCharacterDeleteConfirmation(name: string): string {
-  return `Delete the room character record "${name}"? Current-scene tokens will be unlinked and keep their creature fields. Linked copies in other scenes will become orphaned and need to be manually resolved.`;
+  return `Delete the Character "${name}"? Current-scene tokens will be unlinked and keep their creature fields. Linked copies in other scenes will become orphaned and need to be manually resolved.`;
 }
 
 export interface CharacterManagerViewState {
   records: CharacterRecord[];
+  conflicts?: CharacterRepositoryConflict[];
   counts: Map<string, number>;
   linkedTokens?: Map<string, LinkedTokenPreview[]>;
   role: "GM" | "PLAYER";
+  /** Legacy preview/test input; production no longer renders metadata capacity. */
   usage?: CharacterStorageUsage;
   loading: boolean;
   saving: boolean;
@@ -157,19 +161,6 @@ export interface CharacterManagerViewState {
     sourceIndex: number;
     expected: InventoryItem;
   };
-}
-
-function usageMarkup(usage: CharacterStorageUsage | undefined): string {
-  if (!usage)
-    return '<p class="manager-status">Metadata usage unavailable.</p>';
-  const kib = (usage.bytes / 1024).toFixed(1);
-  const safeKib = (usage.safeMaximumBytes / 1024).toFixed(0);
-  return `
-    <div class="metadata-usage ${usage.nearLimit ? "near-limit" : ""}">
-      <span>Room metadata: approximately ${kib} KiB of ${safeKib} KiB safe maximum</span>
-      <progress max="${usage.limitBytes}" value="${usage.bytes}"></progress>
-      ${usage.nearLimit ? "<strong>Room metadata is approaching Owlbear's limit.</strong>" : ""}
-    </div>`;
 }
 
 function inventoryRowMarkup(
@@ -341,9 +332,22 @@ export function buildCharacterManagerMarkup(
       </div>
       ${
         expanded
-          ? `${state.role === "GM" ? usageMarkup(state.usage) : ""}
-      ${state.role === "GM" ? '<button type="button" class="primary compact manager-create" id="manager-create">New</button>' : ""}
+          ? `${state.role === "GM" ? '<button type="button" class="primary compact manager-create" id="manager-create">New</button>' : ""}
       ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ""}
+      ${
+        state.role === "GM" && state.conflicts?.length
+          ? `<section class="character-conflicts"><h3>⚠ Character conflicts</h3>${state.conflicts
+              .map((conflict) => {
+                const heads = characterConflictHeadViews(conflict.history);
+                const name =
+                  heads.find((head) => !head.deleted)?.name ??
+                  heads[0]?.name ??
+                  "Character";
+                return `<article class="character-conflict-card"><h4>${escapeHtml(name)}</h4><p>${heads.length} unresolved versions</p>${heads.map((head) => `<div class="character-conflict-version"><strong>${head.deleted ? "Deleted version" : `Version ${escapeHtml(head.writeId.slice(0, 8))}`}</strong><p>${escapeHtml(head.summary)}</p>${head.updatedAt ? `<small>Updated ${escapeHtml(head.updatedAt)}</small>` : ""}<button type="button" class="secondary compact" data-resolve-character="${escapeHtml(conflict.characterId)}" data-resolve-head="${escapeHtml(head.writeId)}" data-resolve-name="${escapeHtml(name)}" data-resolve-deleted="${head.deleted}">${head.deleted ? "Use deletion" : "Use this version"}</button></div>`).join("")}</article>`;
+              })
+              .join("")}</section>`
+          : ""
+      }
       ${
         state.loading
           ? '<p class="manager-status">Loading Characters…</p>'

@@ -67,38 +67,39 @@ class FakeNamespaceStore implements MetadataNamespaceStore {
 }
 
 describe("room metadata namespace migration", () => {
-  it("moves settings and character records while preserving unrelated data", () => {
-    const first = { id: "first", malformed: true };
-    const second = "opaque legacy value";
+  it("moves room settings while preserving both legacy and current Character records untouched", () => {
+    const legacyFirst = { source: "legacy-first" };
+    const legacyConflict = { source: "legacy-conflict" };
+    const currentConflict = { source: "current-conflict" };
     const metadata = {
       [LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY]: false,
-      [`${LEGACY_CHARACTER_KEY_PREFIX}first`]: first,
-      [`${LEGACY_CHARACTER_KEY_PREFIX}second`]: second,
+      [`${LEGACY_CHARACTER_KEY_PREFIX}first`]: legacyFirst,
+      [`${LEGACY_CHARACTER_KEY_PREFIX}same`]: legacyConflict,
+      "com.ex-asperis.dwtools/character/same": currentConflict,
       "com.other/data": { preserved: true },
     };
 
     expect(planRoomMetadataNamespaceMigration(metadata)).toEqual({
       [DEFAULT_OVERLAY_VISIBILITY_KEY]: false,
       [LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY]: undefined,
-      "com.ex-asperis.dwtools/character/first": first,
-      [`${LEGACY_CHARACTER_KEY_PREFIX}first`]: undefined,
-      "com.ex-asperis.dwtools/character/second": second,
-      [`${LEGACY_CHARACTER_KEY_PREFIX}second`]: undefined,
     });
+
+    expect(planRoomMetadataNamespaceMigration(metadata)).not.toHaveProperty(
+      `${LEGACY_CHARACTER_KEY_PREFIX}first`,
+    );
+
+    expect(planRoomMetadataNamespaceMigration(metadata)).not.toHaveProperty(
+      "com.ex-asperis.dwtools/character/first",
+    );
   });
 
-  it("keeps new values and removes conflicting legacy values", () => {
+  it("does not choose between conflicting legacy and current Character room values", () => {
     const metadata = {
-      [DEFAULT_OVERLAY_VISIBILITY_KEY]: true,
-      [LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY]: false,
       "com.ex-asperis.dwtools/character/same": { source: "new" },
       [`${LEGACY_CHARACTER_KEY_PREFIX}same`]: { source: "old" },
     };
 
-    expect(planRoomMetadataNamespaceMigration(metadata)).toEqual({
-      [LEGACY_DEFAULT_OVERLAY_VISIBILITY_KEY]: undefined,
-      [`${LEGACY_CHARACTER_KEY_PREFIX}same`]: undefined,
-    });
+    expect(planRoomMetadataNamespaceMigration(metadata)).toEqual({});
   });
 });
 
@@ -157,7 +158,7 @@ describe("metadata namespace startup migration", () => {
     expect(store.sceneWrites).toBe(1);
     expect(store.room).toEqual({
       [DEFAULT_OVERLAY_VISIBILITY_KEY]: false,
-      "com.ex-asperis.dwtools/character/first": { id: "first" },
+      [`${LEGACY_CHARACTER_KEY_PREFIX}first`]: { id: "first" },
     });
     expect(store.items[0].metadata).toEqual({
       [CREATURE_KEY]: { hpCurrent: 4 },

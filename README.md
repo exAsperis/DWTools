@@ -31,7 +31,7 @@ creature data has been added.
 
 Open the token's creature editor and use its **Character record** section:
 
-- **Link to character** associates the token with an existing room character.
+- **Link to character** associates the token with an existing Character.
   Confirming the link replaces the token's DWTools creature data with the
   latest data from that character record. **Overwrite label** controls whether
   the explicit link also copies the Character name to the token label.
@@ -40,11 +40,18 @@ Open the token's creature editor and use its **Character record** section:
 - **Change link** associates the token with a different character record.
 - **Unlink** keeps the token's current fields but stops future synchronization.
 
-Once linked, the room character record is authoritative. Editing any linked
+Once linked, the synchronized local/scene Character history is authoritative. Editing any linked
 token updates the record and every token linked to that character in the
 current scene. Linked tokens in another scene receive the latest record when
 that scene is opened. Later synchronization leaves native token labels
 unchanged.
+
+Character data is stored locally in the browser and synchronized through
+Owlbear scene metadata. Opening a previously synchronized scene from another
+browser brings its current Character data across. Old room Character records
+are temporarily retained as read-only migration input. Simultaneous edits that
+cannot be merged safely are preserved for explicit GM resolution rather than
+silently overwriting one version.
 
 ### Manage characters and inventory
 
@@ -63,11 +70,12 @@ Load. Its **Inventory** subsection supports:
 
 Item rows use a compact two-line layout for the standard Owlbear panel. Adding
 an item keeps **Add Item** in view so several items can be entered without
-repeated scrolling. Changes are saved directly to the authoritative room
-character record, so every linked token shares the same inventory.
+repeated scrolling. Changes are saved to the authoritative local Character
+history and synchronized through scene metadata, so every linked token shares
+the same inventory.
 
-GMs can also search and create room characters, see current-scene linked-token
-counts, review approximate room-metadata usage, and delete records.
+GMs can also search and create Characters, see current-scene linked-token
+counts, and delete records.
 
 Deleting a record unlinks its tokens in the current scene without erasing
 their copied creature fields, then removes the room record immediately. Linked

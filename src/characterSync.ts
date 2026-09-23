@@ -1,4 +1,4 @@
-import type { CharacterRepository } from "./characterRepository";
+import type { CharacterRepositoryContract } from "./characterRepositoryContract";
 import {
   syncAllLinkedCharactersInCurrentScene,
   syncCharacterToCurrentScene,
@@ -17,7 +17,7 @@ export class CharacterSyncCoordinator {
   private stopped = false;
 
   constructor(
-    private readonly repository: CharacterRepository,
+    private readonly repository: CharacterRepositoryContract,
     private readonly scene: SceneItemStore,
     private readonly readiness: SceneReadySource,
     private readonly onError: (error: unknown) => void = console.error,
@@ -30,7 +30,8 @@ export class CharacterSyncCoordinator {
       for (const change of changes) {
         if (
           change.lookup.status === "missing" ||
-          change.lookup.status === "malformed"
+          change.lookup.status === "malformed" ||
+          change.lookup.status === "conflict"
         ) {
           continue;
         }

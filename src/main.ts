@@ -1,11 +1,12 @@
 import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
 import "./style.css";
-import {
-  type CharacterLookup,
-  type CharacterRecord,
-  type CharacterRepository,
-  type CharacterStorageUsage,
-} from "./characterRepository";
+import { type CharacterRecord } from "./characterRepository";
+import type {
+  CharacterRepositoryContract,
+  CharacterRepositoryConflict,
+  CharacterRepositoryLookup,
+} from "./characterRepositoryContract";
+import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
 import {
   CharacterManagerService,
   CreatureService,
@@ -21,6 +22,18 @@ import {
   numberValue,
   type CharacterManagerViewState,
 } from "./characterView";
+import {
+  buildCharacterPersistenceDevMarkup,
+  buildCharacterPersistenceDevSnapshot,
+  readDeveloperToolsEnabled,
+  writeDeveloperToolsEnabled,
+  type CharacterPersistenceDevSnapshot,
+} from "./characterPersistenceDev";
+import { type CharacterLocalStore } from "./characterLocalStore";
+import {
+  createObrCharacterSceneStore,
+  type CharacterSceneStore,
+} from "./characterSceneStore";
 import {
   type CreatureFieldPatch,
   type CreatureFields,
@@ -86,7 +99,7 @@ import {
 } from "./homeView";
 import {
   createObrCharacterManagerService,
-  createObrCharacterRepository,
+  createObrCharacterPersistenceAuthority,
   createObrCreatureService,
 } from "./obrCharacterServices";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
@@ -305,17 +318,17 @@ function fieldPatch(
 let homeRole: HomeRole = "PLAYER";
 let homeMetadata: RoomMetadata = {};
 let savingDefaultVisibility = false;
-let homeRepository: CharacterRepository | undefined;
+let homeRepository: CharacterRepositoryContract | undefined;
+let homeAuthority: CharacterPersistenceAuthority | undefined;
 let homeCreatureService: CreatureService | undefined;
 let homeManagerService: CharacterManagerService | undefined;
 let managerRecords: CharacterRecord[] = [];
+let managerConflicts: CharacterRepositoryConflict[] = [];
 let managerCounts = new Map<string, number>();
 let managerLinkedTokens = new Map<string, LinkedTokenPreview[]>();
-let managerUsage: CharacterStorageUsage | undefined;
 let managerLoading = false;
 let managerSaving = false;
 let managerError: string | undefined;
-let managerLegacyCleanupComplete = false;
 const managerExpandedStats = new Set<string>();
 const managerStatsSaveChains = new Map<string, Promise<void>>();
 let managerDraftCharacterId: string | undefined;
@@ -334,6 +347,14 @@ let encounterRefreshGeneration = 0;
 const managerExpandedCharacters = new Set<string>();
 const managerExpandedInventories = new Set<string>();
 const HOME_SECTIONS_KEY = "dwtools/home-sections";
+let developerToolsEnabled = readDeveloperToolsEnabled(window.localStorage);
+let developerPersistenceSnapshot: CharacterPersistenceDevSnapshot | undefined;
+let developerPersistenceLoading = false;
+let developerPersistenceError: string | undefined;
+let developerPersistenceGeneration = 0;
+let developerPersistenceLocalStore: CharacterLocalStore | undefined;
+let developerPersistenceSceneStore: CharacterSceneStore | undefined;
+let unsubscribeDeveloperPersistenceLocal: (() => void) | undefined;
 
 function loadLegacyHomeSections(): HomeSectionState {
   try {
@@ -430,10 +451,10 @@ let draggedHomeSection: HomeMajorSection | undefined;
 function managerState(): CharacterManagerViewState {
   return {
     records: managerRecords,
+    conflicts: managerConflicts,
     counts: managerCounts,
     linkedTokens: managerLinkedTokens,
     role: homeRole,
-    usage: managerUsage,
     loading: managerLoading,
     saving: managerSaving,
     error: managerError,
@@ -477,6 +498,13 @@ function renderHome(): void {
     homeSections.encounterInactive,
     encounterBusyItemIds,
   );
+  const developerPanelMarkup = developerToolsEnabled
+    ? buildCharacterPersistenceDevMarkup(
+        developerPersistenceSnapshot,
+        developerPersistenceLoading,
+        developerPersistenceError,
+      )
+    : "";
   app.innerHTML = buildHomeMarkup(
     homeRole,
     defaultVisibleToPlayers,
@@ -486,7 +514,21 @@ function renderHome(): void {
     encounterMarkup,
     EXTENSION_VERSION,
     selectedDiceExtension(homeMetadata),
+    developerToolsEnabled,
+    developerPanelMarkup,
   );
+  document
+    .querySelector<HTMLInputElement>("#developer-tools-toggle")
+    ?.addEventListener("change", (event) => {
+      setDeveloperToolsEnabled(
+        (event.currentTarget as HTMLInputElement).checked,
+      );
+    });
+  document
+    .querySelector("#persistence-dev-refresh")
+    ?.addEventListener("click", () => {
+      void refreshDeveloperPersistence();
+    });
   document
     .querySelector<HTMLSelectElement>("#dice-extension")
     ?.addEventListener("change", (event) => {
@@ -895,6 +937,26 @@ function bindManagerControls(): void {
     void createManagedCharacterInline();
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-resolve-character]",
+  )) {
+    button.addEventListener("click", async () => {
+      if (!homeRepository || managerSaving) return;
+      const characterId = button.dataset.resolveCharacter;
+      const headWriteId = button.dataset.resolveHead;
+      if (!characterId || !headWriteId) return;
+      const deleted = button.dataset.resolveDeleted === "true";
+      const name = button.dataset.resolveName ?? "this Character";
+      const message = deleted
+        ? "Resolve the conflict by keeping this Character deleted?\n\nOther versions will remain in Character history, but the deletion will become the resolved current state."
+        : `Resolve the conflict for "${name}" using this version?\n\nThe other versions will remain in Character history, but this version will become the resolved current state.`;
+      if (!window.confirm(message)) return;
+      await runInventoryMutation(
+        () => homeRepository!.resolveConflict(characterId, headWriteId),
+        "Character conflict resolved.",
+      );
+    });
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-delete-character]",
   )) {
     button.addEventListener(
@@ -1082,9 +1144,6 @@ async function runInventoryMutation(
     managerTransfer = undefined;
     await refreshManager(false);
     if (successMessage) notify(successMessage, "SUCCESS");
-    if (managerUsage?.nearLimit) {
-      notify("Room metadata is approaching Owlbear's size limit.", "WARNING");
-    }
   } catch (error) {
     const errorMessage = messageFrom(
       error,
@@ -1343,23 +1402,15 @@ async function refreshManager(render = true): Promise<void> {
   managerError = undefined;
   if (render) renderHome();
   try {
-    if (homeRole === "GM" && !managerLegacyCleanupComplete) {
-      const cleaned = await homeManagerService.cleanupLegacyTombstones();
-      managerLegacyCleanupComplete = true;
-      if (cleaned) {
-        notify(
-          `Cleaned up ${cleaned} legacy deleted character record${cleaned === 1 ? "" : "s"}.`,
-          "SUCCESS",
-        );
-      }
-    }
-    [managerRecords, managerLinkedTokens, managerUsage] = await Promise.all([
-      homeManagerService.listAccessible(),
-      currentSceneLinkedTokenPreviews(homeCreatureService.scene),
-      homeRole === "GM"
-        ? homeRepository.estimateUsage()
-        : Promise.resolve(undefined),
-    ]);
+    [managerRecords, managerLinkedTokens, managerConflicts] = await Promise.all(
+      [
+        homeManagerService.listAccessible(),
+        currentSceneLinkedTokenPreviews(homeCreatureService.scene),
+        homeRole === "GM"
+          ? homeRepository.listConflicts()
+          : Promise.resolve([]),
+      ],
+    );
     managerCounts = new Map(
       [...managerLinkedTokens].map(([characterId, tokens]) => [
         characterId,
@@ -1392,7 +1443,7 @@ async function deleteManagedCharacter(
   try {
     await homeManagerService.delete(characterId);
     notify(
-      "Character record deleted. Other-scene copies are now orphaned.",
+      "Character deleted. Other scenes will synchronize the tombstone when opened.",
       "SUCCESS",
     );
     await refreshManager(false);
@@ -1430,6 +1481,77 @@ async function toggleDefaultVisibility(): Promise<void> {
   }
 }
 
+async function refreshDeveloperPersistence(render = true): Promise<void> {
+  if (
+    !developerToolsEnabled ||
+    !developerPersistenceLocalStore ||
+    !developerPersistenceSceneStore
+  ) {
+    return;
+  }
+
+  const generation = ++developerPersistenceGeneration;
+  developerPersistenceLoading = true;
+  developerPersistenceError = undefined;
+  if (render) renderHome();
+
+  try {
+    const [roomMetadata, sceneReady] = await Promise.all([
+      OBR.room.getMetadata(),
+      OBR.scene.isReady(),
+    ]);
+    const localScan = developerPersistenceLocalStore.scan();
+    const sceneScan = sceneReady
+      ? await developerPersistenceSceneStore.scan()
+      : undefined;
+    const sceneMetadata = sceneReady ? await OBR.scene.getMetadata() : {};
+
+    if (
+      generation !== developerPersistenceGeneration ||
+      !developerToolsEnabled
+    ) {
+      return;
+    }
+
+    developerPersistenceSnapshot = buildCharacterPersistenceDevSnapshot(
+      roomMetadata,
+      localScan,
+      sceneScan,
+      sceneReady,
+      sceneMetadata,
+      homeAuthority?.transferJournal.get() !== undefined,
+    );
+  } catch (error) {
+    if (generation !== developerPersistenceGeneration) return;
+    developerPersistenceError = messageFrom(
+      error,
+      "Could not load Character persistence diagnostics.",
+    );
+  } finally {
+    if (generation === developerPersistenceGeneration) {
+      developerPersistenceLoading = false;
+      if (render) renderHome();
+    }
+  }
+}
+
+function setDeveloperToolsEnabled(enabled: boolean): void {
+  developerToolsEnabled = enabled;
+  writeDeveloperToolsEnabled(window.localStorage, enabled);
+
+  if (!enabled) {
+    developerPersistenceGeneration += 1;
+    developerPersistenceSnapshot = undefined;
+    developerPersistenceError = undefined;
+    developerPersistenceLoading = false;
+    renderHome();
+    return;
+  }
+
+  renderHome();
+  void refreshDeveloperPersistence();
+}
+
 async function startHome(): Promise<void> {
   try {
     await ensureMetadataNamespaceMigrated();
@@ -1440,7 +1562,16 @@ async function startHome(): Promise<void> {
     notify("DWTools could not migrate its saved data.", "ERROR");
     return;
   }
-  homeRepository = createObrCharacterRepository();
+  try {
+    homeAuthority = await createObrCharacterPersistenceAuthority();
+  } catch (error) {
+    console.error("DWTools Character persistence bootstrap failed", error);
+    app.innerHTML =
+      '<p class="error">DWTools could not safely open Character storage. Reload Owlbear and try again.</p>';
+    notify("DWTools could not safely open Character storage.", "ERROR");
+    return;
+  }
+  homeRepository = homeAuthority.repository;
   homeCreatureService = createObrCreatureService(homeRepository);
   homeManagerService = createObrCharacterManagerService(
     homeRepository,
@@ -1455,18 +1586,33 @@ async function startHome(): Promise<void> {
   homeRole = role;
   homeMetadata = roomMetadata;
   loadHomeLayout(playerMetadata);
-  await Promise.all([refreshManager(false), refreshEncounter()]);
+  developerPersistenceLocalStore = homeAuthority.localStore;
+  developerPersistenceSceneStore = createObrCharacterSceneStore();
+  unsubscribeDeveloperPersistenceLocal =
+    developerPersistenceLocalStore.subscribe(() => {
+      if (developerToolsEnabled) {
+        void refreshDeveloperPersistence(false).then(renderHome);
+      }
+    });
+  await Promise.all([
+    refreshManager(false),
+    refreshEncounter(),
+    developerToolsEnabled
+      ? refreshDeveloperPersistence(false)
+      : Promise.resolve(),
+  ]);
   renderHome();
 
   const unsubscribers = [
     OBR.room.onMetadataChange((metadata) => {
       homeMetadata = metadata;
+      if (developerToolsEnabled) {
+        void refreshDeveloperPersistence(false).then(renderHome);
+        return;
+      }
       renderHome();
     }),
-    homeRepository.subscribe((changes) => {
-      if (changes.some((change) => change.lookup.status === "deleted")) {
-        managerLegacyCleanupComplete = false;
-      }
+    homeRepository.subscribe(() => {
       void refreshManager(
         managerStatsSaveChains.size === 0 &&
           (homeRole === "PLAYER" || !managerSaving),
@@ -1493,10 +1639,20 @@ async function startHome(): Promise<void> {
     }),
     OBR.scene.onMetadataChange((metadata) => {
       homeEncounterState = encounterStateFromMetadata(metadata);
+      if (developerToolsEnabled) {
+        void refreshDeveloperPersistence(false).then(renderHome);
+        return;
+      }
       renderHome();
     }),
     OBR.scene.onReadyChange(() => {
-      void Promise.all([refreshManager(), refreshEncounter()]).then(renderHome);
+      void Promise.all([
+        refreshManager(),
+        refreshEncounter(),
+        developerToolsEnabled
+          ? refreshDeveloperPersistence(false)
+          : Promise.resolve(),
+      ]).then(renderHome);
     }),
     OBR.room.onPermissionsChange(
       () => void refreshManager(homeRole === "PLAYER" || !managerSaving),
@@ -1507,6 +1663,12 @@ async function startHome(): Promise<void> {
     "unload",
     () => {
       for (const unsubscribe of unsubscribers) unsubscribe();
+      unsubscribeDeveloperPersistenceLocal?.();
+      unsubscribeDeveloperPersistenceLocal = undefined;
+      homeAuthority?.close();
+      homeAuthority = undefined;
+      developerPersistenceLocalStore = undefined;
+      developerPersistenceSceneStore = undefined;
     },
     { once: true },
   );
@@ -1514,11 +1676,12 @@ async function startHome(): Promise<void> {
 
 // Creature editor -----------------------------------------------------------
 
-let editorRepository: CharacterRepository | undefined;
+let editorRepository: CharacterRepositoryContract | undefined;
+let editorAuthority: CharacterPersistenceAuthority | undefined;
 let editorService: CreatureService | undefined;
 let editorToken: Item | undefined;
 let editorFields: CreatureFields | undefined;
-let editorLookup: CharacterLookup = { status: "missing" };
+let editorLookup: CharacterRepositoryLookup = { status: "missing" };
 let editorLinkRecords: CharacterRecord[] = [];
 let editorLinking = false;
 let editorLinkSearch = "";
@@ -1544,6 +1707,11 @@ function buildCharacterRecordSection(token: Item): string {
     controls = `
       <button type="button" class="secondary" id="link-character">Change link</button>
       <button type="button" class="secondary" id="unlink-character">Unlink</button>`;
+  } else if (editorLookup.status === "conflict") {
+    status =
+      'Character record: <strong class="orphaned">Unresolved conflict</strong>';
+    controls =
+      '<p class="inline-error">This linked Character is read-only until a GM resolves it in Character maintenance.</p>';
   } else {
     const reason =
       editorLookup.status === "malformed"
@@ -2058,7 +2226,16 @@ async function startEditor(): Promise<void> {
     notify("DWTools could not migrate its saved data.", "ERROR");
     return;
   }
-  editorRepository = createObrCharacterRepository();
+  try {
+    editorAuthority = await createObrCharacterPersistenceAuthority();
+  } catch (error) {
+    console.error("DWTools Character persistence bootstrap failed", error);
+    app.innerHTML =
+      '<p class="error">DWTools could not safely open Character storage. Reload Owlbear and try again.</p>';
+    notify("DWTools could not safely open Character storage.", "ERROR");
+    return;
+  }
+  editorRepository = editorAuthority.repository;
   editorService = createObrCreatureService(editorRepository);
   editorClipboard = readCreatureClipboard(window.localStorage);
   const [token, roomMetadata, sceneItems] = await Promise.all([
@@ -2136,6 +2313,8 @@ async function startEditor(): Promise<void> {
     "unload",
     () => {
       for (const unsubscribe of unsubscribers) unsubscribe();
+      editorAuthority?.close();
+      editorAuthority = undefined;
     },
     { once: true },
   );
@@ -2150,7 +2329,7 @@ if (preview === "home") {
   };
   managerRecords = [
     {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "preview-active",
       fields: {
         name: "Raganah",
@@ -2161,6 +2340,7 @@ if (preview === "home") {
         tags: ["Cautious", "Loyal"],
       },
       revision: 3,
+      parents: [],
       createdAt: "2026-07-25T15:00:00.000Z",
       createdBy: "preview-gm",
       updatedAt: "2026-07-26T15:00:00.000Z",
@@ -2186,14 +2366,6 @@ if (preview === "home") {
       ],
     ],
   ]);
-  managerUsage = {
-    bytes: 7_168,
-    limitBytes: 16_384,
-    safeMaximumBytes: 15_360,
-    warningBytes: 13_107,
-    nearLimit: false,
-    percentOfLimit: 43.75,
-  };
   renderHome();
 } else if (preview === "editor") {
   editorOverwriteLabel =

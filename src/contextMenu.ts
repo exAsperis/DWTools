@@ -12,15 +12,13 @@ import {
   selectedDiceExtension,
   symbolicChoiceExpression,
 } from "./diceExtension";
-import { adjustedHp } from "./hp";
 import { buildContextSummary } from "./contextMenuView";
 import { createObrCreatureService } from "./obrCharacterServices";
-import { createObrCharacterRepository } from "./obrCharacterServices";
+import { createObrCharacterPersistenceAuthority } from "./obrCharacterServices";
 import { ensureMetadataNamespaceMigrated } from "./obrMetadataMigration";
-import type {
-  CharacterRecord,
-  CharacterRepository,
-} from "./characterRepository";
+import type { CharacterRecord } from "./characterRepository";
+import type { CharacterRepositoryContract } from "./characterRepositoryContract";
+import type { CharacterPersistenceAuthority } from "./characterPersistenceBootstrap";
 import { getCharacterLink } from "./creatureFields";
 
 const app = document.querySelector<HTMLElement>("#context-menu")!;
@@ -30,7 +28,8 @@ const preview = params.get("preview");
 let token: Item | undefined;
 let updatingHp = false;
 let creatureService: CreatureService | undefined;
-let characterRepository: CharacterRepository | undefined;
+let characterRepository: CharacterRepositoryContract | undefined;
+let characterAuthority: CharacterPersistenceAuthority | undefined;
 let characterRecord: CharacterRecord | undefined;
 
 function getData(item: Item): CreatureData {
@@ -98,12 +97,7 @@ async function adjustHp(amount: number) {
   for (const button of app.querySelectorAll<HTMLButtonElement>("[data-hp]"))
     button.disabled = true;
   try {
-    const latest = (await OBR.scene.items.getItems([token.id]))[0];
-    if (!latest) return;
-    const data = getData(latest);
-    const current = data.hpCurrent ?? 0;
-    const next = adjustedHp(current, amount);
-    await creatureService.updateCreatureFields(latest.id, { hpCurrent: next });
+    await creatureService.adjustCreatureHp(token.id, amount);
   } catch (error) {
     console.error("DWTools could not update creature HP", error);
     void OBR.notification.show(
@@ -120,13 +114,8 @@ async function adjustHp(amount: number) {
 
 async function adjustXp(amount: number) {
   if (!token || !creatureService) return;
-  const latest = (await OBR.scene.items.getItems([token.id]))[0];
-  if (!latest) return;
-  const data = getData(latest);
   try {
-    await creatureService.updateCreatureFields(latest.id, {
-      xp: Math.max(0, (data.xp ?? 0) + amount),
-    });
+    await creatureService.adjustCreatureXp(token.id, amount);
   } catch (error) {
     console.error("DWTools could not update XP", error);
     void OBR.notification.show(
@@ -255,7 +244,7 @@ if (preview === "context") {
     },
   } as unknown as Item;
   characterRecord = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: "preview-character",
     fields: { name: "Frogman", maxLoad: 11 },
     inventory: [
@@ -263,6 +252,7 @@ if (preview === "context") {
       ["Bag of Books", 0.4, 3],
     ],
     revision: 1,
+    parents: [],
     createdAt: "2026-07-27T12:00:00.000Z",
     createdBy: "preview",
     updatedAt: "2026-07-27T12:00:00.000Z",
@@ -297,7 +287,19 @@ if (preview === "context") {
       );
       return;
     }
-    characterRepository = createObrCharacterRepository();
+    try {
+      characterAuthority = await createObrCharacterPersistenceAuthority();
+    } catch (error) {
+      console.error("DWTools Character persistence bootstrap failed", error);
+      app.innerHTML =
+        '<p class="error">DWTools could not safely open Character storage. Reload Owlbear and try again.</p>';
+      await OBR.notification.show(
+        "DWTools could not safely open Character storage.",
+        "ERROR",
+      );
+      return;
+    }
+    characterRepository = characterAuthority.repository;
     creatureService = createObrCreatureService(characterRepository);
     applyTheme(await OBR.theme.getTheme());
     OBR.theme.onChange(applyTheme);
@@ -319,6 +321,9 @@ if (preview === "context") {
       ) {
         void loadSelectedToken();
       }
+    });
+    window.addEventListener("unload", () => characterAuthority?.close(), {
+      once: true,
     });
   });
 }
